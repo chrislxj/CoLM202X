@@ -1,11 +1,11 @@
 &nl_colm
    
-   DEF_CASE_NAME = 'Columbia_grid_cruncep_igbp'         
+   DEF_CASE_NAME = 'global_grid_cruncep_usgs'         
    
-   DEF_domain%edges = 41.0      
-   DEF_domain%edgen = 53.0      
-   DEF_domain%edgew = -124.0   
-   DEF_domain%edgee = -109.0      
+   DEF_domain%edges = -90.0      
+   DEF_domain%edgen = 90.0      
+   DEF_domain%edgew = -180.0   
+   DEF_domain%edgee = 180.0      
    
    DEF_nx_blocks = 30
    DEF_ny_blocks = 30
@@ -17,8 +17,8 @@
    DEF_simulation_time%start_day    = 1
    DEF_simulation_time%start_sec    = 0
    DEF_simulation_time%end_year     = 2003
-   DEF_simulation_time%end_month    = 1
-   DEF_simulation_time%end_day      = 1
+   DEF_simulation_time%end_month    = 12
+   DEF_simulation_time%end_day      = 31
    DEF_simulation_time%end_sec      = 86400
    DEF_simulation_time%spinup_year  = 2000
    DEF_simulation_time%spinup_month = 1
@@ -26,28 +26,22 @@
    DEF_simulation_time%spinup_sec   = 0
    DEF_simulation_time%timestep     = 1800.
    
-   DEF_dir_rawdata  = '/tera02/zhangsp/data/CLMrawdata_igbp/'
-   DEF_dir_output   = '/tera02/zhangsp/cases'
+   DEF_dir_rawdata  = '/tera02/wein/data_mpi/CLMrawdata_usgs/'
+   DEF_dir_output   = '/tera02/wein/cases_mpi'
    
    ! ----- land units and land sets -----
    ! for GRIDBASED
-   DEF_file_landgrid = '/tera02/zhangsp/data/landdata/landmask_igbp_4km.nc'
+   DEF_file_landgrid = '/tera02/wein/data_mpi/landdata/landmask_usgs_0.5deg.nc'
 
    ! for CATCHMENT
    ! DEF_dir_hydrodata = '/tera02/zhangsp/hillslope/output/columbia'
    ! DEF_max_hband = 25
 
-   ! ----- model settings -----
-   DEF_NVEGWCS                     = 4
-   DEF_PLANT_HYDRAULIC_STRESS      = .TRUE. 
-   DEF_THERMAL_CONDUCTIVITY_SCHEME = 4
-   DEF_SOILPAR_UPS_FIT             = .TRUE.
-   
    ! ----- history -----
-   DEF_nlon_hist = 7200
-   DEF_nlat_hist = 3600     
-   DEF_WRST_FREQ = 'DAILY' ! write restart file frequency: HOURLY/DAILY/MONTHLY/YEARLY
-   DEF_HIST_FREQ = 'DAILY' ! write history file frequency: HOURLY/DAILY/MONTHLY/YEARLY
+   DEF_nlon_hist = 720
+   DEF_nlat_hist = 360     
+   DEF_WRST_FREQ = 'MONTHLY' ! write restart file frequency: HOURLY/DAILY/MONTHLY/YEARLY
+   DEF_HIST_FREQ = 'MONTHLY' ! write history file frequency: HOURLY/DAILY/MONTHLY/YEARLY
    DEF_HIST_groupby = 'MONTH' ! history in one file: DAY/MONTH/YEAR
    
    DEF_REST_COMPRESS_LEVEL = 1
@@ -157,7 +151,10 @@
    DEF_hist_vars%wice_soisno  = .true. 
 
    DEF_hist_vars%h2osoi       = .true. 
-   DEF_hist_vars%rstfac       = .true. 
+   DEF_hist_vars%rstfacsun    = .true. 
+   DEF_hist_vars%rstfacsha    = .true.
+   DEF_hist_vars%rootr        = .true.
+   DEF_hist_vars%vegwp        = .true.
    DEF_hist_vars%zwt          = .true. 
    DEF_hist_vars%wa           = .true. 
 

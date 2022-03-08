@@ -141,6 +141,15 @@ SUBROUTINE initialize (casename, dir_landdata, dir_restart, &
    CALL dbedrock_readin (dir_landdata)
 #endif
 
+#ifdef VARIABLY_SATURATED_FLOW
+   IF (p_is_worker) THEN
+      IF (numpatch > 0) THEN
+         DO ipatch = 1, numpatch
+            dpond(ipatch) = 0._r8
+         ENDDO
+      ENDIF
+   ENDIF
+#endif
    ! ------------------------------------------
    ! Lake depth and layers' thickness
    ! ------------------------------------------
@@ -155,10 +164,13 @@ SUBROUTINE initialize (casename, dir_landdata, dir_restart, &
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
    IF (p_is_worker) THEN
       IF (numpatch > 0) THEN
+
+         psi0(:,:) = -1.0
+
          DO ipatch = 1, numpatch
             DO i = 1, nl_soil
                CALL get_derived_parameters_vGM ( &
-                  porsl(i,ipatch), alpha_vgm(i,ipatch), n_vgm(i,ipatch), &
+                  psi0(i,ipatch), alpha_vgm(i,ipatch), n_vgm(i,ipatch), &
                   sc_vgm(i,ipatch), fc_vgm(i,ipatch))
             ENDDO 
          ENDDO 
@@ -343,12 +355,15 @@ CALL check_vector_data ('porsl', porsl)
       do i = 1, numpatch
          m = patchclass(i)
          CALL iniTimeVar(i, patchtype(i)&
-            ,porsl(1:,i)&
+            ,porsl(1:,i),psi0(1:,i),hksati(1:,i)&
             ,soil_s_v_alb(i),soil_d_v_alb(i),soil_s_n_alb(i),soil_d_n_alb(i)&
             ,z0m(i),zlnd,chil(m),rho(1:,1:,m),tau(1:,1:,m)&
             ,z_soisno(maxsnl+1:,i),dz_soisno(maxsnl+1:,i)&
             ,t_soisno(maxsnl+1:,i),wliq_soisno(maxsnl+1:,i),wice_soisno(maxsnl+1:,i)&
-            ,zwt(i),wa(i)&
+            ,smp(1:,i),hk(1:,i),zwt(i),wa(i)&
+#ifdef PLANT_HYDRAULIC_STRESS
+            ,vegwp(1:,i),gs0sun(i),gs0sha(i)&
+#endif
             ,t_grnd(i),tleaf(i),ldew(i),sag(i),scv(i)&
             ,snowdp(i),fveg(i),fsno(i),sigf(i),green(i),lai(i),sai(i),coszen(i)&
             ,alb(1:,1:,i),ssun(1:,1:,i),ssha(1:,1:,i)&
@@ -377,6 +392,7 @@ CALL check_vector_data ('porsl', porsl)
 
       t_lake      (:,:) = 285.
       lake_icefrac(:,:) = 0.
+      savedtke1   (:)   = tkwat
 
    end if
    ! ------------------------------------------

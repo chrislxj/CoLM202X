@@ -96,4 +96,4 @@ $(OBJS_HYDRO) : %.o : %.F90 ${HEADER} ${OBJS_SHARED}
 	${FF} -c ${FOPTS} $(INCLUDE_DIR) -o $@ $< ${MOD_CMD}../hydro
 
 clean :
-	${RM} -f *.o *.mod
+	${RM} -f *.o *.mod ${EXECUTABLE}

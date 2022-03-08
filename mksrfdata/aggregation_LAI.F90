@@ -65,7 +65,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
    REAL(r8), allocatable :: SAI_patches(:), sai_one(:)
 
    ! for PFT
-   TYPE (block_data_real8_3d) :: pftLAI, pftSAI, pftPCT
+   TYPE (block_data_real8_3d) :: pftLSAI, pftPCT
    REAL(r8), allocatable :: pct_one (:), pct_pft_one(:,:)
    REAL(r8), allocatable :: LAI_pfts(:), lai_pft_one(:,:)
    REAL(r8), allocatable :: SAI_pfts(:), sai_pft_one(:,:)
@@ -275,8 +275,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
 
 #ifdef PFT_CLASSIFICATION
    IF (p_is_io) THEN
-      CALL allocate_block_data (gland, pftLAI, N_PFT, lb1 = 0)
-      CALL allocate_block_data (gland, pftSAI, N_PFT, lb1 = 0)
+      CALL allocate_block_data (gland, pftLSAI, N_PFT, lb1 = 0)
       CALL allocate_block_data (gland, pftPCT, N_PFT, lb1 = 0)
    ENDIF
      
@@ -293,9 +292,9 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       
    DO month = 1, 12
       IF (p_is_io) THEN
-         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_LAI', gland, month, pftLAI)
+         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_LAI', gland, month, pftLSAI)
 #ifdef USEMPI
-         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftLAI)
+         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftLSAI)
 #endif
       ENDIF
 
@@ -307,7 +306,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
          DO ipatch = 1, numpatch
 
             CALL aggregation_pft_request_data (ipatch, gland, pftPCT, pct_pft_one, &
-               area = area_one, data3 = pftLAI, dout3 = lai_pft_one)
+               area = area_one, data3 = pftLSAI, dout3 = lai_pft_one)
                
             IF (allocated(lai_one)) deallocate(lai_one)
             allocate(lai_one(size(area_one)))
@@ -376,9 +375,9 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
    
    DO month = 1, 12
       IF (p_is_io) THEN
-         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_SAI', gland, month, pftSAI)
+         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_SAI', gland, month, pftLSAI)
 #ifdef USEMPI
-         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftSAI)
+         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftLSAI)
 #endif
       ENDIF
 
@@ -390,7 +389,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
          DO ipatch = 1, numpatch
 
             CALL aggregation_pft_request_data (ipatch, gland, pftPCT, pct_pft_one, &
-               area = area_one, data3 = pftSAI, dout3 = sai_pft_one)
+               area = area_one, data3 = pftLSAI, dout3 = sai_pft_one)
                
             IF (allocated(sai_one)) deallocate(sai_one)
             allocate(sai_one(size(area_one)))
@@ -456,8 +455,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
 
 #ifdef PC_CLASSIFICATION
    IF (p_is_io) THEN
-      CALL allocate_block_data (gland, pftLAI, N_PFT, lb1 = 0)
-      CALL allocate_block_data (gland, pftSAI, N_PFT, lb1 = 0)
+      CALL allocate_block_data (gland, pftLSAI, N_PFT, lb1 = 0)
       CALL allocate_block_data (gland, pftPCT, N_PFT, lb1 = 0)
    ENDIF
      
@@ -474,9 +472,9 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       
    DO month = 1, 12
       IF (p_is_io) THEN
-         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_LAI', gland, month, pftLAI)
+         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_LAI', gland, month, pftLSAI)
 #ifdef USEMPI
-         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftLAI)
+         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftLSAI)
 #endif
       ENDIF
 
@@ -488,7 +486,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
          DO ipatch = 1, numpatch
 
             CALL aggregation_pft_request_data (ipatch, gland, pftPCT, pct_pft_one, &
-               area = area_one, data3 = pftLAI, dout3 = lai_pft_one)
+               area = area_one, data3 = pftLSAI, dout3 = lai_pft_one)
                
             IF (allocated(lai_one)) deallocate(lai_one)
             allocate(lai_one(size(area_one)))
@@ -558,9 +556,9 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       
    DO month = 1, 12
       IF (p_is_io) THEN
-         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_SAI', gland, month, pftSAI)
+         CALL modis_read_data_pft_time (dir_modis, 'MONTHLY_SAI', gland, month, pftLSAI)
 #ifdef USEMPI
-         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftSAI)
+         CALL aggregation_pft_data_daemon (gland, pftPCT, data3 = pftLSAI)
 #endif
       ENDIF
 
@@ -572,7 +570,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
          DO ipatch = 1, numpatch
 
             CALL aggregation_pft_request_data (ipatch, gland, pftPCT, pct_pft_one, &
-               area = area_one, data3 = pftSAI, dout3 = sai_pft_one)
+               area = area_one, data3 = pftLSAI, dout3 = sai_pft_one)
                
             IF (allocated(sai_one)) deallocate(sai_one)
             allocate(sai_one(size(area_one)))

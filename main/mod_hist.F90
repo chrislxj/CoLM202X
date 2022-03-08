@@ -449,9 +449,24 @@ contains
          call flux_map_and_write_3d ( DEF_hist_vars%h2osoi, &
             a_h2osoi, f_h2osoi, file_hist, 'f_h2osoi', 'soil', itime_in_file, sumwt, filter)
 
-         ! factor of soil water stress 
-         call flux_map_and_write_2d ( DEF_hist_vars%rstfac, &
-            a_rstfac, f_rstfac, file_hist, 'f_rstfac', itime_in_file, sumwt, filter)
+         ! factor of soil water stress to transpiration on sunlit leaf
+         call flux_map_and_write_2d ( DEF_hist_vars%rstfacsun, &
+            a_rstfacsun, f_rstfacsun, file_hist, 'f_rstfacsun', itime_in_file, sumwt, filter)
+
+         ! factor of soil water stress to transpiration on shaded leaf
+         call flux_map_and_write_2d ( DEF_hist_vars%rstfacsha, &
+            a_rstfacsha, f_rstfacsha, file_hist, 'f_rstfacsha', itime_in_file, sumwt, filter)
+
+         ! fraction of root water uptake from each soil layer, all layers add to 1, when PHS is not defined
+         ! water exchange between soil layers and root. Positive: soil->root [mm h2o/s], when PHS is defined
+         call flux_map_and_write_3d ( DEF_hist_vars%rootr, &
+            a_rootr, f_rootr, file_hist, 'f_rootr', 'soil', itime_in_file, sumwt, filter)
+
+#ifdef PLANT_HYDRAULIC_STRESS
+         ! vegetation water potential [mm]
+         call flux_map_and_write_3d ( DEF_hist_vars%vegwp, &
+            a_vegwp, f_vegwp, file_hist, 'f_vegwp', 'vegnodes', itime_in_file, sumwt, filter)
+#endif
 
          ! water depth [m]
          call flux_map_and_write_2d ( DEF_hist_vars%zwt, &

@@ -289,7 +289,7 @@ CONTAINS
          ENDDO
 #endif
 
-         write(*,'(I10,A16,I5)') numcell, ' cells on worker', p_iam_glb
+         write(*,'(I10,A16,I5)') numpatch, ' cells on worker', p_iam_glb
 
       ENDIF
 

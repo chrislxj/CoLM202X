@@ -2,7 +2,7 @@
 
 include ../include/Makeoptions
 
-VPATH = ../share : ../mksrfdata : ../main
+VPATH = ../share : ../mksrfdata : ../main : ../hydro
 
 HEADER = ../include/define.h
 
@@ -43,6 +43,10 @@ OBJS_MKSRFDATA = \
 				  ../mksrfdata/mod_landpft.o \
 				  ../mksrfdata/mod_landpc.o
 
+OBJS_HYDRO = \
+				  ../hydro/mod_soil_function.o \
+				  ../hydro/mod_soil_water.o
+
 OBJS =  \
 		  PFT_Const.o \
 		  MOD_PFTimeVars.o \
@@ -64,10 +68,11 @@ OBJS =  \
 		  ThreeDCanopy.o              \
 		  ALBEDO.o                    \
 		  ASSIM_STOMATA_conductance.o \
+		  PlantHydraulic.o            \
 		  FRICTION_VELOCITY.o         \
 		  LEAF_temperature.o          \
 		  LEAF_temperature_PC.o       \
-		  SOIL_thermal_parameters.o   \
+		  soil_hcap_cond.o            \
 		  SOIL_SNOW_hydrology.o       \
 		  SNOW_Layers_CombineDivide.o \
 		  GLACIER.o                   \
@@ -100,8 +105,8 @@ OBJS =  \
 
 # Compile CoLM decoupled with river routing scheme (CaMa-Flood)
 
-${EXECUTABLE} : ${HEADER} ${OBJS_SHARED} ${OBJS_MKSRFDATA} ${OBJS} 
-	${FF} ${FOPTS} ${OBJS_SHARED} ${OBJS_MKSRFDATA} ${OBJS} -o $@ ${LDFLAGS}
+${EXECUTABLE} : ${HEADER} ${OBJS_SHARED} ${OBJS_MKSRFDATA} ${OBJS_HYDRO} ${OBJS} 
+	${FF} ${FOPTS} ${OBJS_SHARED} ${OBJS_MKSRFDATA} ${OBJS_HYDRO} ${OBJS} -o $@ ${LDFLAGS}
 	@echo 'making CLM completed!'
 
 $(OBJS) : %.o : %.F90 ${HEADER} 
@@ -113,7 +118,10 @@ $(OBJS_SHARED) : %.o : %.F90 ${HEADER}
 $(OBJS_MKSRFDATA) : %.o : %.F90 ${HEADER} 
 	${FF} -c ${FOPTS} $(INCLUDE_DIR) -o $@ $< ${MOD_CMD}../mksrfdata
 
+$(OBJS_HYDRO) : %.o : %.F90 ${HEADER} ${OBJS_SHARED}
+	${FF} -c ${FOPTS} $(INCLUDE_DIR) -o $@ $< ${MOD_CMD}../hydro
+
 ####################################################################
 
 clean :
-	${RM} -f *.o *.mod
+	${RM} -f *.o *.mod ${EXECUTABLE}

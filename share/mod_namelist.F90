@@ -60,12 +60,6 @@ MODULE mod_namelist
    INTEGER :: DEF_max_hband = 25
 #endif 
 
-   ! ----- model settings -----
-   INTEGER :: DEF_NVEGWCS                     = 4
-   LOGICAL :: DEF_PLANT_HYDRAULIC_STRESS      = .TRUE. 
-   INTEGER :: DEF_THERMAL_CONDUCTIVITY_SCHEME = 4
-   LOGICAL :: DEF_SOILPAR_UPS_FIT             = .TRUE.
-
 
    ! ----- history -----
    INTEGER :: DEF_nlon_hist  = 720
@@ -191,7 +185,10 @@ MODULE mod_namelist
       LOGICAL :: wice_soisno  = .true. 
                                        
       LOGICAL :: h2osoi       = .true. 
-      LOGICAL :: rstfac       = .true. 
+      LOGICAL :: rstfacsun    = .true.
+      LOGICAL :: rstfacsha    = .true.
+      LOGICAL :: rootr        = .true.
+      LOGICAL :: vegwp        = .true.
       LOGICAL :: zwt          = .true. 
       LOGICAL :: wa           = .true. 
                                        
@@ -263,10 +260,6 @@ CONTAINS
          DEF_dir_hydrodata,               &
          DEF_max_hband,                   &
 #endif
-         DEF_NVEGWCS,                     &
-         DEF_PLANT_HYDRAULIC_STRESS,      &
-         DEF_THERMAL_CONDUCTIVITY_SCHEME, &
-         DEF_SOILPAR_UPS_FIT,             &       
          DEF_nlon_hist,                   &
          DEF_nlat_hist,                   &
          DEF_WRST_FREQ,                   &
@@ -354,11 +347,6 @@ CONTAINS
       CALL mpi_bcast (DEF_dir_hydrodata, 256, mpi_character, p_root, p_comm_glb, p_err)
       CALL mpi_bcast (DEF_max_hband,       1, mpi_integer,   p_root, p_comm_glb, p_err)
 #endif
-
-      CALL mpi_bcast (DEF_NVEGWCS,                     1, mpi_integer, p_root, p_comm_glb, p_err) 
-      CALL mpi_bcast (DEF_PLANT_HYDRAULIC_STRESS,      1, mpi_logical, p_root, p_comm_glb, p_err)
-      CALL mpi_bcast (DEF_THERMAL_CONDUCTIVITY_SCHEME, 1, mpi_integer, p_root, p_comm_glb, p_err)
-      CALL mpi_bcast (DEF_SOILPAR_UPS_FIT,             1, mpi_logical, p_root, p_comm_glb, p_err)
       
       CALL mpi_bcast (DEF_nlon_hist,  1, mpi_integer, p_root, p_comm_glb, p_err) 
       CALL mpi_bcast (DEF_nlat_hist,  1, mpi_integer, p_root, p_comm_glb, p_err)
@@ -458,7 +446,10 @@ CONTAINS
       CALL mpi_bcast (DEF_hist_vars%wice_soisno ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
       
       CALL mpi_bcast (DEF_hist_vars%h2osoi      ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
-      CALL mpi_bcast (DEF_hist_vars%rstfac      ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
+      CALL mpi_bcast (DEF_hist_vars%rstfacsun   ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
+      CALL mpi_bcast (DEF_hist_vars%rstfacsha   ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
+      CALL mpi_bcast (DEF_hist_vars%rootr       ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
+      CALL mpi_bcast (DEF_hist_vars%vegwp       ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
       CALL mpi_bcast (DEF_hist_vars%zwt         ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
       CALL mpi_bcast (DEF_hist_vars%wa          ,   1, mpi_logical,   p_root, p_comm_glb, p_err)
       

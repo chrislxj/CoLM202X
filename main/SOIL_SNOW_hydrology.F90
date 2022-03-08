@@ -39,11 +39,14 @@ MODULE SOIL_SNOW_hydrology
              sc_vgm      ,fc_vgm      ,                             &
 #endif
              porsl       ,psi0        ,hksati      ,rootr   ,       &
-             t_soisno    ,wliq_soisno ,wice_soisno ,pg_rain ,sm    ,&
+             t_soisno    ,wliq_soisno ,wice_soisno ,smp     ,hk    ,pg_rain ,sm ,&
              etr         ,qseva       ,qsdew       ,qsubl   ,qfros ,&
              rsur        ,rnof        ,qinfl       ,wtfact  ,pondmx,&
-             ssi         ,wimp        ,smpmin      ,zwt     ,wa    ,&
-             qcharge     )  
+             ssi         ,wimp        ,smpmin      ,zwt     ,       &
+#ifdef VARIABLY_SATURATED_FLOW
+             dpond       ,                                          &
+#endif
+             wa          ,qcharge     ,errw_rsub)  
 
 !=======================================================================
 ! this is the main subroutine to execute the calculation of 
@@ -89,7 +92,6 @@ MODULE SOIL_SNOW_hydrology
         z_soisno (lb:nl_soil)   , &! layer depth (m)
         dz_soisno(lb:nl_soil)   , &! layer thickness (m)
         zi_soisno(lb-1:nl_soil) , &! interface level below a "z" level (m)
-
 #ifdef Campbell_SOIL_MODEL
         bsw(1:nl_soil),    &! clapp and hornbereger "b" parameter [-]
 #endif
@@ -118,18 +120,20 @@ MODULE SOIL_SNOW_hydrology
   real(r8), INTENT(inout) :: &
         wice_soisno(lb:nl_soil) , &! ice lens (kg/m2)
         wliq_soisno(lb:nl_soil) , &! liquid water (kg/m2)
+        smp(1:nl_soil)          , &! soil matrix potential [mm]
+        hk (1:nl_soil)   , &! hydraulic conductivity [mm h2o/s]
         zwt              , &! the depth from ground (soil) surface to water table [m]
+#ifdef VARIABLY_SATURATED_FLOW
+        dpond            , &
+#endif
         wa                  ! water storage in aquifer [mm]
 
   real(r8), INTENT(out) :: &
         rsur             , &! surface runoff (mm h2o/s)
         rnof             , &! total runoff (mm h2o/s)
         qinfl            , &! infiltration rate (mm h2o/s)
-        qcharge             ! groundwater recharge (positive to aquifer) [mm/s]
-  
-#ifdef VARIABLY_SATURATED_FLOW
-
-#endif
+        qcharge          , &! groundwater recharge (positive to aquifer) [mm/s]
+        errw_rsub           ! the possible subsurface runoff deficit after PHS is included
 
 !-----------------------Local Variables------------------------------
 !                   
@@ -147,8 +151,30 @@ MODULE SOIL_SNOW_hydrology
        dzmm(1:nl_soil)   , &! layer thickness (mm)
        zimm(0:nl_soil)      ! interface level below a "z" level (mm)
 
-  real(r8) :: err_solver, w_sum
+  real(r8) :: err_solver, w_sum, resi, resi1
 
+#ifdef VARIABLY_SATURATED_FLOW
+  INTEGER  :: nlev
+  INTEGER  :: lbctyp
+  REAL(r8) :: zwtmm
+  REAL(r8) :: sp_zc(1:nl_soil), sp_zi(0:nl_soil), sp_dz(1:nl_soil) ! in cm
+  REAL(r8) :: dzsum, dz
+  REAL(r8) :: icefracsum, fracice_rsub, imped
+
+#ifdef Campbell_SOIL_MODEL
+  real(r8) :: theta_r(1:nl_soil)
+#endif
+
+#ifdef Campbell_SOIL_MODEL
+  INTEGER, parameter :: nprms = 1
+#endif
+#ifdef vanGenuchten_Mualem_SOIL_MODEL
+  INTEGER, parameter :: nprms = 5
+#endif
+  REAL(r8) :: prms(nprms, 1:nl_soil)
+
+  REAL(r8) :: ss_q(0:nl_soil), dpond_m1
+#endif
 !=======================================================================
 ! [1] update the liquid water within snow layer and the water onto soil
 !=======================================================================
@@ -169,6 +195,10 @@ MODULE SOIL_SNOW_hydrology
 
       ! For water balance check, the sum of water in soil column before the calcultion
       w_sum = sum(wliq_soisno(1:)) + sum(wice_soisno(1:)) + wa
+#ifdef VARIABLY_SATURATED_FLOW
+      w_sum = w_sum + dpond
+#endif
+      ! resi = 0.
 
       ! porosity of soil, partitial volume of ice and liquid
       do j = 1, nl_soil
@@ -186,7 +216,7 @@ MODULE SOIL_SNOW_hydrology
 
       rsur = 0.
       if (gwat > 0.) then
-      call surfacerunoff (nl_soil,wtfact,wimp,bsw,porsl,psi0,hksati,&
+      call surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
                           z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
                           eff_porosity,icefrac,zwt,gwat,rsur)
       else
@@ -206,43 +236,91 @@ MODULE SOIL_SNOW_hydrology
       zimm(0:) = zi_soisno(0:)*1000.
 
 #ifdef VARIABLY_SATURATED_FLOW
-      ! CALL soil_water_movement ( &
-      !    nlev, dt, t_soi, sp_zc, sp_zi, &
-      !    porsl, vl_r, psi_s, hksat, sfun_typ, nprm, prms, wimp, &
-      !    ubc_typ, ubc_val, lbc_typ, lbc_val, &
-      !    ss_dp, zwt, ss_vliq, ss_vice, ss_q, ss_wf, ss_wt)
+      dpond_m1 = dpond
 
-      nlev = min(ibedrock, nl_soil)
-         
-      sp_zc(1:nlev) = z_soisno (1:nlev)
-      sp_zi(1:nlev) = zi_soisno(1:nlev)
-      IF (ibedrock <= nl_soil) THEN
+      zwtmm = zwt * 1000.0
+      
+#ifdef USE_DEPTH_TO_BEDROCK
+      nlev = min(ibedrock(ipatch), nl_soil)
+#else
+      nlev = nl_soil
+#endif
 
+      sp_zc(1:nlev) = z_soisno (1:nlev) * 1000.0   ! from meter to mm
+      sp_zi(0:nlev) = zi_soisno(0:nlev) * 1000.0   ! from meter to mm
+
+      lbctyp = bc_drainage
+#ifdef USE_DEPTH_TO_BEDROCK
+      IF (ibedrock(ipatch) <= nl_soil) THEN
+         lbctyp = bc_fix_flux
+         sp_zi(nlev) = dbedrock(ipatch) * 1000.0 ! from meter to mm
+         sp_zc(nlev) = (sp_zi(nlev) + sp_zi(nlev-1)) / 2.0
+      ENDIF 
+#endif
+
+      !-- Topographic runoff  ----------------------------------------------------------
+      IF (zwtmm < sp_zi(nlev)) THEN
+         dzsum = 0.
+         icefracsum = 0.
+         do j = nlev, 1, -1
+            sp_dz(j) = sp_zi(j) - sp_zi(j-1)
+            IF (zwtmm < sp_zi(j)) THEN
+               dz = min(sp_dz(j), sp_zi(j)-zwtmm)
+               dzsum = dzsum + dz
+               icefracsum = icefracsum + icefrac(j) * dz
+            ENDIF
+         end do
+         ! add ice impedance factor to baseflow
+         IF (dzsum > 0) THEN
+            fracice_rsub = max(0.,exp(-3.*(1.-(icefracsum/dzsum)))-exp(-3.))/(1.0-exp(-3.))
+            imped = max(0.,1.-fracice_rsub)
+         ELSE
+            imped = 1.0
+         ENDIF
+         rsubst = imped * 5.5e-3 * exp(-2.5*zwt)  ! drainage (positive = out of soil column)
+      ELSE
+         rsubst = 0.
       ENDIF 
 
 #ifdef Campbell_SOIL_MODEL
       prms(1,:) = bsw(1:nlev)
-      CALL soil_water_movement ( &
-         nlev, deltim, t_soisno(1:nlev), sp_zc, sp_zi, &
-         porsl, 0., psi0, hksati, 1, prms, wimp, &
-         ubc_typ, ubc_val, lbc_typ, lbc_val, &
-         ss_dp, zwt, ss_vliq, ss_vice, ss_q)
+      theta_r(1:nlev) = 0._r8
 #endif
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
-      prms(1,:) = alpha_vgm(1:nlev,ipatch)
-      prms(2,:) = n_vgm    (1:nlev,ipatch)
-      prms(3,:) = L_vgm    (1:nlev,ipatch)
-      prms(4,:) = sc_vgm   (1:nlev,ipatch)
-      prms(5,:) = fc_vgm   (1:nlev,ipatch)
+      prms(1,1:nlev) = alpha_vgm(1:nlev)
+      prms(2,1:nlev) = n_vgm    (1:nlev)
+      prms(3,1:nlev) = L_vgm    (1:nlev)
+      prms(4,1:nlev) = sc_vgm   (1:nlev)
+      prms(5,1:nlev) = fc_vgm   (1:nlev)
 #endif
+      
+      dpond = max(0., dpond)
+      
+      CALL soil_water_movement ( &
+         nlev, deltim,  t_soisno(1:nlev), sp_zc(1:nlev), sp_zi (0:nlev), &
+         porsl(1:nlev), theta_r (1:nlev), psi0 (1:nlev), hksati(1:nlev), &
+         nprms, prms(:,1:nlev), wimp, &
+         qinfl, etr, rootr(1:nlev), rsubst, lbctyp,      &
+         dpond, zwtmm, vol_liq(1:nlev), vol_ice(1:nlev), &
+         ss_q(0:nlev))
 
+      ! update the mass of liquid water
+      ! wliq_soisno(1:nlev) = vol_liq(1:nlev) * sp_dz(1:nlev)/1000.0 * denh2o
+      dpond = dpond_m1 + (qinfl - ss_q(0)) * deltim
+      wliq_soisno(1:nlev) = wliq_soisno(1:nlev) &
+         + (ss_q(0:nlev-1) - ss_q(1:nlev) - etroot(1:nlev)) * deltim
+      
+      zwt = zwtmm/1000.0
+
+      qinfl  = ss_q(0)
+      rsubst = ss_q(nlev)
+      errw_rsub = 0.
 #else
       call soilwater(nl_soil,deltim,wimp,smpmin,&
                      qinfl,etr,z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
-                     t_soisno(1:),vol_liq,vol_ice,icefrac,eff_porosity,&
+                     t_soisno(1:),vol_liq,vol_ice,smp,hk,icefrac,eff_porosity,&
                      porsl,hksati,bsw,psi0,rootr,&
                      zwt,dwat,qcharge)
-#endif
 
       ! update the mass of liquid water
       do j= 1, nl_soil
@@ -257,11 +335,14 @@ MODULE SOIL_SNOW_hydrology
                              eff_porosity,icefrac,dz_soisno(1:),zi_soisno(0:),&
                              wice_soisno(1:),wliq_soisno(1:),&
                              porsl,psi0,bsw,zwt,wa,&
-                             qcharge,rsubst)
+                             qcharge,rsubst,errw_rsub)
 
-      ! total runoff (mm/s)
-      rnof = rsubst + rsur                
+#endif
  
+      ! total runoff (mm/s)
+      ! rnof = rsubst + rsur + resi/deltim
+      rnof = rsubst + rsur
+
       ! Renew the ice and liquid mass due to condensation
       if(lb >= 1)then
          ! make consistent with how evap_grnd removed in infiltration
@@ -272,15 +353,19 @@ MODULE SOIL_SNOW_hydrology
 
       if(lb >= 1)then
          err_solver = (sum(wliq_soisno(1:))+sum(wice_soisno(1:))+wa) - w_sum &
-                    - (gwat+qsdew+qfros-qsubl-etr-rnof)*deltim
+                    - (gwat+qsdew+qfros-qsubl-etr-rnof-errw_rsub)*deltim
       else
          err_solver = (sum(wliq_soisno(1:))+sum(wice_soisno(1:))+wa) - w_sum &
-                    - (gwat-etr-rnof)*deltim
+                    - (gwat-etr-rnof-errw_rsub)*deltim
       endif
+
+#ifdef VARIABLY_SATURATED_FLOW
+      err_solver = err_solver + dpond
+#endif
 
 #if(defined CLMDEBUG)
      if(abs(err_solver) > 1.e-3)then
-        write(6,*) 'Warning: water balance violation after all soilwater calculation', err_solver
+        write(6,"('Warning: water balance violation after all soilwater calculation', E10.2,I8)") err_solver,ipatch
      endif
 #endif
 
@@ -314,6 +399,7 @@ MODULE SOIL_SNOW_hydrology
       wa = 4800.
       zwt = 0.
       qcharge = 0.
+      errw_rsub = 0.
 
   endif
 
@@ -434,7 +520,7 @@ MODULE SOIL_SNOW_hydrology
 
 
 
-  subroutine surfacerunoff (nl_soil,wtfact,wimp,bsw,porsl,psi0,hksati,&
+  subroutine surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
                             z_soisno,dz_soisno,zi_soisno,&
                             eff_porosity,icefrac,zwt,gwat,rsur)
 
@@ -457,7 +543,7 @@ MODULE SOIL_SNOW_hydrology
   real(r8), INTENT(in) :: &
         wtfact,        &! fraction of model area with high water table
         wimp,          &! water impremeable if porosity less than wimp
-       bsw(1:nl_soil), &! Clapp-Hornberger "B"
+!       bsw(1:nl_soil), &! Clapp-Hornberger "B"
      porsl(1:nl_soil), &! saturated volumetric soil water content(porosity)
       psi0(1:nl_soil), &! saturated soil suction (mm) (NEGATIVE)
     hksati(1:nl_soil), &! hydraulic conductivity at saturation (mm h2o/s)
@@ -497,7 +583,7 @@ MODULE SOIL_SNOW_hydrology
 
   subroutine soilwater(nl_soil,deltim,wimp,smpmin,&
                        qinfl,etr,z_soisno,dz_soisno,zi_soisno,&
-                       t_soisno,vol_liq,vol_ice,icefrac,eff_porosity,&
+                       t_soisno,vol_liq,vol_ice,smp,hk,icefrac,eff_porosity,&
                        porsl,hksati,bsw,psi0,rootr,&
                        zwt,dwat,qcharge)
 
@@ -598,6 +684,8 @@ MODULE SOIL_SNOW_hydrology
 
     real(r8), intent(out) :: dwat(1:nl_soil)   ! change of soil water [m3/m3]
     real(r8), INTENT(out) :: qcharge           ! aquifer recharge rate (positive to aquifer) (mm/s)
+    real(r8), intent(inout) :: smp(1:nl_soil)    ! soil matrix potential [mm]
+    real(r8), intent(inout) :: hk(1:nl_soil)     ! hydraulic conductivity [mm h2o/s]
 !
 ! local arguments
 !
@@ -621,8 +709,6 @@ MODULE SOIL_SNOW_hydrology
     real(r8) :: s_node            ! soil wetness
     real(r8) :: s1                ! "s" at interface of layer
     real(r8) :: s2                ! k*s**(2b+2)
-    real(r8) :: smp(1:nl_soil)    ! soil matrix potential [mm]
-    real(r8) :: hk(1:nl_soil)     ! hydraulic conductivity [mm h2o/s]
     real(r8) :: dhkdw1(1:nl_soil) ! d(hk)/d(vol_liq(j))
     real(r8) :: dhkdw2(1:nl_soil) ! d(hk)/d(vol_liq(j+1))
     real(r8) :: imped(1:nl_soil)  !           
@@ -658,7 +744,11 @@ MODULE SOIL_SNOW_hydrology
 
     ! Compute matric potential and derivative based on liquid water content only
     do j = 1, nl_soil
+#if(defined PLANT_HYDRAULIC_STRESS)
+       if(t_soisno(j)>=tfrz) then
+#else
        if(t_soisno(j)>tfrz) then
+#endif
           if(porsl(j)<1.e-6)then     ! bed rock
              s_node = 0.001
              smp(j) = psi0(j)
@@ -751,7 +841,11 @@ MODULE SOIL_SNOW_hydrology
     amx(j) = 0.
     bmx(j) = dzmm(j)/deltim + dqodw1(j)
     cmx(j) = dqodw2(j)
+#if(defined PLANT_HYDRAULIC_STRESS)
+    rmx(j) = qin(j) - qout(j) - rootr(j)
+#else
     rmx(j) = qin(j) - qout(j) - etr * rootr(j)
+#endif
 
     ! Nodes j=2 to j=nl_soil-1
 
@@ -767,7 +861,11 @@ MODULE SOIL_SNOW_hydrology
        amx(j) = -dqidw0(j)
        bmx(j) =  dzmm(j)/deltim - dqidw1(j) + dqodw1(j)
        cmx(j) =  dqodw2(j)
+#if(defined PLANT_HYDRAULIC_STRESS)
+       rmx(j) =  qin(j) - qout(j) - rootr(j)
+#else
        rmx(j) =  qin(j) - qout(j) - etr*rootr(j)
+#endif
     end do
 
     ! Node j=nl_soil (bottom)
@@ -790,7 +888,11 @@ MODULE SOIL_SNOW_hydrology
     amx(j) = -dqidw0(j)
     bmx(j) =  dzmm(j)/deltim - dqidw1(j) + dqodw1(j)
     cmx(j) =  dqodw2(j)
+#if(defined PLANT_HYDRAULIC_STRESS)
+    rmx(j) =  qin(j) - qout(j) - rootr(j)
+#else
     rmx(j) =  qin(j) - qout(j) - etr*rootr(j)
+#endif
 
     ! Solve for dwat
 
@@ -800,7 +902,11 @@ MODULE SOIL_SNOW_hydrology
 ! The mass balance error (mm) for this time step is
     errorw = -deltim*(qin(1)-qout(nl_soil)-dqodw1(nl_soil)*dwat(nl_soil))
     do j = 1, nl_soil
+#ifdef PLANT_HYDRAULIC_STRESS
+       errorw = errorw+dwat(j)*dzmm(j)+rootr(j)*deltim
+#else
        errorw = errorw+dwat(j)*dzmm(j)+etr*rootr(j)*deltim
+#endif
     enddo
 
     if(abs(errorw) > 1.e-3)then
@@ -819,7 +925,7 @@ MODULE SOIL_SNOW_hydrology
                               eff_porosity,icefrac,&
                               dz_soisno,zi_soisno,wice_soisno,wliq_soisno,&
                               porsl,psi0,bsw,zwt,wa,&
-                              qcharge,rsubst)
+                              qcharge,rsubst,errw_rsub)
 
 ! -------------------------------------------------------------------------
 
@@ -850,6 +956,7 @@ MODULE SOIL_SNOW_hydrology
     real(r8), INTENT(inout) :: wa        ! water in the unconfined aquifer (mm)
     real(r8), INTENT(in)    :: qcharge   ! aquifer recharge rate (positive to aquifer) (mm/s)
     real(r8), INTENT(out)   :: rsubst    ! drainage drainage (positive = out of soil column) (mm H2O /s)
+    real(r8), INTENT(out)   :: errw_rsub ! the possible subsurface runoff deficit after PHS is included
 
 !
 ! LOCAL ARGUMENTS
@@ -1060,6 +1167,7 @@ MODULE SOIL_SNOW_hydrology
     enddo
 
     ! Sub-surface runoff and drainage
+    errw_rsub = min(0., rsubst + xs/deltim)
     rsubst = max(0., rsubst + xs/deltim)
 
 

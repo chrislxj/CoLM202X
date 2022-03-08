@@ -33,7 +33,6 @@ CONTAINS
       INTEGER, allocatable :: unitnum(:)
       INTEGER, allocatable :: npxlall(:)
       INTEGER, allocatable :: unitpixels(:,:,:)
-      INTEGER, allocatable :: rbuf(:,:)
 
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
@@ -96,13 +95,9 @@ CONTAINS
                      npxlall, nunit_worker, ndsp_worker, MPI_INTEGER, &
                      p_root, p_comm_group, p_err)
 
-                 ! CALL mpi_gatherv (unitpixels, nunit*2*ulen, MPI_INTEGER, &
-                 !    unitpixels, nunit_worker, ndsp_worker, MPI_INTEGER, &
-                 !    p_root, p_comm_group, p_err)
-                  DO iu = 1, nunit
-                     CALL mpi_send (unitpixels(:,:,iu), 2*ulen, MPI_INTEGER, &
-                        p_root, mpi_tag_data, p_comm_group, p_err) 
-                  ENDDO
+                  CALL mpi_gatherv (unitpixels, nunit*2*ulen, MPI_INTEGER, &
+                     unitpixels, nunit_worker, ndsp_worker, MPI_INTEGER, &
+                     p_root, p_comm_group, p_err)
                ENDIF
             ENDIF
 #endif
@@ -138,15 +133,9 @@ CONTAINS
                      p_root, p_comm_group, p_err)
          
                   allocate (unitpixels (2, ulen, nunit))
-                  ! CALL mpi_gatherv (MPI_IN_PLACE, 0, MPI_INTEGER, &
-                  !    unitpixels, nunit_worker*2*ulen, ndsp_worker*2*ulen, MPI_INTEGER, &
-                  !    p_root, p_comm_group, p_err)
-                  DO iworker = 1, p_np_group-1 
-                     DO iu = ndsp_worker(iworker)+1, ndsp_worker(iworker)+nunit_worker(iworker)
-                        CALL mpi_recv (unitpixels(:,:,iu), 2*ulen, MPI_INTEGER, &
-                           iworker, mpi_tag_data, p_comm_group, p_stat, p_err)
-                     ENDDO
-                  ENDDO
+                  CALL mpi_gatherv (MPI_IN_PLACE, 0, MPI_INTEGER, &
+                     unitpixels, nunit_worker*2*ulen, ndsp_worker*2*ulen, MPI_INTEGER, &
+                     p_root, p_comm_group, p_err)
                ENDIF
             ENDIF
 #endif

@@ -1,11 +1,11 @@
 &nl_colm
    
-   DEF_CASE_NAME = 'Columbia_grid_cruncep_igbp'         
+   DEF_CASE_NAME = 'tibet_grid_cruncep_igbp'         
    
-   DEF_domain%edges = 41.0      
-   DEF_domain%edgen = 53.0      
-   DEF_domain%edgew = -124.0   
-   DEF_domain%edgee = -109.0      
+   DEF_domain%edges = 20.0      
+   DEF_domain%edgen = 45.0      
+   DEF_domain%edgew = 63.0   
+   DEF_domain%edgee = 105.0      
    
    DEF_nx_blocks = 30
    DEF_ny_blocks = 30
