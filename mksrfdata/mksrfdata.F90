@@ -116,26 +116,42 @@ PROGRAM mksrfdata
 #ifdef GRIDBASED
    CALL gunit%define_from_file (DEF_file_landgrid)
 #endif
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
 #ifdef CATCHMENT
    CALL gunit%define_by_name ('merit_90m')
 #endif
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    ! define grid coordinates of height bands in catchment
 #ifdef CATCHMENT
    CALL ghband%define_by_name ('merit_90m')
 #endif
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    ! define grid coordinates of land types
 #ifdef USGS_CLASSIFICATION
    CALL gpatch%define_by_name ('colm_1km')
+#endif
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
 #endif
 #ifdef IGBP_CLASSIFICATION
    CALL gpatch%define_by_name ('colm_500m')
 #endif
 #ifdef PFT_CLASSIFICATION
    CALL gpatch%define_by_name ('colm_500m')
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
 #if (defined CROP) 
    CALL gcrop%define_by_ndims (720,360)
+#endif
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
 #endif
 #endif
 #ifdef PC_CLASSIFICATION
@@ -161,20 +177,30 @@ PROGRAM mksrfdata
 #if (defined CROP) 
    CALL pixel%map_to_grid (gcrop )
 #endif
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    ! build land units 
    CALL landunit_build (gunit)
-   
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif   
    ! build land cells
    CALL landcell_build 
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    ! build land patches
    CALL landpatch_build
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
 #ifdef PFT_CLASSIFICATION
    CALL landpft_build
 #endif
-   
+#ifdef USEMPI
+call mpi_barrier (p_comm_glb, p_err)
+#endif  
 #ifdef PC_CLASSIFICATION
    CALL landpc_build
 #endif
@@ -182,21 +208,35 @@ PROGRAM mksrfdata
    ! ................................................................
    ! 2. SAVE land surface tessellation information 
    ! ................................................................
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL gblock%save_to_file    (dir_landdata)
-   
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif   
    CALL pixel%save_to_file     (dir_landdata)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL landunit_save_to_file  (dir_landdata)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL pixelset_save_to_file  (dir_landdata, 'landcell',  landcell)
-   
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif   
    CALL pixelset_save_to_file  (dir_landdata, 'landpatch', landpatch)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
 #ifdef PFT_CLASSIFICATION
    CALL pixelset_save_to_file  (dir_landdata, 'landpft'  , landpft  )
 #endif
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
 #ifdef PC_CLASSIFICATION
    CALL pixelset_save_to_file  (dir_landdata, 'landpc'   , landpc   )
 #endif
@@ -204,23 +244,39 @@ PROGRAM mksrfdata
    ! ................................................................
    ! 3. Mapping land characteristic parameters to the model grids
    ! ................................................................
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL aggregation_soil_parameters (gpatch, dir_rawdata, dir_landdata)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL aggregation_soil_brightness (gpatch, dir_rawdata, dir_landdata)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL aggregation_lakedepth       (gpatch, dir_rawdata, dir_landdata)
-   
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif  
 #ifdef USE_DEPTH_TO_BEDROCK
    CALL aggregation_dbedrock        (gpatch, dir_rawdata, dir_landdata)
 #endif
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL aggregation_percentages     (gpatch, dir_rawdata, dir_landdata)
-   
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif   
    CALL aggregation_LAI             (gpatch, dir_rawdata, dir_landdata)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    CALL aggregation_forest_height   (gpatch, dir_rawdata, dir_landdata)
-
+#ifdef USEMPI
+   call mpi_barrier (p_comm_glb, p_err)
+#endif
    ! ................................................................
    ! 4. Free memories. 
    ! ................................................................

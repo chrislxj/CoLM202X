@@ -48,7 +48,7 @@ SUBROUTINE lakedepth_readin (dir_landdata)
 
    ! Read lakedepth
   
-   lndname = trim(dir_landdata)//'/lakedepth_patches.nc'
+   lndname = trim(dir_landdata)//'/lakedepth/lakedepth_patches.nc'
    call ncio_read_vector (lndname, 'lakedepth_patches', landpatch, lakedepth) 
 
    ! Define lake levels

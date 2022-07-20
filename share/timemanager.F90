@@ -53,6 +53,8 @@ MODULE timemanager
    END INTERFACE
    
    LOGICAL, SAVE :: isgreenwich
+   real(r8) , SAVE :: nacx=0.0
+
    public get_calday
  
 CONTAINS

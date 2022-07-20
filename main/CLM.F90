@@ -182,11 +182,12 @@ PROGRAM CLM
    call hist_init (dir_hist, DEF_nlon_hist, DEF_nlat_hist)
    call allocate_2D_Fluxes (ghist)
    call allocate_1D_Fluxes ()
-
+   print *, "start"
 #if(defined CaMa_Flood)
-    call colm_CaMa_init (720, 360)
+    call colm_CaMa_init 
 #endif
-
+print *, "    call colm_CaMa_init  "
+ 
    ! ======================================================================
    ! begin time stepping loop
    ! ======================================================================
@@ -254,10 +255,12 @@ PROGRAM CLM
 #endif
 
 !!!! need to acc runoff here!!!
+print *, "    call colm_CaMa_drv  "
+
 #if(defined CaMa_Flood)
 call colm_CaMa_drv
 #endif
-
+print *, "    done colm_CaMa_drv  "
    
       ! Write out the model variables for restart run and the histroy file
       ! ----------------------------------------------------------------------
@@ -296,13 +299,15 @@ call colm_CaMa_drv
 
    call hist_final ()
 
+
 #ifdef USEMPI
    call mpi_barrier (p_comm_glb, p_err)
 #endif
-
+print *, "    call colm_cama_exit  "
 #if(defined CaMa_Flood) 
    call colm_cama_exit
 #endif
+print *, "    done colm_cama_exit  "
 
    if (p_is_master) then
       write(*,'(/,A25)') 'CLM Execution Completed.'

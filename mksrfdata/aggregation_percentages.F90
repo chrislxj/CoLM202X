@@ -36,7 +36,7 @@ SUBROUTINE aggregation_percentages (gland, dir_rawdata, dir_model_landdata)
 
    ! local variables:
    ! ----------------------------------------------------------------------
-   CHARACTER(len=256) :: lndname
+   CHARACTER(len=256) :: landdir, lndname
 
    ! for IGBP data
    CHARACTER(len=256) :: dir_modis
@@ -54,13 +54,18 @@ SUBROUTINE aggregation_percentages (gland, dir_rawdata, dir_model_landdata)
    INTEGER  :: ipatch, ipc, ipft, p
    REAL(r8) :: sumarea
       
+   landdir = trim(dir_model_landdata) // '/pctpft/'
+
 #ifdef USEMPI
    CALL mpi_barrier (p_comm_glb, p_err)
 #endif
-
    IF (p_is_master) THEN
       write(*,'(/, A43)') 'Aggregate plant FUNCTION TYPE fractions ...'
+      CALL system('mkdir -p ' // trim(adjustl(landdir)))
    ENDIF
+#ifdef USEMPI
+   CALL mpi_barrier (p_comm_glb, p_err)
+#endif
 
 
 #ifdef PFT_CLASSIFICATION
@@ -111,7 +116,7 @@ SUBROUTINE aggregation_percentages (gland, dir_rawdata, dir_model_landdata)
    CALL check_vector_data ('PCT_PFTs ', pct_pfts)
 #endif
 
-   lndname = trim(dir_model_landdata)//'/pct_pfts.nc'
+   lndname = trim(landdir)//'/pct_pfts.nc'
    CALL ncio_create_file_vector (lndname, landpatch)
    CALL ncio_define_pixelset_dimension (lndname, landpft)
    CALL ncio_write_vector (lndname, 'pct_pfts', 'vector', landpft, pct_pfts, 1)
@@ -124,7 +129,7 @@ SUBROUTINE aggregation_percentages (gland, dir_rawdata, dir_model_landdata)
    ENDIF
 
 #if (defined CROP) 
-   lndname = trim(dir_model_landdata)//'/pct_crops.nc'
+   lndname = trim(landdir)//'/pct_crops.nc'
    CALL ncio_create_file_vector (lndname, landpatch)
    CALL ncio_define_pixelset_dimension (lndname, landpatch)
    CALL ncio_write_vector (lndname, 'pct_crops', 'vector', landpatch, pctcrop, 1)
@@ -177,7 +182,7 @@ SUBROUTINE aggregation_percentages (gland, dir_rawdata, dir_model_landdata)
    CALL check_vector_data ('PCT_PCs ', pct_pcs)
 #endif
 
-   lndname = trim(dir_model_landdata)//'/pct_pcs.nc'
+   lndname = trim(landdir)//'/pct_pcs.nc'
    CALL ncio_create_file_vector (lndname, landpatch)
    CALL ncio_define_pixelset_dimension (lndname, landpc)
    CALL ncio_define_dimension_vector (lndname, 'pft', N_PFT)

@@ -38,12 +38,15 @@ CONTAINS
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif 
-
       IF (p_is_master) THEN
          write(*,*) 'Saving land units ...'
+         CALL system('mkdir -p ' // trim(dir_landdata) // '/landunit')
       ENDIF
+#ifdef USEMPI
+      CALL mpi_barrier (p_comm_glb, p_err)
+#endif 
 
-      filename = trim(dir_landdata) // '/landunit.nc'
+      filename = trim(dir_landdata) // '/landunit/landunit.nc'
 
       DO jblk = 1, gblock%nyblk
          DO iblk = 1, gblock%nxblk
@@ -222,7 +225,7 @@ CONTAINS
          write(*,*) 'Loading land units ...'
       ENDIF
          
-      filename = trim(dir_landdata) // '/landunit.nc'
+      filename = trim(dir_landdata) // '/landunit/landunit.nc'
       CALL ncio_read_bcast_serial (filename, 'nunits_blk', nunits_blk)
 
       IF (p_is_io) THEN
@@ -307,12 +310,15 @@ CONTAINS
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
-
       IF (p_is_master) THEN
          write(*,*) 'Saving Pixel Sets ' // trim(psetname) // ' ...'
+         CALL system('mkdir -p ' // trim(dir_landdata) // '/' // trim(psetname))
       ENDIF
+#ifdef USEMPI
+      CALL mpi_barrier (p_comm_glb, p_err)
+#endif
 
-      filename = trim(dir_landdata) // '/' // trim(psetname) // '.nc'
+      filename = trim(dir_landdata) // '/' // trim(psetname) // '/' // trim(psetname) // '.nc'
 
       CALL ncio_create_file_vector (filename, pixelset)
       CALL ncio_define_pixelset_dimension (filename, pixelset)
@@ -363,7 +369,7 @@ CONTAINS
          write(*,*) 'Loading Pixel Sets ' // trim(psetname) // ' ...'
       ENDIF
       
-      filename = trim(dir_landdata) // '/' // trim(psetname) // '.nc'
+      filename = trim(dir_landdata) // '/' // trim(psetname) // '/' // trim(psetname) // '.nc'
 
       IF (p_is_io) THEN
 

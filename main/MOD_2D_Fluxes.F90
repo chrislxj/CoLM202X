@@ -65,6 +65,10 @@ MODULE MOD_2D_Fluxes
    type(block_data_real8_2d) :: f_t_grnd   ! ground surface temperature [K]
    type(block_data_real8_2d) :: f_tleaf    ! sunlit leaf temperature [K]
    type(block_data_real8_2d) :: f_ldew     ! depth of water on foliage [mm]
+!#ifdef CLM5_INTERCEPTION
+   type(block_data_real8_2d) :: f_ldew_rain     ! depth of rain on foliage [mm]
+   type(block_data_real8_2d) :: f_ldew_snow     ! depth of snow on foliage [mm]
+!#endif
    type(block_data_real8_2d) :: f_scv      ! snow cover, water equivalent [mm]
    type(block_data_real8_2d) :: f_snowdp   ! snow depth [meter]
    type(block_data_real8_2d) :: f_fsno     ! fraction of snow cover on ground
@@ -195,6 +199,8 @@ CONTAINS
          call allocate_block_data (grid, f_t_grnd  )  ! ground surface temperature [K]
          call allocate_block_data (grid, f_tleaf   )  ! sunlit leaf temperature [K]
          call allocate_block_data (grid, f_ldew    )  ! depth of water on foliage [mm]
+         call allocate_block_data (grid, f_ldew_rain    )  ! depth of rain on foliage [mm]
+         call allocate_block_data (grid, f_ldew_snow    )  ! depth of snow on foliage [mm]
          call allocate_block_data (grid, f_scv     )  ! snow cover, water equivalent [mm]
          call allocate_block_data (grid, f_snowdp  )  ! snow depth [meter]
          call allocate_block_data (grid, f_fsno    )  ! fraction of snow cover on ground

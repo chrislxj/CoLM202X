@@ -31,16 +31,17 @@ SUBROUTINE HTOP_readin (dir_landdata)
 
       ! Local Variables
       character(LEN=256) :: c
-      character(LEN=256) :: lndname
+      character(LEN=256) :: landdir, lndname
       integer :: i,j,t,p,ps,pe,m,n,npatch
 
       REAL(r8), allocatable :: htoplc  (:)
       REAL(r8), allocatable :: htoppft (:)
       REAL(r8), allocatable :: htoppc(:,:)
 
+      landdir = trim(dir_landdata) // '/htop'
 
 #ifdef USGS_CLASSIFICATION
-      ! lndname = trim(dir_landdata)//'/tree_height_patches.nc'
+      ! lndname = trim(landdir)//'/tree_height_patches.nc'
       
       ! CALL ncio_read_vector (lndname, 'tree_height_patches', landpatch, htoplc)
 
@@ -58,7 +59,7 @@ SUBROUTINE HTOP_readin (dir_landdata)
 #endif
 
 #ifdef IGBP_CLASSIFICATION
-      lndname = trim(dir_landdata)//'/htop_patches.nc'
+      lndname = trim(landdir)//'/htop_patches.nc'
       
       CALL ncio_read_vector (lndname, 'htop_patches', landpatch, htoplc)
 
@@ -88,9 +89,9 @@ SUBROUTINE HTOP_readin (dir_landdata)
 
 
 #ifdef PFT_CLASSIFICATION
-      lndname = trim(dir_landdata)//'/htop_patches.nc'
+      lndname = trim(landdir)//'/htop_patches.nc'
       CALL ncio_read_vector (lndname, 'htop_patches', landpatch, htoplc )
-      lndname = trim(dir_landdata)//'/htop_pfts.nc'
+      lndname = trim(landdir)//'/htop_pfts.nc'
       CALL ncio_read_vector (lndname, 'htop_pfts', landpft,   htoppft)
 
       IF (p_is_worker) THEN 
@@ -117,7 +118,7 @@ SUBROUTINE HTOP_readin (dir_landdata)
                   IF ( n>0 .and. n<9 .and. htoppft(p)>2.) THEN
                      htop_p(p) = htoppft(p)
                      hbot_p(p) = htoppft(p)*hbot0_p(n)/htop0_p(n)
-                     hbot_p(p) = max(1., hbot_p(n))
+                     hbot_p(p) = max(1., hbot_p(p))
                   ENDIF
                ENDDO
 
@@ -137,9 +138,9 @@ SUBROUTINE HTOP_readin (dir_landdata)
 #endif
 
 #ifdef PC_CLASSIFICATION
-      lndname = trim(dir_landdata)//'/htop_patches.nc'
+      lndname = trim(landdir)//'/htop_patches.nc'
       CALL ncio_read_vector (lndname, 'htop_patches', landpatch, htoplc )
-      lndname = trim(dir_landdata)//'/htop_pcs.nc'
+      lndname = trim(landdir)//'/htop_pcs.nc'
       CALL ncio_read_vector (lndname, 'htop_pcs'    , N_PFT, landpc, htoppc)
 
       IF (p_is_worker) THEN

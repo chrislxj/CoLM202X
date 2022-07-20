@@ -229,16 +229,16 @@ contains
             call block_data_copy (forcn(4), forc_xy_prc, sca = 1/3._r8)
             call block_data_copy (forcn(5), forc_xy_us )
             call block_data_copy (forcn(6), forc_xy_vs )
-        ! ELSEif (trim(dataset) == 'MSWX') then
-        !    call block_data_copy (forcn(4), forc_xy_prl, sca = 2/3._r8 ) ! unit from mm/3hr to mm/s
-        !    call block_data_copy (forcn(4), forc_xy_prc, sca = 1/3._r8 )
-        !    call block_data_copy (forcn(6), forc_xy_us , sca = 1/sqrt(2.0_r8))
-        !    call block_data_copy (forcn(6), forc_xy_vs , sca = 1/sqrt(2.0_r8))
-        ! ELSEif (trim(dataset) == 'WFDE5') then
-        !    call block_data_copy (forcn(4), forc_xy_prl, sca = 2/3._r8 ) ! unit from m/hr to mm/s
-        !    call block_data_copy (forcn(4), forc_xy_prc, sca = 1/3._r8 )
-        !    call block_data_copy (forcn(6), forc_xy_us , sca = 1/sqrt(2.0_r8))
-        !    call block_data_copy (forcn(6), forc_xy_vs , sca = 1/sqrt(2.0_r8))
+         ELSEif (trim(dataset) == 'CRUJRA') then
+            call block_data_copy (forcn(4), forc_xy_prl, sca = 2/3._r8) 
+            call block_data_copy (forcn(4), forc_xy_prc, sca = 1/3._r8)
+            call block_data_copy (forcn(5), forc_xy_us )
+            call block_data_copy (forcn(6), forc_xy_vs )
+         ELSEif (trim(dataset) == 'JRA55') then
+            call block_data_copy (forcn(4), forc_xy_prl, sca = 2/3._r8) 
+            call block_data_copy (forcn(4), forc_xy_prc, sca = 1/3._r8)
+            call block_data_copy (forcn(5), forc_xy_us )
+            call block_data_copy (forcn(6), forc_xy_vs )         
 
          ELSE
             call block_data_copy (forcn(4), forc_xy_prl, sca = 2/3._r8) 
@@ -516,6 +516,16 @@ contains
          CALL gforc%define_by_name ('ERA5LAND')
       ELSEIF (trim(DEF_forcing%dataset) == 'ERA5') THEN
          CALL gforc%define_by_name ('ERA5')
+      ELSEIF (trim(DEF_forcing%dataset) == 'PRINCETON') THEN
+         CALL gforc%define_by_name ('PRINCETON')
+      ELSEIF (trim(DEF_forcing%dataset) == 'JRA55') THEN
+         CALL gforc%define_by_name ('JRA55')
+      ELSEIF (trim(DEF_forcing%dataset) == 'CMFD') THEN
+         CALL gforc%define_by_name ('CMFD')
+      ELSEIF (trim(DEF_forcing%dataset) == 'CLDAS') THEN
+         CALL gforc%define_by_name ('CLDAS')
+      ELSEIF (trim(DEF_forcing%dataset) == 'GDAS') THEN
+            CALL gforc%define_by_name ('GDAS')
       ELSE
          if (dim2d) then
             call ncio_read_bcast_serial (filename, latname, latxy)

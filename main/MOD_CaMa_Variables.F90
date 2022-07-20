@@ -8,6 +8,7 @@ module MOD_CaMa_Variables
    use mod_data_type
    USE mod_mapping_pset2grid
    USE mod_mapping_grid2pset
+   USE YOS_CMF_INPUT,           ONLY:RMIS,DMIS
 
    real(r8) :: nacc              ! number of accumulation
    real(r8), allocatable     :: a_rnof_cama (:) ! on worker : total runoff [mm/s]
@@ -201,12 +202,15 @@ contains
          D2RIVVEL_AVG, D2GDWRTN_AVG, D2RUNOFF_AVG, D2ROFSUB_AVG,               &
          D2OUTFLW_MAX, D2STORGE_MAX, D2RIVDPH_MAX, &
          d2daminf_avg   !!! added
+      use mod_2d_fluxes
 
       IMPLICIT NONE
       
       character(LEN=*), intent(in) :: file_hist
       integer, intent(in) :: itime_in_file
-
+#ifdef USEMPI
+      CALL mpi_barrier (p_comm_glb, p_err)
+#endif
       if (p_is_master) then
          !*** average variable
          CALL CMF_DIAG_AVERAGE
@@ -314,7 +318,7 @@ contains
          inquire (file=filename, exist=fexists)
          if (.not. fexists) then
             call ncio_create_file (trim(filename))
-            CALL ncio_define_dimension(filename, 'time', 0)
+         !   CALL ncio_define_dimension(filename, 'time', 0)
             call ncio_define_dimension(filename,'lat_cama', NY)
             call ncio_define_dimension(filename,'lon_cama', NX)
             call ncio_write_serial (filename, 'lat_cama', D1LAT,'lat_cama')
@@ -322,6 +326,7 @@ contains
          endif
 
          call ncio_write_time (filename, dataname, time, itime)
+
       ENDIF
 
    END SUBROUTINE hist_write_cama_time
@@ -335,7 +340,7 @@ contains
       USE YOS_CMF_MAP,    ONLY: NSEQALL
       USE PARKIND1,       ONLY: JPRM
       USE CMF_UTILS_MOD,  ONLY: VEC2MAPD
-      use ncio_serial
+      use ncio_serial 
 
       IMPLICIT NONE
       logical, intent(in) :: is_hist
@@ -354,9 +359,12 @@ contains
       CALL VEC2MAPD(var_in,R2OUT)
 
       compress = DEF_HIST_COMPRESS_LEVEL 
-      call ncio_write_serial_time (file_hist, varname,  &
-         itime_in_file, R2OUT, 'lon_cama', 'lat_cama', 'time',compress,longname,units)
-
+      call ncio_write_serial_time (file_hist, varname, itime_in_file, R2OUT, 'lon_cama', 'lat_cama', 'time',compress)
+      IF (itime_in_file == 1) then
+         CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
+         CALL ncio_put_attr (file_hist, varname, 'units', units)
+         CALL ncio_put_attr (file_hist, varname, 'missing_value',DMIS)
+      ENDIF
    end subroutine flux_map_and_write_2d_cama
 
    ! -----
@@ -426,7 +434,7 @@ contains
                   do yloc = 1, gcama%ycnt(yblk) 
                      do xloc = 1, gcama%xcnt(xblk) 
 
-                        if (sumwt%blk(xblk,yblk)%val(xloc,yloc) > 0.00001) then
+                        if (sumwt%blk(xblk,yblk)%val(xloc,yloc) > 1.e-10) then
                            IF (IOVar%blk(xblk,yblk)%val(xloc,yloc) /= spval) THEN
                               IOVar%blk(xblk,yblk)%val(xloc,yloc) &
                                  = IOVar%blk(xblk,yblk)%val(xloc,yloc) &

@@ -53,7 +53,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
 
    ! local variables:
    ! ----------------------------------------------------------------------
-   CHARACTER(len=256) :: lndname
+   CHARACTER(len=256) :: landdir, lndname
 
    TYPE (block_data_real8_2d) :: LAI          ! plant leaf area index (m2/m2)
    REAL(r8), allocatable :: LAI_patches(:), lai_one(:), area_one(:)
@@ -79,13 +79,18 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
    INTEGER :: ipc, ipft
    REAL(r8) :: sumarea
       
+   landdir = trim(dir_model_landdata) // '/LAI/'
+
 #ifdef USEMPI
    CALL mpi_barrier (p_comm_glb, p_err)
 #endif
-
    IF (p_is_master) THEN
       write(*,'(/, A17)') 'Aggregate LAI ...'
+      CALL system('mkdir -p ' // trim(adjustl(landdir)))
    ENDIF
+#ifdef USEMPI
+   CALL mpi_barrier (p_comm_glb, p_err)
+#endif
 
    ! ................................................
    ! ... global plant leaf area index
@@ -102,6 +107,8 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
 !----------------------------------------------------------------
    if (DEF_LAI_TRUE) then
       DO YY =DEF_simulation_time%start_year,DEF_simulation_time%end_year
+         write(c1,'(i4.4)') YY
+         CALL system('mkdir -p ' // trim(landdir) // '/' // trim(c1))
          DO N8 = 1, 46
             ! -----------------------
             ! read in leaf area index
@@ -112,8 +119,6 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
             endif
 
             write(c, '(i3.3)') Julian_day
-            write(c1,'(i4.4)') YY
-
             IF (p_is_io) THEN
                lndname = trim(dir_rawdata)//'/lai-true/'//trim(c1)//'/LAI_BNU_'//trim(c1)//'_'//trim(c)//'.h5'
                CALL ncio_read_block (lndname, 'lai', gland, LAI)
@@ -144,8 +149,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
             ! ---------------------------------------------------
             ! write out the plant leaf area index of grid patches
             ! ---------------------------------------------------
-            !lndname = trim(dir_model_landdata)//'/LAI_patches'//trim(c)//'.nc'
-            lndname = trim(dir_model_landdata)//'/LAI/'//trim(c1)//'/model_LAI_patches.'//trim(c)//'.nc'
+            lndname = trim(landdir) // '/' // trim(c1) // '/LAI_patches.' // trim(c) // '.nc'
             CALL ncio_create_file_vector (lndname, landpatch)
             CALL ncio_define_pixelset_dimension (lndname, landpatch)
             CALL ncio_write_vector (lndname, 'LAI_patches', 'vector', landpatch, LAI_patches, 1)
@@ -194,7 +198,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
          ! write out the plant leaf area index of grid patches
          ! ---------------------------------------------------
 
-         lndname = trim(dir_model_landdata)//'/LAI_patches'//trim(c)//'.nc'
+         lndname = trim(landdir) // '/LAI_patches' // trim(c) //'.nc'
          CALL ncio_create_file_vector (lndname, landpatch)
          CALL ncio_define_pixelset_dimension (lndname, landpatch)
          CALL ncio_write_vector (lndname, 'LAI_patches', 'vector', landpatch, LAI_patches, 1)
@@ -255,7 +259,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       ! ---------------------------------------------------
 
       write(c,'(i2.2)') month
-      lndname = trim(dir_model_landdata)//'/LAI_patches'//trim(c)//'.nc'
+      lndname = trim(landdir) // '/LAI_patches' // trim(c) // '.nc'
       CALL ncio_create_file_vector (lndname, landpatch)
       CALL ncio_define_pixelset_dimension (lndname, landpatch)
       CALL ncio_write_vector (lndname, 'LAI_patches', 'vector', landpatch, LAI_patches, 1)
@@ -313,7 +317,7 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       ! ---------------------------------------------------
 
       write(c,'(i2.2)') month
-      lndname = trim(dir_model_landdata)//'/SAI_patches'//trim(c)//'.nc'
+      lndname = trim(landdir) // '/SAI_patches' // trim(c) // '.nc'
       CALL ncio_create_file_vector (lndname, landpatch)
       CALL ncio_define_pixelset_dimension (lndname, landpatch)
       CALL ncio_write_vector (lndname, 'SAI_patches', 'vector', landpatch, SAI_patches, 1)
@@ -406,12 +410,12 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       CALL check_vector_data ('LAI_pfts    ' // trim(c), LAI_pfts   )
 #endif
 
-      lndname = trim(dir_model_landdata)//'/LAI_patches'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/LAI_patches'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpatch)
       CALL ncio_define_pixelset_dimension (lndname, landpatch)
       CALL ncio_write_vector (lndname, 'LAI_patches', 'vector', landpatch, LAI_patches, 1)
       
-      lndname = trim(dir_model_landdata)//'/LAI_pfts'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/LAI_pfts'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpft)
       CALL ncio_define_pixelset_dimension (lndname, landpft)
       CALL ncio_write_vector (lndname, 'LAI_pfts', 'vector', landpft, LAI_pfts, 1)
@@ -494,12 +498,12 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       CALL check_vector_data ('SAI_pfts    ' // trim(c), SAI_pfts   )
 #endif
       
-      lndname = trim(dir_model_landdata)//'/SAI_patches'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/SAI_patches'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpatch)
       CALL ncio_define_pixelset_dimension (lndname, landpatch)
       CALL ncio_write_vector (lndname, 'SAI_patches', 'vector', landpatch, SAI_patches, 1)
       
-      lndname = trim(dir_model_landdata)//'/SAI_pfts'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/SAI_pfts'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpft)
       CALL ncio_define_pixelset_dimension (lndname, landpft)
       CALL ncio_write_vector (lndname, 'SAI_pfts', 'vector', landpft, SAI_pfts, 1)
@@ -591,12 +595,12 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       CALL check_vector_data ('LAI_pcs     ' // trim(c), LAI_pcs   )
 #endif
 
-      lndname = trim(dir_model_landdata)//'/LAI_patches'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/LAI_patches'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpatch)
       CALL ncio_define_pixelset_dimension (lndname, landpatch)
       CALL ncio_write_vector (lndname, 'LAI_patches', 'vector', landpatch, LAI_patches, 1)
 
-      lndname = trim(dir_model_landdata)//'/LAI_pcs'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/LAI_pcs'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpc)
       CALL ncio_define_pixelset_dimension (lndname, landpc)
       CALL ncio_define_dimension_vector (lndname, 'pft', N_PFT)
@@ -675,12 +679,12 @@ SUBROUTINE aggregation_LAI (gland, dir_rawdata, dir_model_landdata)
       CALL check_vector_data ('SAI_pcs     ' // trim(c), SAI_pcs   )
 #endif
 
-      lndname = trim(dir_model_landdata)//'/SAI_patches'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/SAI_patches'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpatch)
       CALL ncio_define_pixelset_dimension (lndname, landpatch)
       CALL ncio_write_vector (lndname, 'SAI_patches', 'vector', landpatch, SAI_patches, 1)
       
-      lndname = trim(dir_model_landdata)//'/SAI_pcs'//trim(c)//'.nc'
+      lndname = trim(landdir)//'/SAI_pcs'//trim(c)//'.nc'
       CALL ncio_create_file_vector (lndname, landpc)
       CALL ncio_define_pixelset_dimension (lndname, landpc)
       CALL ncio_define_dimension_vector (lndname, 'pft', N_PFT)

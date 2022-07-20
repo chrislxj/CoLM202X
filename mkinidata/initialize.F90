@@ -203,6 +203,12 @@ SUBROUTINE initialize (casename, dir_landdata, dir_restart, &
    zlnd   = 0.01    !Roughness length for soil [m]
    zsno   = 0.0024  !Roughness length for snow [m]
    csoilc = 0.004   !Drag coefficient for soil under canopy [-]
+!#ifdef CLM5_INTERCEPTION
+ !  dewmx_rain =0.1  !maximum dew for rain
+!  dewmx_snow =6.0  !maximum dew for snow 
+!#else
+!   dewmx  = 0.1     !maximum dew
+!#endif
    dewmx  = 0.1     !maximum dew
    wtfact = 0.38    !Maximum saturated fraction (global mean; see Niu et al., 2005)
    capr   = 0.34    !Tuning factor to turn first layer T into surface T
@@ -487,7 +493,11 @@ CALL check_vector_data ('porsl', porsl)
 #ifdef PLANT_HYDRAULIC_STRESS
             ,vegwp(1:,i),gs0sun(i),gs0sha(i)&
 #endif
-            ,t_grnd(i),tleaf(i),ldew(i),sag(i),scv(i)&
+!#ifdef CLM5_INTERCEPTION
+            ,t_grnd(i),tleaf(i),ldew(i),ldew_rain(i),ldew_snow(i),sag(i),scv(i)&
+!#else
+!            ,t_grnd(i),tleaf(i),ldew(i),sag(i),scv(i)&
+!#endif
             ,snowdp(i),fveg(i),fsno(i),sigf(i),green(i),lai(i),sai(i),coszen(i)&
             ,alb(1:,1:,i),ssun(1:,1:,i),ssha(1:,1:,i)&
             ,thermk(i),extkb(i),extkd(i)&

@@ -240,7 +240,7 @@ CONTAINS
 
 #ifdef USEMPI
       IF (p_is_master) THEN
-         filename = trim(dir_landdata) // '/landunit.nc'
+         filename = trim(dir_landdata) // '/landunit/landunit.nc'
          CALL ncio_read_serial (filename, 'nunits_blk', nunitblk)
          numblocks = count(nunitblk > 0)
       ENDIF 

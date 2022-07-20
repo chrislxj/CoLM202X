@@ -22,7 +22,7 @@ subroutine dbedrock_readin (dir_landdata)
 
    ! Read bedrock
   
-   lndname = trim(dir_landdata)//'/dbedrock_patches.nc'
+   lndname = trim(dir_landdata)//'/dbedrock/dbedrock_patches.nc'
 
    call ncio_read_vector (lndname, 'dbedrock_patches', landpatch, dbedrock) 
 

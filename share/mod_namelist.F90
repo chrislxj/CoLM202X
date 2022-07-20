@@ -62,7 +62,9 @@ MODULE mod_namelist
 
    !add by zhongwang wei @ sysu 2021/12/23 
    !To allow read satellite observed LAI        
-   logical :: DEF_LAI_TRUE           = .FALSE.    
+   logical            :: DEF_LAI_TRUE               = .FALSE.    
+   INTEGER            :: DEF_Interception_scheme    = 1  !1:CoLM；2:CLM4.5; 3:CLM5; 4:Noah-MP; 5:MATSIRO; 6:VIC
+                 
 
    ! ----- history -----
    INTEGER :: DEF_nlon_hist  = 720
@@ -266,7 +268,9 @@ CONTAINS
          DEF_dir_hydrodata,               &
          DEF_max_hband,                   &
 #endif
-         DEF_LAI_TRUE,                    &   !add by zhongwang wei @ sysu 2021/12/23        
+         DEF_LAI_TRUE,                    &   !add by zhongwang wei @ sysu 2021/12/23    
+         DEF_Interception_scheme,         &   !add by zhongwang wei @ sysu 2022/05/23    
+        
          DEF_nlon_hist,                   &
          DEF_nlat_hist,                   &
          DEF_WRST_FREQ,                   &
@@ -358,7 +362,9 @@ CONTAINS
 
       !zhongwang wei, 20210927: add option to read non-climatological mean LAI 
       call mpi_bcast (DEF_LAI_TRUE,           1, mpi_logical, p_root, p_comm_glb, p_err)
-      
+      !zhongwang wei, 20220520: add option to choose different canopy interception schemes
+      call mpi_bcast (DEF_Interception_scheme, 1, mpi_integer, p_root, p_comm_glb, p_err)
+
       CALL mpi_bcast (DEF_nlon_hist,  1, mpi_integer, p_root, p_comm_glb, p_err) 
       CALL mpi_bcast (DEF_nlat_hist,  1, mpi_integer, p_root, p_comm_glb, p_err)
 
