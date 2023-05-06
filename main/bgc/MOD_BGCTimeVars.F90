@@ -11,240 +11,240 @@ use timemanager
 IMPLICIT NONE
 SAVE
 !------------------------- BGC variables -------------------------------
-      REAL(r8), allocatable :: decomp_cpools_vr  (:,:,:)
-      REAL(r8), allocatable :: decomp_cpools     (:,:)
-      REAL(r8), allocatable :: decomp_k          (:,:,:) ! soil decomposition rate [1/s]
-      REAL(r8), allocatable :: ctrunc_vr         (:,:)
-      REAL(r8), allocatable :: ctrunc_veg        (:)
-      REAL(r8), allocatable :: ctrunc_soil       (:)
+      REAL(r8), allocatable :: decomp_cpools_vr  (:,:,:)         !!! vertical profile: soil decomposition (litter, cwd, soil organic matter) carbon pools (gC m-3)
+      REAL(r8), allocatable :: decomp_cpools     (:,:)           ! soil decomposition (litter, cwd, soil) carbon (gC m-2)
+      REAL(r8), allocatable :: decomp_k          (:,:,:)         ! soil decomposition rate (s-1)
+      REAL(r8), allocatable :: ctrunc_vr         (:,:)           !!!! 
+      REAL(r8), allocatable :: ctrunc_veg        (:)             !!!!
+      REAL(r8), allocatable :: ctrunc_soil       (:)             !!!!
 
-      REAL(r8), allocatable :: t_scalar          (:,:)   ! soil decomposition temperature scalars [unitless]
-      REAL(r8), allocatable :: w_scalar          (:,:)   ! soil decomposition water scalars [unitless]
-      REAL(r8), allocatable :: o_scalar          (:,:)   ! soil decomposition oxygen scalars [unitless]
-      REAL(r8), allocatable :: depth_scalar      (:,:)   ! soil decomposition depth scalars [unitless]
+      REAL(r8), allocatable :: t_scalar          (:,:)           ! soil decomposition temperature scalars
+      REAL(r8), allocatable :: w_scalar          (:,:)           ! soil decomposition water scalars
+      REAL(r8), allocatable :: o_scalar          (:,:)           ! soil decomposition oxygen scalars
+      REAL(r8), allocatable :: depth_scalar      (:,:)           ! soil decomposition depth scalars
 
 ! Soil CN diffusion and advection
-      REAL(r8), allocatable :: som_adv_coef             (:,:)
-      REAL(r8), allocatable :: som_diffus_coef          (:,:)
+      REAL(r8), allocatable :: som_adv_coef             (:,:)    !! soil organic matter advective flux in vertical profile (m2 s-1)
+      REAL(r8), allocatable :: som_diffus_coef          (:,:)    !! soil organic matter diffusion flux in vertical profile (m2 s-1)
 
 ! Active Layer
-      REAL(r8), allocatable :: altmax                   (:)
-      REAL(r8), allocatable :: altmax_lastyear          (:)
-      INTEGER , allocatable :: altmax_lastyear_indx     (:)
+      REAL(r8), allocatable :: altmax                   (:)      !! maximum annual depth of thaw (m)
+      REAL(r8), allocatable :: altmax_lastyear          (:)      !! previous year maximum annual depth of thaw (m)
+      INTEGER , allocatable :: altmax_lastyear_indx     (:)      !!! previous year maximum annual soil layer of thaw
 
-      REAL(r8), allocatable :: totlitc                  (:)
-      REAL(r8), allocatable :: totvegc                  (:)
-      REAL(r8), allocatable :: totsomc                  (:)
-      REAL(r8), allocatable :: totcwdc                  (:)
-      REAL(r8), allocatable :: totcolc                  (:)
-      REAL(r8), allocatable :: col_begcb                (:)
-      REAL(r8), allocatable :: col_endcb                (:)
-      REAL(r8), allocatable :: col_vegbegcb             (:)
-      REAL(r8), allocatable :: col_vegendcb             (:)
-      REAL(r8), allocatable :: col_soilbegcb            (:)
-      REAL(r8), allocatable :: col_soilendcb            (:)
+      REAL(r8), allocatable :: totlitc                  (:)      !! carbon balance diagnostics: total column litter carbon (gC m-2)
+      REAL(r8), allocatable :: totvegc                  (:)      !! carbon balance diagnostics: total column vegetation carbon (gC m-2)
+      REAL(r8), allocatable :: totsomc                  (:)      !! carbon balance diagnostics: total column soil organic matter carbon (gC m-2)
+      REAL(r8), allocatable :: totcwdc                  (:)      !! carbon balance diagnostics: total column coarse woody debris carbon (gC m-2)
+      REAL(r8), allocatable :: totcolc                  (:)      !! carbon balance diagnostics: total column carbon (veg, soil, litter, et al) (gC m-2)
+      REAL(r8), allocatable :: col_begcb                (:)      !! carbon balance diagnostics: column carbon, begin of time step (gC m-2)
+      REAL(r8), allocatable :: col_endcb                (:)      !! carbon balance diagnostics: column carbon, end of time step (gC m-2)
+      REAL(r8), allocatable :: col_vegbegcb             (:)      !! carbon balance diagnostics: column vegetation carbon, begin of time step (gC m-2)
+      REAL(r8), allocatable :: col_vegendcb             (:)      !! carbon balance diagnostics: column vegetation carbon, end of time step (gC m-2)
+      REAL(r8), allocatable :: col_soilbegcb            (:)      !! carbon balance diagnostics: column soil carbon, begin of time step (gC m-2)
+      REAL(r8), allocatable :: col_soilendcb            (:)      !! carbon balance diagnostics: column soil carbon, end of time step (gC m-2)
 
-      REAL(r8), allocatable :: totlitn                  (:)
-      REAL(r8), allocatable :: totvegn                  (:)
-      REAL(r8), allocatable :: totsomn                  (:)
-      REAL(r8), allocatable :: totcwdn                  (:)
-      REAL(r8), allocatable :: totcoln                  (:)
-      REAL(r8), allocatable :: col_begnb                (:)
-      REAL(r8), allocatable :: col_endnb                (:)
-      REAL(r8), allocatable :: col_vegbegnb             (:)
-      REAL(r8), allocatable :: col_vegendnb             (:)
-      REAL(r8), allocatable :: col_soilbegnb            (:)
-      REAL(r8), allocatable :: col_soilendnb            (:)
-      REAL(r8), allocatable :: col_sminnbegnb           (:)
-      REAL(r8), allocatable :: col_sminnendnb           (:)
+      REAL(r8), allocatable :: totlitn                  (:)      !! nitrogen balance diagnostics: total column litter nitrogen (gN m-2)
+      REAL(r8), allocatable :: totvegn                  (:)      !! nitrogen balance diagnostics: total column vegetation nitrogen (gN m-2)
+      REAL(r8), allocatable :: totsomn                  (:)      !! nitrogen balance diagnostics: total column soil organic matter nitrogen (gN m-2)
+      REAL(r8), allocatable :: totcwdn                  (:)      !! nitrogen balance diagnostics: total column coarse woody debris nitrogen (gN m-2)
+      REAL(r8), allocatable :: totcoln                  (:)      !! nitrogen balance diagnostics: total column nitrogen (veg, soil, litter, et al) (gN m-2)
+      REAL(r8), allocatable :: col_begnb                (:)      !! nitrogen balance diagnostics: column nitrogen, begin of time step (gN m-2)
+      REAL(r8), allocatable :: col_endnb                (:)      !! nitrogen balance diagnostics: column nitrogen, end of time step (gN m-2)
+      REAL(r8), allocatable :: col_vegbegnb             (:)      !! nitrogen balance diagnostics: column vegetation nitrogen, begin of time step (gN m-2)
+      REAL(r8), allocatable :: col_vegendnb             (:)      !! nitrogen balance diagnostics: column vegetation nitrogen, end of time step (gN m-2)
+      REAL(r8), allocatable :: col_soilbegnb            (:)      !! nitrogen balance diagnostics: column soil organic nitrogen, begin of time step (gN m-2)
+      REAL(r8), allocatable :: col_soilendnb            (:)      !! nitrogen balance diagnostics: column soil organic nitrogen, end of time step (gN m-2)
+      REAL(r8), allocatable :: col_sminnbegnb           (:)      !! nitrogen balance diagnostics: column soil mineral nitrogen, begin of time step (gN m-2)
+      REAL(r8), allocatable :: col_sminnendnb           (:)      !! nitrogen balance diagnostics: column soil mineral nitrogen, end of time step (gN m-2)
 
-      REAL(r8), allocatable :: leafc                    (:)
-      REAL(r8), allocatable :: leafc_storage            (:)
-      REAL(r8), allocatable :: leafc_xfer               (:)
-      REAL(r8), allocatable :: frootc                   (:)
-      REAL(r8), allocatable :: frootc_storage           (:)
-      REAL(r8), allocatable :: frootc_xfer              (:)
-      REAL(r8), allocatable :: livestemc                (:)
-      REAL(r8), allocatable :: livestemc_storage        (:)
-      REAL(r8), allocatable :: livestemc_xfer           (:)
-      REAL(r8), allocatable :: deadstemc                (:)
-      REAL(r8), allocatable :: deadstemc_storage        (:)
-      REAL(r8), allocatable :: deadstemc_xfer           (:)
-      REAL(r8), allocatable :: livecrootc               (:)
-      REAL(r8), allocatable :: livecrootc_storage       (:)
-      REAL(r8), allocatable :: livecrootc_xfer          (:)
-      REAL(r8), allocatable :: deadcrootc               (:)
-      REAL(r8), allocatable :: deadcrootc_storage       (:)
-      REAL(r8), allocatable :: deadcrootc_xfer          (:)
-      REAL(r8), allocatable :: grainc                   (:)
-      REAL(r8), allocatable :: grainc_storage           (:)
-      REAL(r8), allocatable :: grainc_xfer              (:)
-      REAL(r8), allocatable :: xsmrpool                 (:)
-      REAL(r8), allocatable :: downreg                  (:)
-      REAL(r8), allocatable :: cropprod1c               (:)
-      REAL(r8), allocatable :: cropseedc_deficit        (:)
+      REAL(r8), allocatable :: leafc                    (:)      ! leaf display C (gC m-2)
+      REAL(r8), allocatable :: leafc_storage            (:)      ! leaf storage C (gC m-2)
+      REAL(r8), allocatable :: leafc_xfer               (:)      ! leaf transfer C (gC m-2)
+      REAL(r8), allocatable :: frootc                   (:)      ! fine root display C (gC m-2)d
+      REAL(r8), allocatable :: frootc_storage           (:)      ! fine root storage C (gC m-2)d
+      REAL(r8), allocatable :: frootc_xfer              (:)      ! fine root transfer C (gC m-2)d
+      REAL(r8), allocatable :: livestemc                (:)      ! live stem display C (gC m-2)d
+      REAL(r8), allocatable :: livestemc_storage        (:)      ! live stem storage C (gC m-2)d
+      REAL(r8), allocatable :: livestemc_xfer           (:)      ! live stem transfer C (gC m-2)d
+      REAL(r8), allocatable :: deadstemc                (:)      ! dead stem display C (gC m-2)d
+      REAL(r8), allocatable :: deadstemc_storage        (:)      ! dead stem storage C (gC m-2)d
+      REAL(r8), allocatable :: deadstemc_xfer           (:)      ! dead stem transfer C (gC m-2)d
+      REAL(r8), allocatable :: livecrootc               (:)      ! live coarse root display C (gC m-2)
+      REAL(r8), allocatable :: livecrootc_storage       (:)      ! live coarse root storage C (gC m-2)
+      REAL(r8), allocatable :: livecrootc_xfer          (:)      ! live coarse root transfer C (gC m-2)
+      REAL(r8), allocatable :: deadcrootc               (:)      ! dead coarse root display C (gC m-2)
+      REAL(r8), allocatable :: deadcrootc_storage       (:)      ! dead coarse root storage C (gC m-2)
+      REAL(r8), allocatable :: deadcrootc_xfer          (:)      ! dead coarse root transfer C (gC m-2)
+      REAL(r8), allocatable :: grainc                   (:)      ! grain display C (gC m-2)
+      REAL(r8), allocatable :: grainc_storage           (:)      ! grain storage C (gC m-2)
+      REAL(r8), allocatable :: grainc_xfer              (:)      ! grain transfer C (gC m-2)
+      REAL(r8), allocatable :: xsmrpool                 (:)      !! maintenance respiration storage C (gC m-2)
+      REAL(r8), allocatable :: downreg                  (:)      ! fractional reduction in GPP due to N limitation
+      REAL(r8), allocatable :: cropprod1c               (:)      ! product C (gC m-2)
+      REAL(r8), allocatable :: cropseedc_deficit        (:)      ! crop seed deficit C (gC m-2)
 
-      REAL(r8), allocatable :: leafn                    (:)
-      REAL(r8), allocatable :: leafn_storage            (:)
-      REAL(r8), allocatable :: leafn_xfer               (:)
-      REAL(r8), allocatable :: frootn                   (:)
-      REAL(r8), allocatable :: frootn_storage           (:)
-      REAL(r8), allocatable :: frootn_xfer              (:)
-      REAL(r8), allocatable :: livestemn                (:)
-      REAL(r8), allocatable :: livestemn_storage        (:)
-      REAL(r8), allocatable :: livestemn_xfer           (:)
-      REAL(r8), allocatable :: deadstemn                (:)
-      REAL(r8), allocatable :: deadstemn_storage        (:)
-      REAL(r8), allocatable :: deadstemn_xfer           (:)
-      REAL(r8), allocatable :: livecrootn               (:)
-      REAL(r8), allocatable :: livecrootn_storage       (:)
-      REAL(r8), allocatable :: livecrootn_xfer          (:)
-      REAL(r8), allocatable :: deadcrootn               (:)
-      REAL(r8), allocatable :: deadcrootn_storage       (:)
-      REAL(r8), allocatable :: deadcrootn_xfer          (:)
-      REAL(r8), allocatable :: grainn                   (:)
-      REAL(r8), allocatable :: grainn_storage           (:)
-      REAL(r8), allocatable :: grainn_xfer              (:)
-      REAL(r8), allocatable :: retransn                 (:)
+      REAL(r8), allocatable :: leafn                    (:)      ! leaf display N (gN m-2)
+      REAL(r8), allocatable :: leafn_storage            (:)      ! leaf storage N (gN m-2)
+      REAL(r8), allocatable :: leafn_xfer               (:)      ! leaf transfer N (gN m-2)
+      REAL(r8), allocatable :: frootn                   (:)      ! fine root display N (gN m-2)d
+      REAL(r8), allocatable :: frootn_storage           (:)      ! fine root storage N (gN m-2)d
+      REAL(r8), allocatable :: frootn_xfer              (:)      ! fine root transfer N (gN m-2)d
+      REAL(r8), allocatable :: livestemn                (:)      ! live stem display N (gN m-2)d
+      REAL(r8), allocatable :: livestemn_storage        (:)      ! live stem storage N (gN m-2)d
+      REAL(r8), allocatable :: livestemn_xfer           (:)      ! live stem transfer N (gN m-2)d
+      REAL(r8), allocatable :: deadstemn                (:)      ! dead stem display N (gN m-2)d
+      REAL(r8), allocatable :: deadstemn_storage        (:)      ! dead stem storage N (gN m-2)d
+      REAL(r8), allocatable :: deadstemn_xfer           (:)      ! dead stem transfer N (gN m-2)d
+      REAL(r8), allocatable :: livecrootn               (:)      ! live coarse root display N (gN m-2)
+      REAL(r8), allocatable :: livecrootn_storage       (:)      ! live coarse root storage N (gN m-2)
+      REAL(r8), allocatable :: livecrootn_xfer          (:)      ! live coarse root transfer N (gN m-2)
+      REAL(r8), allocatable :: deadcrootn               (:)      ! dead coarse root display N (gN m-2)
+      REAL(r8), allocatable :: deadcrootn_storage       (:)      ! dead coarse root storage N (gN m-2)
+      REAL(r8), allocatable :: deadcrootn_xfer          (:)      ! dead coarse root transfer N (gN m-2)
+      REAL(r8), allocatable :: grainn                   (:)      ! grain display N (gN m-2)
+      REAL(r8), allocatable :: grainn_storage           (:)      ! grain storage N (gN m-2)
+      REAL(r8), allocatable :: grainn_xfer              (:)      ! grain transfer N (gN m-2)
+      REAL(r8), allocatable :: retransn                 (:)      ! retranslocated N (gN m-2)
 
-      REAL(r8), allocatable :: decomp_npools_vr         (:,:,:)
-      REAL(r8), allocatable :: decomp_npools            (:,:)
-      REAL(r8), allocatable :: ntrunc_vr                (:,:)
-      REAL(r8), allocatable :: ntrunc_veg               (:)
-      REAL(r8), allocatable :: ntrunc_soil              (:)
+      REAL(r8), allocatable :: decomp_npools_vr         (:,:,:)  !!! vertical profile: soil decomposition (litter, cwd, soil) nitrogen (gN m-3)
+      REAL(r8), allocatable :: decomp_npools            (:,:)    ! soil decomposition (litter, cwd, soil) nitrogen (gN m-2)
+      REAL(r8), allocatable :: ntrunc_vr                (:,:)    !!!
+      REAL(r8), allocatable :: ntrunc_veg               (:)      !!!
+      REAL(r8), allocatable :: ntrunc_soil              (:)      !!!
 
-      REAL(r8), allocatable :: sminn_vr                 (:,:)
-      REAL(r8), allocatable :: smin_no3_vr              (:,:)
-      REAL(r8), allocatable :: smin_nh4_vr              (:,:)
-      REAL(r8), allocatable :: sminn                    (:)
-      REAL(r8), allocatable :: ndep                     (:)
+      REAL(r8), allocatable :: sminn_vr                 (:,:)    ! vertical profile: soil mineral nitrogen (gN m-3)
+      REAL(r8), allocatable :: smin_no3_vr              (:,:)    ! vertical profile: soil mineral NO3 (gN m-3)
+      REAL(r8), allocatable :: smin_nh4_vr              (:,:)    ! vertical profile: soil mineral NH4 (gN m-3)
+      REAL(r8), allocatable :: sminn                    (:)      ! soil mineral nitrogen (gN m-2)
+      REAL(r8), allocatable :: ndep                     (:)      !!! atmospheric nitrogen deposition (gN m-2)
 
 #ifdef NITRIF
-      REAL(r8), allocatable :: to2_decomp_depth_unsat   (:,:)
-      REAL(r8), allocatable :: tconc_o2_unsat           (:,:)
+      REAL(r8), allocatable :: to2_decomp_depth_unsat   (:,:)    !!! vertical profile: O2 soil consumption from heterotrophic respiration and autotrophic respiration (mol m-3 s-1)
+      REAL(r8), allocatable :: tconc_o2_unsat           (:,:)    !!! vertical profile: O2 soil consumption (mol m-3 s-1)
 #endif
 
-      REAL(r8), allocatable :: ndep_prof                (:,:)
-      REAL(r8), allocatable :: nfixation_prof           (:,:)
+      REAL(r8), allocatable :: ndep_prof                (:,:)    ! vertical profile: atmospheric N deposition input to soil (m-1)
+      REAL(r8), allocatable :: nfixation_prof           (:,:)    ! vertical profile: N fixation input to soil (m-1)
 
-      REAL(r8), allocatable :: cn_decomp_pools          (:,:,:) 
-      REAL(r8), allocatable :: fpi_vr                   (:,:)
-      REAL(r8), allocatable :: fpi                      (:)
-      REAL(r8), allocatable :: fpg                      (:)
+      REAL(r8), allocatable :: cn_decomp_pools          (:,:,:)  ! vertical profile: c:n ratios of each decomposition pools
+      REAL(r8), allocatable :: fpi_vr                   (:,:)    ! vertical profile: actual immobilization N :potential immobilization N
+      REAL(r8), allocatable :: fpi                      (:)      ! actual immobilization N : potential immobilization N
+      REAL(r8), allocatable :: fpg                      (:)      ! actual plant uptake N : plant potential need N
 
-      REAL(r8), allocatable :: cropf                    (:)
-      REAL(r8), allocatable :: lfwt                     (:)
-      REAL(r8), allocatable :: fuelc                    (:)
-      REAL(r8), allocatable :: fuelc_crop               (:)
-      REAL(r8), allocatable :: fsr                      (:)
-      REAL(r8), allocatable :: fd                       (:)
-      REAL(r8), allocatable :: rootc                    (:)
-      REAL(r8), allocatable :: lgdp                     (:)
-      REAL(r8), allocatable :: lgdp1                    (:)
-      REAL(r8), allocatable :: lpop                     (:)
-      REAL(r8), allocatable :: wtlf                     (:)
-      REAL(r8), allocatable :: trotr1                   (:)
-      REAL(r8), allocatable :: trotr2                   (:)
-      REAL(r8), allocatable :: hdm_lf                   (:)
-      REAL(r8), allocatable :: lnfm                     (:)
-      REAL(r8), allocatable :: baf_crop                 (:)
-      REAL(r8), allocatable :: baf_peatf                (:)
-      REAL(r8), allocatable :: farea_burned             (:)
-      REAL(r8), allocatable :: nfire                    (:)
-      REAL(r8), allocatable :: fsat                     (:)
-      REAL(r8), allocatable :: prec10                   (:) ! 10-day running mean of total      precipitation [mm/s]
-      REAL(r8), allocatable :: prec60                   (:) ! 60-day running mean of total      precipitation [mm/s]
-      REAL(r8), allocatable :: prec365                  (:) ! 365-day running mean of tota     l precipitation [mm/s]
-      REAL(r8), allocatable :: prec_today               (:) ! today's daily precipitation      [mm/day]
-      REAL(r8), allocatable :: prec_daily               (:,:) ! daily total precipitation      [mm/day]
-      REAL(r8), allocatable :: wf2                      (:)
-      REAL(r8), allocatable :: tsoi17                   (:)
-      REAL(r8), allocatable :: rh30                     (:) ! 30-day running mean of relative humidity
-      REAL(r8), allocatable :: accumnstep               (:) ! 30-day running mean of relative humidity
+      REAL(r8), allocatable :: cropf                    (:)      !!!
+      REAL(r8), allocatable :: lfwt                     (:)      !!!      
+      REAL(r8), allocatable :: fuelc                    (:)      !!!
+      REAL(r8), allocatable :: fuelc_crop               (:)      !!!
+      REAL(r8), allocatable :: fsr                      (:)      !!!
+      REAL(r8), allocatable :: fd                       (:)      !!!
+      REAL(r8), allocatable :: rootc                    (:)      !!!
+      REAL(r8), allocatable :: lgdp                     (:)      !!!
+      REAL(r8), allocatable :: lgdp1                    (:)      !!!
+      REAL(r8), allocatable :: lpop                     (:)      !!!
+      REAL(r8), allocatable :: wtlf                     (:)      !!!
+      REAL(r8), allocatable :: trotr1                   (:)      !!!
+      REAL(r8), allocatable :: trotr2                   (:)      !!!
+      REAL(r8), allocatable :: hdm_lf                   (:)      !!!
+      REAL(r8), allocatable :: lnfm                     (:)      !!!
+      REAL(r8), allocatable :: baf_crop                 (:)      !!!
+      REAL(r8), allocatable :: baf_peatf                (:)      !!!
+      REAL(r8), allocatable :: farea_burned             (:)      ! total fractional area burned (s-1)
+      REAL(r8), allocatable :: nfire                    (:)      ! fire counts (count km-2 s-1)
+      REAL(r8), allocatable :: fsat                     (:)      !!!
+      REAL(r8), allocatable :: prec10                   (:)      ! 10-day running mean of total precipitation (mm -1)
+      REAL(r8), allocatable :: prec60                   (:)      ! 60-day running mean of total      precipitation  (mm -1)
+      REAL(r8), allocatable :: prec365                  (:)      ! 365-day running mean of tota     l precipitation (mm -1)
+      REAL(r8), allocatable :: prec_today               (:)      ! today's daily precipitation (mm -1)
+      REAL(r8), allocatable :: prec_daily               (:,:)    ! daily total precipitation (mm -1)
+      REAL(r8), allocatable :: wf2                      (:)      !!! soil moisture (K)
+      REAL(r8), allocatable :: tsoi17                   (:)      !!! soil temperature (cm3 cm-3)
+      REAL(r8), allocatable :: rh30                     (:)      ! 30-day running mean of relative humidity (%)
+      REAL(r8), allocatable :: accumnstep               (:)      ! timestep accumulator
 
-      REAL(r8), allocatable :: dayl                     (:)
-      REAL(r8), allocatable :: prev_dayl                (:)
+      REAL(r8), allocatable :: dayl                     (:)      ! day length (s)
+      REAL(r8), allocatable :: prev_dayl                (:)      ! day length from previous day (s)
 
 !--------------BGC/SASU variables---------------------------
-      REAL(r8), allocatable :: decomp0_cpools_vr           (:,:,:)
-      REAL(r8), allocatable :: I_met_c_vr_acc              (:,:)
-      REAL(r8), allocatable :: I_cel_c_vr_acc              (:,:)
-      REAL(r8), allocatable :: I_lig_c_vr_acc              (:,:)
-      REAL(r8), allocatable :: I_cwd_c_vr_acc              (:,:)
-      REAL(r8), allocatable :: AKX_met_to_soil1_c_vr_acc   (:,:)
-      REAL(r8), allocatable :: AKX_cel_to_soil1_c_vr_acc   (:,:)
-      REAL(r8), allocatable :: AKX_lig_to_soil2_c_vr_acc   (:,:)
-      REAL(r8), allocatable :: AKX_soil1_to_soil2_c_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_cwd_to_cel_c_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_cwd_to_lig_c_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_soil1_to_soil3_c_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_soil2_to_soil1_c_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_soil2_to_soil3_c_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_soil3_to_soil1_c_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_met_exit_c_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_cel_exit_c_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_lig_exit_c_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_cwd_exit_c_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_soil1_exit_c_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_soil2_exit_c_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_soil3_exit_c_vr_acc     (:,:)
+      REAL(r8), allocatable :: decomp0_cpools_vr           (:,:,:)    !!! SASU spinup diagnostics-vertical profile: soil decomposition (litter, cwd, soil organic matter) carbon pools (gC m-3)
+      REAL(r8), allocatable :: I_met_c_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to metabolic litter C (gC m-3)
+      REAL(r8), allocatable :: I_cel_c_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to cellulosic litter C (gC m-3)
+      REAL(r8), allocatable :: I_lig_c_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to lignin litter C (gC m-3)
+      REAL(r8), allocatable :: I_cwd_c_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to coarse woody debris C (gC m-3)
+      REAL(r8), allocatable :: AKX_met_to_soil1_c_vr_acc   (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from metabolic litter C to active soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_cel_to_soil1_c_vr_acc   (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from cellulosic litter C to active soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_lig_to_soil2_c_vr_acc   (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from lignin litter C to slow soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil1_to_soil2_c_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from active soil organic matter C to slow soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_cwd_to_cel_c_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from coarse woody debris C to cellulosic litter C (gC m-3)
+      REAL(r8), allocatable :: AKX_cwd_to_lig_c_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from coarse woody debris C to lignin litter C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil1_to_soil3_c_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from active soil organic matter C to passive soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil2_to_soil1_c_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from slow soil organic matter C to active soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil2_to_soil3_c_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from slow soil organic matter C to passive soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil3_to_soil1_c_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from passive soil organic matter C to active soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_met_exit_c_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from metabolic litter C (gC m-3)
+      REAL(r8), allocatable :: AKX_cel_exit_c_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from cellulosic litter C (gC m-3)
+      REAL(r8), allocatable :: AKX_lig_exit_c_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from lignin litter C (gC m-3)
+      REAL(r8), allocatable :: AKX_cwd_exit_c_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from coarse woody debris C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil1_exit_c_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from active soil organic matter C  (gC m-3)
+      REAL(r8), allocatable :: AKX_soil2_exit_c_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from slow soil organic matter C (gC m-3)
+      REAL(r8), allocatable :: AKX_soil3_exit_c_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from passive soil organic matter C (gC m-3)
 
-      REAL(r8), allocatable :: decomp0_npools_vr           (:,:,:)
-      REAL(r8), allocatable :: I_met_n_vr_acc              (:,:)
-      REAL(r8), allocatable :: I_cel_n_vr_acc              (:,:)
-      REAL(r8), allocatable :: I_lig_n_vr_acc              (:,:)
-      REAL(r8), allocatable :: I_cwd_n_vr_acc              (:,:)
-      REAL(r8), allocatable :: AKX_met_to_soil1_n_vr_acc   (:,:)
-      REAL(r8), allocatable :: AKX_cel_to_soil1_n_vr_acc   (:,:)
-      REAL(r8), allocatable :: AKX_lig_to_soil2_n_vr_acc   (:,:)
-      REAL(r8), allocatable :: AKX_soil1_to_soil2_n_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_cwd_to_cel_n_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_cwd_to_lig_n_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_soil1_to_soil3_n_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_soil2_to_soil1_n_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_soil2_to_soil3_n_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_soil3_to_soil1_n_vr_acc (:,:)
-      REAL(r8), allocatable :: AKX_met_exit_n_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_cel_exit_n_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_lig_exit_n_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_cwd_exit_n_vr_acc       (:,:)
-      REAL(r8), allocatable :: AKX_soil1_exit_n_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_soil2_exit_n_vr_acc     (:,:)
-      REAL(r8), allocatable :: AKX_soil3_exit_n_vr_acc     (:,:)
+      REAL(r8), allocatable :: decomp0_npools_vr           (:,:,:)    !!! SASU spinup diagnostics-vertical profile: soil decomposition (litter, cwd, soil organic matter) carbon pools (gN m-3)
+      REAL(r8), allocatable :: I_met_n_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to metabolic litter N (gN m-3)
+      REAL(r8), allocatable :: I_cel_n_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to cellulosic litter N (gN m-3)
+      REAL(r8), allocatable :: I_lig_n_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to lignin litter N (gN m-3)
+      REAL(r8), allocatable :: I_cwd_n_vr_acc              (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated input to coarse woody debris N (gN m-3)
+      REAL(r8), allocatable :: AKX_met_to_soil1_n_vr_acc   (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from metabolic litter N to active soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_cel_to_soil1_n_vr_acc   (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from cellulosic litter N to active soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_lig_to_soil2_n_vr_acc   (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from lignin litter N to slow soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil1_to_soil2_n_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from active soil organic matter N to slow soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_cwd_to_cel_n_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from coarse woody debris N to cellulosic litter N (gN m-3)
+      REAL(r8), allocatable :: AKX_cwd_to_lig_n_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from coarse woody debris N to lignin litter N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil1_to_soil3_n_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from active soil organic matter N to passive soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil2_to_soil1_n_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from slow soil organic matter N to active soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil2_to_soil3_n_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from slow soil organic matter N to passive soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil3_to_soil1_n_vr_acc (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux from passive soil organic matter N to active soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_met_exit_n_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from metabolic litter N (gN m-3)
+      REAL(r8), allocatable :: AKX_cel_exit_n_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from cellulosic litter N (gN m-3)
+      REAL(r8), allocatable :: AKX_lig_exit_n_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from lignin litter N (gN m-3)
+      REAL(r8), allocatable :: AKX_cwd_exit_n_vr_acc       (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from coarse woody debris N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil1_exit_n_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from active soil organic matter N  (gN m-3)
+      REAL(r8), allocatable :: AKX_soil2_exit_n_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from slow soil organic matter N (gN m-3)
+      REAL(r8), allocatable :: AKX_soil3_exit_n_vr_acc     (:,:)      ! SASU spinup diagnostics-vertical profile: accumulated flux exiting from passive soil organic matter N (gN m-3)
 
-      REAL(r8), allocatable :: diagVX_c_vr_acc             (:,:,:)
-      REAL(r8), allocatable :: upperVX_c_vr_acc            (:,:,:)
-      REAL(r8), allocatable :: lowerVX_c_vr_acc            (:,:,:)
-      REAL(r8), allocatable :: diagVX_n_vr_acc             (:,:,:)
-      REAL(r8), allocatable :: upperVX_n_vr_acc            (:,:,:)
-      REAL(r8), allocatable :: lowerVX_n_vr_acc            (:,:,:)
+      REAL(r8), allocatable :: diagVX_c_vr_acc             (:,:,:)    !!!
+      REAL(r8), allocatable :: upperVX_c_vr_acc            (:,:,:)    !!!
+      REAL(r8), allocatable :: lowerVX_c_vr_acc            (:,:,:)    !!!
+      REAL(r8), allocatable :: diagVX_n_vr_acc             (:,:,:)    !!!
+      REAL(r8), allocatable :: upperVX_n_vr_acc            (:,:,:)    !!!
+      REAL(r8), allocatable :: lowerVX_n_vr_acc            (:,:,:)    !!!
       LOGICAL , allocatable :: skip_balance_check          (:)
 #ifdef CROP
-      REAL(r8), allocatable :: cphase                   (:) ! crop phase
-      REAL(r8), allocatable :: vf          (:)
-      REAL(r8), allocatable :: gddplant    (:)
-      REAL(r8), allocatable :: gddmaturity (:)
-      REAL(r8), allocatable :: hui         (:)
-      REAL(r8), allocatable :: huiswheat   (:)
-      REAL(r8), allocatable :: pdcorn      (:)  
-      REAL(r8), allocatable :: pdswheat    (:)
-      REAL(r8), allocatable :: pdwwheat    (:)
-      REAL(r8), allocatable :: pdsoybean   (:)
-      REAL(r8), allocatable :: pdcotton    (:)
-      REAL(r8), allocatable :: pdrice1     (:)
-      REAL(r8), allocatable :: pdrice2     (:)
-      REAL(r8), allocatable :: pdsugarcane (:)  
-      REAL(r8), allocatable :: plantdate   (:)  
-      REAL(r8), allocatable :: fertnitro_corn      (:)  
-      REAL(r8), allocatable :: fertnitro_swheat    (:)
-      REAL(r8), allocatable :: fertnitro_wwheat    (:)
-      REAL(r8), allocatable :: fertnitro_soybean   (:)
-      REAL(r8), allocatable :: fertnitro_cotton    (:)
-      REAL(r8), allocatable :: fertnitro_rice1     (:)
-      REAL(r8), allocatable :: fertnitro_rice2     (:)
-      REAL(r8), allocatable :: fertnitro_sugarcane (:)  
+      REAL(r8), allocatable :: cphase              (:) ! crop phasecrop phase
+      REAL(r8), allocatable :: vf                  (:) ! vernalization response
+      REAL(r8), allocatable :: gddplant            (:) ! gdd since planting (ddays)
+      REAL(r8), allocatable :: gddmaturity         (:) ! gdd needed to harvest (ddays)
+      REAL(r8), allocatable :: hui                 (:) ! heat unit index
+      REAL(r8), allocatable :: huiswheat           (:) ! heat unit index  (rainfed spring wheat)
+      REAL(r8), allocatable :: pdcorn              (:) ! planting date of corn
+      REAL(r8), allocatable :: pdswheat            (:) ! planting date of spring wheat
+      REAL(r8), allocatable :: pdwwheat            (:) ! planting date of winter wheat
+      REAL(r8), allocatable :: pdsoybean           (:) ! planting date of soybean
+      REAL(r8), allocatable :: pdcotton            (:) ! planting date of cotton
+      REAL(r8), allocatable :: pdrice1             (:) ! planting date of rice1
+      REAL(r8), allocatable :: pdrice2             (:) ! planting date of rice2
+      REAL(r8), allocatable :: pdsugarcane         (:) ! planting date of sugarcane
+      REAL(r8), allocatable :: plantdate           (:) ! planting date
+      REAL(r8), allocatable :: fertnitro_corn      (:) ! nitrogen fertilizer for corn (gN m-2)
+      REAL(r8), allocatable :: fertnitro_swheat    (:) ! nitrogen fertilizer for spring wheat (gN m-2)
+      REAL(r8), allocatable :: fertnitro_wwheat    (:) ! nitrogen fertilizer for winter wheat (gN m-2)
+      REAL(r8), allocatable :: fertnitro_soybean   (:) ! nitrogen fertilizer for soybean (gN m-2)
+      REAL(r8), allocatable :: fertnitro_cotton    (:) ! nitrogen fertilizer for cotton (gN m-2)
+      REAL(r8), allocatable :: fertnitro_rice1     (:) ! nitrogen fertilizer for rice1 (gN m-2)
+      REAL(r8), allocatable :: fertnitro_rice2     (:) ! nitrogen fertilizer for rice2 (gN m-2)
+      REAL(r8), allocatable :: fertnitro_sugarcane (:) ! nitrogen fertilizer for sugarcane (gN m-2)
 #endif
-      REAL(r8), allocatable :: lag_npp             (:)
+      REAL(r8), allocatable :: lag_npp             (:) !!! lagged net primary production (gC m-2)
 !------------------------------------------------------
 
 ! PUBLIC MEMBER FUNCTIONS:
