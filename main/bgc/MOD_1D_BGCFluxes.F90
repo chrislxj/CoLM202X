@@ -12,137 +12,138 @@ MODULE MOD_1D_BGCFluxes
 
 !--------------------- BGC variables --------------------------------------
 ! ecosystem vegetation carbon/nitrogen flux
-  REAL(r8), allocatable :: gpp                        (:)
-  REAL(r8), allocatable :: gpp_enftemp                (:) !1
-  REAL(r8), allocatable :: gpp_enfboreal              (:) !2
-  REAL(r8), allocatable :: gpp_dnfboreal              (:) !3
-  REAL(r8), allocatable :: gpp_ebftrop                (:) !4
-  REAL(r8), allocatable :: gpp_ebftemp                (:) !5
-  REAL(r8), allocatable :: gpp_dbftrop                (:) !6
-  REAL(r8), allocatable :: gpp_dbftemp                (:) !7
-  REAL(r8), allocatable :: gpp_dbfboreal              (:) !8
-  REAL(r8), allocatable :: gpp_ebstemp                (:) !9
-  REAL(r8), allocatable :: gpp_dbstemp                (:) !10
-  REAL(r8), allocatable :: gpp_dbsboreal              (:) !11
-  REAL(r8), allocatable :: gpp_c3arcgrass             (:) !12
-  REAL(r8), allocatable :: gpp_c3grass                (:) !13
-  REAL(r8), allocatable :: gpp_c4grass                (:) !14
-  REAL(r8), allocatable :: leafc_enftemp              (:) !1
-  REAL(r8), allocatable :: leafc_enfboreal            (:) !2
-  REAL(r8), allocatable :: leafc_dnfboreal            (:) !3
-  REAL(r8), allocatable :: leafc_ebftrop              (:) !4
-  REAL(r8), allocatable :: leafc_ebftemp              (:) !5
-  REAL(r8), allocatable :: leafc_dbftrop              (:) !6
-  REAL(r8), allocatable :: leafc_dbftemp              (:) !7
-  REAL(r8), allocatable :: leafc_dbfboreal            (:) !8
-  REAL(r8), allocatable :: leafc_ebstemp              (:) !9
-  REAL(r8), allocatable :: leafc_dbstemp              (:) !10
-  REAL(r8), allocatable :: leafc_dbsboreal            (:) !11
-  REAL(r8), allocatable :: leafc_c3arcgrass           (:) !12
-  REAL(r8), allocatable :: leafc_c3grass              (:) !13
-  REAL(r8), allocatable :: leafc_c4grass              (:) !14
-  REAL(r8), allocatable :: ar                         (:)
-  REAL(r8), allocatable :: cwdprod                    (:)
-  REAL(r8), allocatable :: cwddecomp                  (:)
-  REAL(r8), allocatable :: hr                         (:)
-  REAL(r8), allocatable :: er                         (:)
-  REAL(r8), allocatable :: fire_closs                 (:)!
-  REAL(r8), allocatable :: fire_nloss                 (:)!
-  REAL(r8), allocatable :: hrv_xsmrpool_to_atm        (:)!
-  REAL(r8), allocatable :: wood_harvestc              (:)!
-  REAL(r8), allocatable :: wood_harvestn              (:)!
-  REAL(r8), allocatable :: grainc_to_cropprodc        (:)!
-  REAL(r8), allocatable :: grainc_to_seed             (:)!
-  REAL(r8), allocatable :: grainn_to_cropprodn        (:)!
-  REAL(r8), allocatable :: cropprod1c_loss            (:)!
+  REAL(r8), allocatable :: gpp                        (:) ! gross primary productivity (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_enftemp                (:) ! gross primary productivity for needleleaf evergreen temperate tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_enfboreal              (:) ! gross primary productivity for needleleaf evergreen boreal tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_dnfboreal              (:) ! gross primary productivity for needleleaf deciduous boreal tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_ebftrop                (:) ! gross primary productivity for broadleaf evergreen tropical tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_ebftemp                (:) ! gross primary productivity for broadleaf evergreen temperate tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_dbftrop                (:) ! gross primary productivity for broadleaf deciduous tropical tree (gC m-2 s-1) 
+  REAL(r8), allocatable :: gpp_dbftemp                (:) ! gross primary productivity for broadleaf deciduous temperate tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_dbfboreal              (:) ! gross primary productivity for broadleaf deciduous boreal tree (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_ebstemp                (:) ! gross primary productivity for broadleaf evergreen temperate shrub (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_dbstemp                (:) ! gross primary productivity for broadleaf deciduous temperate shrub (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_dbsboreal              (:) ! gross primary productivity for broadleaf deciduous boreal shrub (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_c3arcgrass             (:) ! gross primary productivity for c3 arctic grass (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_c3grass                (:) ! gross primary productivity for c3 grass (gC m-2 s-1)
+  REAL(r8), allocatable :: gpp_c4grass                (:) ! gross primary productivity for c4 grass (gC m-2 s-1)
+  REAL(r8), allocatable :: leafc_enftemp              (:) ! leaf carbon display pool for needleleaf evergreen temperate tree (gC m-2)
+  REAL(r8), allocatable :: leafc_enfboreal            (:) ! leaf carbon display pool for needleleaf evergreen boreal tree (gC m-2)
+  REAL(r8), allocatable :: leafc_dnfboreal            (:) ! leaf carbon display pool for needleleaf deciduous boreal tree (gC m-2)
+  REAL(r8), allocatable :: leafc_ebftrop              (:) ! leaf carbon display pool for broadleaf evergreen tropical tree (gC m-2)
+  REAL(r8), allocatable :: leafc_ebftemp              (:) ! leaf carbon display pool for broadleaf evergreen temperate tree (gC m-2)
+  REAL(r8), allocatable :: leafc_dbftrop              (:) ! leaf carbon display pool for broadleaf deciduous tropical tree (gC m-2)
+  REAL(r8), allocatable :: leafc_dbftemp              (:) ! leaf carbon display pool for broadleaf deciduous temperate tree (gC m-2)
+  REAL(r8), allocatable :: leafc_dbfboreal            (:) ! leaf carbon display pool for broadleaf deciduous boreal tree (gC m-2)
+  REAL(r8), allocatable :: leafc_ebstemp              (:) ! leaf carbon display pool for broadleaf evergreen temperate shrub (gC m-2)
+  REAL(r8), allocatable :: leafc_dbstemp              (:) ! leaf carbon display pool for broadleaf deciduous temperate shrub (gC m-2)
+  REAL(r8), allocatable :: leafc_dbsboreal            (:) ! leaf carbon display pool for broadleaf deciduous boreal shrub (gC m-2)
+  REAL(r8), allocatable :: leafc_c3arcgrass           (:) ! leaf carbon display pool for c3 arctic grass (gC m-2)
+  REAL(r8), allocatable :: leafc_c3grass              (:) ! leaf carbon display pool for c3 grass (gC m-2)
+  REAL(r8), allocatable :: leafc_c4grass              (:) ! leaf carbon display pool for c4 grass (gC m-2)
+  
+  REAL(r8), allocatable :: ar                         (:) ! autotrophic respiration (gC m-2 s-1)
+  REAL(r8), allocatable :: cwdprod                    (:) ! CWD production (gC m-2 s-1)
+  REAL(r8), allocatable :: cwddecomp                  (:) ! CWD decomposition (gC m-2 s-1)
+  REAL(r8), allocatable :: hr                         (:) ! heterotrophic respiration (gC m-2 s-1)
+  REAL(r8), allocatable :: er                         (:) ! total ecosystem respiration, autotrophic + heterotrophic (gC m-2 s-1)
+  REAL(r8), allocatable :: fire_closs                 (:) ! total C emissions due to fire (gC m-2 s-1)
+  REAL(r8), allocatable :: fire_nloss                 (:) !!!! total N emissions due to fire (gN m-2 s-1)
+  REAL(r8), allocatable :: hrv_xsmrpool_to_atm        (:) !!!! maintenance respiration storage C to atmosphere due to harvest (gC m-2 s-1)
+  REAL(r8), allocatable :: wood_harvestc              (:) !!!! harvested wood C (gC m-2 s-1)
+  REAL(r8), allocatable :: wood_harvestn              (:) !!!! harvested wood N (gN m-2 s-1)
+  REAL(r8), allocatable :: grainc_to_cropprodc        (:) ! grain to crop production carbon (gC m-2 s-1) 
+  REAL(r8), allocatable :: grainc_to_seed             (:) ! grain to crop seed carbon (gC m-2 s-1) 
+  REAL(r8), allocatable :: grainn_to_cropprodn        (:) !!!! grain to crop production nitrogen (gN m-2 s-1)
+  REAL(r8), allocatable :: cropprod1c_loss            (:) ! loss rate of 1-yr crop production carbon (gC m-2 s-1)
 
 ! decomposition carbon fluxes
-  REAL(r8), allocatable :: decomp_cpools_sourcesink   (:,:,:)
-  REAL(r8), allocatable :: decomp_ctransfer_vr        (:,:,:)
-  REAL(r8), allocatable :: decomp_hr_vr               (:,:,:)
-  REAL(r8), allocatable :: decomp_hr                  (:)
-  REAL(r8), allocatable :: phr_vr                     (:,:)
-  REAL(r8), allocatable :: m_decomp_cpools_to_fire_vr (:,:,:)
-  REAL(r8), allocatable :: decomp_cpools_transport_tendency(:,:,:)
-  REAL(r8), allocatable :: som_c_leached              (:)!
+  REAL(r8), allocatable :: decomp_cpools_sourcesink   (:,:,:)       !!! vetical profile: the change in decomposition carbon pools (donor or receiver) (gC m-3 timestep)
+  REAL(r8), allocatable :: decomp_ctransfer_vr        (:,:,:)       !! vetical profile: the non-respiratory portion of potential carbon loss from one decomposition carbon pool to another (gC m-3 s-1)
+  REAL(r8), allocatable :: decomp_hr_vr               (:,:,:)       !!! vetical profile: the heterotrophic respiration portion of potential carbon loss from one decomposition carbon pool to another (gC m-3 s-1)
+  REAL(r8), allocatable :: decomp_hr                  (:)           !!! the heterotrophic respiration portion of potential carbon loss from one decomposition carbon pool to another (gC m-3 s-1)
+  REAL(r8), allocatable :: phr_vr                     (:,:)         ! vetical profile: the potential heterotrophic respiration carbon (gC m-3 s-1)
+  REAL(r8), allocatable :: m_decomp_cpools_to_fire_vr (:,:,:)       ! vetical profile: the carbon from decomposition pools to fire emissions (gC m-3 s-1)
+  REAL(r8), allocatable :: decomp_cpools_transport_tendency(:,:,:)  !  vetical profile: the carbon tendency due to vertical transport in decomposition carbon pools (gC m-3 s-1)
+  REAL(r8), allocatable :: som_c_leached              (:)           ! total soil organic matter C loss from vertical transport (gC m-2 s-1)
 
 ! vegetation to decomposition carbon fluxes
-  REAL(r8), allocatable :: phenology_to_met_c       (:,:)
-  REAL(r8), allocatable :: phenology_to_cel_c       (:,:)
-  REAL(r8), allocatable :: phenology_to_lig_c       (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_met_c   (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_cel_c   (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_lig_c   (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_cwdc    (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_met_c  (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_cel_c  (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_lig_c  (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_cwdc   (:,:)  
+  REAL(r8), allocatable :: phenology_to_met_c       (:,:) ! phenology-associated C to metabolic litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: phenology_to_cel_c       (:,:) ! phenology-associated C to cellulosic litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: phenology_to_lig_c       (:,:) ! phenology-associated C to lignin litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_met_c   (:,:) ! gap mortality-associated C to metabolic litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_cel_c   (:,:) ! gap mortality-associated C to cellulosic litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_lig_c   (:,:) ! gap mortality-associated C to lignin litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_cwdc    (:,:) ! gap mortality-associated C to coarse woody debris C (gC m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_met_c  (:,:) ! fire mortality-associated C to metabolic litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_cel_c  (:,:) ! fire mortality-associated C to cellulosic litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_lig_c  (:,:) ! fire mortality-associated C to lignin litter C (gC m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_cwdc   (:,:) ! fire mortality-associated C to coarse woody debris C (gC m-3 s-1)
 
 ! decomposition nitrogen fluxes
-  REAL(r8), allocatable :: decomp_npools_sourcesink   (:,:,:)
-  REAL(r8), allocatable :: decomp_ntransfer_vr        (:,:,:)
-  REAL(r8), allocatable :: decomp_sminn_flux_vr       (:,:,:)
-  REAL(r8), allocatable :: sminn_to_denit_decomp_vr   (:,:,:)
-  REAL(r8), allocatable :: m_decomp_npools_to_fire_vr (:,:,:)
-  REAL(r8), allocatable :: decomp_npools_transport_tendency(:,:,:)
-  REAL(r8), allocatable :: som_n_leached            (:)!
+  REAL(r8), allocatable :: decomp_npools_sourcesink   (:,:,:)       !!! vetical profile: the change in decomposition nitrogen pools (donor or receiver) (gN m-3 timestep)
+  REAL(r8), allocatable :: decomp_ntransfer_vr        (:,:,:)       !! vetical profile: the nitrogen flux transfer from one decomposition nitrogen pool to another based on C(gN m-3 s-1)
+  REAL(r8), allocatable :: decomp_sminn_flux_vr       (:,:,:)       !!! vetical profile: the mineral nitrogen flux from donor decomposition nitrogen pool (gN m-3 s-1)
+  REAL(r8), allocatable :: sminn_to_denit_decomp_vr   (:,:,:)       ! vetical profile: the denitrification nitrogen flux based on donor decomposition nitrogen pool released (gN m-3 s-1) 
+  REAL(r8), allocatable :: m_decomp_npools_to_fire_vr (:,:,:)       ! vetical profile: the nitrogen from decomposition pools to fire emissions (gN m-3 s-1)
+  REAL(r8), allocatable :: decomp_npools_transport_tendency(:,:,:)  ! vetical profile: the nitrogen tendency due to vertical transport in decomposition nitrogen pools (gN m-3 s-1)
+  REAL(r8), allocatable :: som_n_leached              (:)           ! total soil organic matter N loss from vertical transport (gN m-2 s-1)
 
 ! vegetation to decomposition nitrogen fluxes
-  REAL(r8), allocatable :: phenology_to_met_n       (:,:)
-  REAL(r8), allocatable :: phenology_to_cel_n       (:,:)
-  REAL(r8), allocatable :: phenology_to_lig_n       (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_met_n   (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_cel_n   (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_lig_n   (:,:)
-  REAL(r8), allocatable :: gap_mortality_to_cwdn    (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_met_n  (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_cel_n  (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_lig_n  (:,:)
-  REAL(r8), allocatable :: fire_mortality_to_cwdn   (:,:)
+  REAL(r8), allocatable :: phenology_to_met_n       (:,:)   ! phenology-associated N to metabolic litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: phenology_to_cel_n       (:,:)   ! phenology-associated N to cellulosic litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: phenology_to_lig_n       (:,:)   ! phenology-associated N to lignin litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_met_n   (:,:)   ! gap mortality-associated N to metabolic litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_cel_n   (:,:)   ! gap mortality-associated N to cellulosic litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_lig_n   (:,:)   ! gap mortality-associated N to lignin litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: gap_mortality_to_cwdn    (:,:)   ! gap mortality-associated N to coarse woody debris N (gN m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_met_n  (:,:)   ! fire mortality-associated N to metabolic litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_cel_n  (:,:)   ! fire mortality-associated N to cellulosic litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_lig_n  (:,:)   ! fire mortality-associated N to lignin litter N (gN m-3 s-1)
+  REAL(r8), allocatable :: fire_mortality_to_cwdn   (:,:)   ! fire mortality-associated N to coarse woody debris N (gN m-3 s-1)
 
-  REAL(r8), allocatable :: sminn_leached_vr         (:,:)
-  REAL(r8), allocatable :: smin_no3_leached_vr      (:,:)
-  REAL(r8), allocatable :: smin_no3_runoff_vr       (:,:)
-  REAL(r8), allocatable :: net_nmin_vr              (:,:)
-  REAL(r8), allocatable :: gross_nmin_vr            (:,:)
-  REAL(r8), allocatable :: net_nmin                 (:)
-  REAL(r8), allocatable :: gross_nmin               (:)
-  REAL(r8), allocatable :: plant_ndemand            (:)
-  REAL(r8), allocatable :: actual_immob_vr          (:,:)
-  REAL(r8), allocatable :: actual_immob_nh4_vr      (:,:)
-  REAL(r8), allocatable :: actual_immob_no3_vr      (:,:)
-  REAL(r8), allocatable :: potential_immob_vr       (:,:)
-  REAL(r8), allocatable :: pmnf_decomp              (:,:,:)
-  REAL(r8), allocatable :: p_decomp_cpool_loss      (:,:,:)
-  REAL(r8), allocatable :: sminn_to_plant           (:)
-  REAL(r8), allocatable :: sminn_to_plant_vr        (:,:)
-  REAL(r8), allocatable :: smin_nh4_to_plant_vr     (:,:)
-  REAL(r8), allocatable :: smin_no3_to_plant_vr     (:,:)
-  REAL(r8), allocatable :: supplement_to_sminn_vr   (:,:)
-  REAL(r8), allocatable :: sminn_to_plant_fun_vr    (:,:)
-  REAL(r8), allocatable :: sminn_to_plant_fun_nh4_vr(:,:)
-  REAL(r8), allocatable :: sminn_to_plant_fun_no3_vr(:,:)
-  REAL(r8), allocatable :: sminn_to_denit_excess_vr (:,:)
-  REAL(r8), allocatable :: f_nit_vr                 (:,:)
-  REAL(r8), allocatable :: f_denit_vr               (:,:)
-  REAL(r8), allocatable :: f_n2o_nit_vr             (:,:)
-  REAL(r8), allocatable :: f_n2o_denit_vr           (:,:)
-  REAL(r8), allocatable :: pot_f_nit_vr             (:,:)
-  REAL(r8), allocatable :: pot_f_denit_vr           (:,:)
-  REAL(r8), allocatable :: n2_n2o_ratio_denit_vr    (:,:)
-  REAL(r8), allocatable :: ndep_to_sminn            (:)
-  REAL(r8), allocatable :: ffix_to_sminn            (:)
-  REAL(r8), allocatable :: nfix_to_sminn            (:)
-  REAL(r8), allocatable :: somc_fire                (:)
-  REAL(r8), allocatable :: supplement_to_sminn      (:)!
-  REAL(r8), allocatable :: fert_to_sminn            (:)!
-  REAL(r8), allocatable :: soyfixn_to_sminn         (:)!
-  REAL(r8), allocatable :: denit                    (:)!
-  REAL(r8), allocatable :: sminn_leached            (:)!
-  REAL(r8), allocatable :: f_n2o_nit                (:)!
-  REAL(r8), allocatable :: smin_no3_leached         (:)!
-  REAL(r8), allocatable :: smin_no3_runoff          (:)!
+  REAL(r8), allocatable :: sminn_leached_vr         (:,:)   ! vetical profile: soil mineral N loss to leaching (gN m-3 s-1)
+  REAL(r8), allocatable :: smin_no3_leached_vr      (:,:)   ! vetical profile: soil mineral NO3 loss to leaching (gN m-3 s-1)
+  REAL(r8), allocatable :: smin_no3_runoff_vr       (:,:)   ! vetical profile: soil mineral NO3 loss to runoff (gN m-3 s-1)
+  REAL(r8), allocatable :: net_nmin_vr              (:,:)   !! vetical profile: net N mineralization (gN m-3 s-1) 
+  REAL(r8), allocatable :: gross_nmin_vr            (:,:)   !! vetical profile: total N mineralization (gN m-3 s-1) 
+  REAL(r8), allocatable :: net_nmin                 (:)     !!! net N mineralization (gN m-2 s-1) 
+  REAL(r8), allocatable :: gross_nmin               (:)     !!! total N mineralization (gN m-2 s-1) 
+  REAL(r8), allocatable :: plant_ndemand            (:)     ! plant potential need to uptake N (gN m-2 s-1) 
+  REAL(r8), allocatable :: actual_immob_vr          (:,:)   ! vetical profile: actual N immobilization (gN m-3 s-1)
+  REAL(r8), allocatable :: actual_immob_nh4_vr      (:,:)   ! vetical profile: actual NH4 immobilization (gN m-3 s-1)
+  REAL(r8), allocatable :: actual_immob_no3_vr      (:,:)   ! vetical profile: actual NO3 immobilization (gN m-3 s-1)
+  REAL(r8), allocatable :: potential_immob_vr       (:,:)   ! vetical profile: potential N immobilization (gN m-3 s-1)
+  REAL(r8), allocatable :: pmnf_decomp              (:,:,:) ! vetical profile: potential mineral N transfer from one pool to another (gN m-3 s-1)
+  REAL(r8), allocatable :: p_decomp_cpool_loss      (:,:,:) ! potential C transfer from one pool to another (gC m-3 s-1)
+  REAL(r8), allocatable :: sminn_to_plant           (:)     ! plant uptake N (gN m-2 s-1)
+  REAL(r8), allocatable :: sminn_to_plant_vr        (:,:)   ! vetical profile: plant uptake N (gN m-3 s-1)
+  REAL(r8), allocatable :: smin_nh4_to_plant_vr     (:,:)   ! vetical profile: plant uptake NH4 (gN m-3 s-1)
+  REAL(r8), allocatable :: smin_no3_to_plant_vr     (:,:)   ! vetical profile: plant uptake NO3 (gN m-3 s-1)
+  REAL(r8), allocatable :: supplement_to_sminn_vr   (:,:)   ! vetical profile: supplemental N supply to soil mineral N (gN m-3 s-1)
+  REAL(r8), allocatable :: sminn_to_plant_fun_vr    (:,:)   ! vetical profile: plant uptake N FUN (gN m-3 s-1)
+  REAL(r8), allocatable :: sminn_to_plant_fun_nh4_vr(:,:)   ! vetical profile: plant uptake NH4 of FUN (gN m-3 s-1)
+  REAL(r8), allocatable :: sminn_to_plant_fun_no3_vr(:,:)   ! vetical profile: plant uptake NO3 of FUN (gN m-3 s-1)
+  REAL(r8), allocatable :: sminn_to_denit_excess_vr (:,:)   ! vetical profile: N denitrification from excess mineral N (gN m-3 s-1)
+  REAL(r8), allocatable :: f_nit_vr                 (:,:)   ! vetical profile: N nitrification (gN m-3 s-1)
+  REAL(r8), allocatable :: f_denit_vr               (:,:)   ! vetical profile: N denitrification (gN m-3 s-1)
+  REAL(r8), allocatable :: f_n2o_nit_vr             (:,:)   ! vetical profile: flux of N2O from N nitrification (gN m-3 s-1)
+  REAL(r8), allocatable :: f_n2o_denit_vr           (:,:)   ! vetical profile: flux of N2O from N denitrification (gN m-3 s-1)
+  REAL(r8), allocatable :: pot_f_nit_vr             (:,:)   ! vetical profile: potential N nitrification (gN m-3 s-1)
+  REAL(r8), allocatable :: pot_f_denit_vr           (:,:)   ! vetical profile: potential N denitrification (gN m-3 s-1)
+  REAL(r8), allocatable :: n2_n2o_ratio_denit_vr    (:,:)   ! vetical profile: ratio of N2 to N2O production by denitrification (gN gN-1)
+  REAL(r8), allocatable :: ndep_to_sminn            (:)     ! atmospheric N deposition to soil mineral N (gN m-2 s-1)
+  REAL(r8), allocatable :: ffix_to_sminn            (:)     !!! free living N fixation to soil mineral N (gN m-2 s-1)
+  REAL(r8), allocatable :: nfix_to_sminn            (:)     ! N fixation to soil mineral N (gN m-2 s-1)
+  REAL(r8), allocatable :: somc_fire                (:)     !!! soil organic matters C to fire emissions (gC m-2 s-1)
+  REAL(r8), allocatable :: supplement_to_sminn      (:)     ! supplemental N supply to soil mineral N (gN m-2 s-1)
+  REAL(r8), allocatable :: fert_to_sminn            (:)     ! fertilizer N to soil mineral N (gN m-2 s-1)
+  REAL(r8), allocatable :: soyfixn_to_sminn         (:)     ! soybean N fixation to soil mineral N (gN m-2 s-1)
+  REAL(r8), allocatable :: denit                    (:)     ! total N denitrification (gN m-2 s-1)
+  REAL(r8), allocatable :: sminn_leached            (:)     ! soil mineral N loss to leaching (gN m-2 s-1)
+  REAL(r8), allocatable :: f_n2o_nit                (:)     ! flux of N2O from N nitrification (gN m-2 s-1)
+  REAL(r8), allocatable :: smin_no3_leached         (:)     ! soil mineral NO3 loss to leaching (gN m-2 s-1)
+  REAL(r8), allocatable :: smin_no3_runoff          (:)     ! soil mineral NO3 loss to runoff (gN m-2 s-1)
 !----------------- end BGC variables -----------------------------------
 
 ! PUBLIC MEMBER FUNCTIONS:
