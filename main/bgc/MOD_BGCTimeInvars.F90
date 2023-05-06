@@ -10,106 +10,106 @@ use precision
 IMPLICIT NONE
 SAVE
 !------------------------- BGC constant --------------------------------------
-  INTEGER , allocatable  :: donor_pool       (:)
-  INTEGER , allocatable  :: receiver_pool    (:)
-  REAL(r8) :: am
-  LOGICAL , allocatable  :: floating_cn_ratio(:)
-  REAL(r8), allocatable :: initial_cn_ratio (:)
-  REAL(r8), allocatable :: rf_decomp        (:,:,:)
-  REAL(r8), allocatable :: pathfrac_decomp  (:,:,:)
+  INTEGER , allocatable  :: donor_pool       (:)      ! which pool is C taken from for a given decomposition step (release pool)
+  INTEGER , allocatable  :: receiver_pool    (:)      ! which pool is C added to for a given decomposition step (receive pool)
+  REAL(r8) :: am                                      ! mortality rate (year-1)
+  LOGICAL , allocatable  :: floating_cn_ratio(:)      !!! flag, true if calculate actual C:N
+  REAL(r8), allocatable :: initial_cn_ratio (:)       ! each pool c:n ratio for initialization
+  REAL(r8), allocatable :: rf_decomp        (:,:,:)   ! respiratory fraction of C released
+  REAL(r8), allocatable :: pathfrac_decomp  (:,:,:)   ! fraction of C leaving a given pool passes through a given transition
 
-  INTEGER  :: i_met_lit
-  INTEGER  :: i_cel_lit
-  INTEGER  :: i_lig_lit
-  INTEGER  :: i_cwd
-  INTEGER  :: i_soil1
-  INTEGER  :: i_soil2
-  INTEGER  :: i_soil3
-  INTEGER  :: i_atm
+  INTEGER  :: i_met_lit    ! index of metabolic litter pool             
+  INTEGER  :: i_cel_lit    ! index of cellulose litter pool
+  INTEGER  :: i_lig_lit    ! index of lignin litter pool
+  INTEGER  :: i_cwd        ! index of coarse woody debris pool
+  INTEGER  :: i_soil1      ! index of active soil organic matter pool
+  INTEGER  :: i_soil2      ! index of slow soil organic matter pool
+  INTEGER  :: i_soil3      ! index of passive soil organic matter pool
+  INTEGER  :: i_atm        ! index of atmosphere pool
 
-  LOGICAL , allocatable :: is_cwd    (:)!(1:ndecomp_pools) ! True => is a coarse woody debris pool
-  LOGICAL , allocatable :: is_litter (:)!(1:ndecomp_pools) ! True => is a litter pool
-  LOGICAL , allocatable :: is_soil   (:)!(1:ndecomp_pools) ! True => is a soil pool
+  LOGICAL , allocatable :: is_cwd    (:)  ! (1:ndecomp_pools) ! True => is a coarse woody debris pool
+  LOGICAL , allocatable :: is_litter (:)  ! (1:ndecomp_pools) ! True => is a litter pool
+  LOGICAL , allocatable :: is_soil   (:)  ! (1:ndecomp_pools) ! True => is a soil pool
 
-  REAL(r8), allocatable :: gdp_lf (:) !
-  REAL(r8), allocatable :: abm_lf (:) !
-  REAL(r8), allocatable :: peatf_lf(:)!
-  REAL(r8), allocatable :: cmb_cmplt_fact(:)
-  INTEGER , allocatable :: rice2pdt(:)
+  REAL(r8), allocatable :: gdp_lf    (:)        !!! 
+  REAL(r8), allocatable :: abm_lf    (:)        !!! 
+  REAL(r8), allocatable :: peatf_lf  (:)        !!!
+  REAL(r8), allocatable :: cmb_cmplt_fact(:)    !!! combustion completion factor
+  INTEGER , allocatable :: rice2pdt  (:)        !!!!
 
-  REAL(r8) :: nitrif_n2o_loss_frac ! fraction of N lost as N2O in nitrification (Li et al., 2000)
-  REAL(r8) :: dnp     ! denitrification proportion
-  REAL(r8) :: bdnr    ! bulk denitrification rate (1/day)
-  REAL(r8) :: compet_plant_no3
-  REAL(r8) :: compet_plant_nh4
-  REAL(r8) :: compet_decomp_no3
-  REAL(r8) :: compet_decomp_nh4
-  REAL(r8) :: compet_denit
-  REAL(r8) :: compet_nit
-  REAL(r8) :: surface_tension_water
-  REAL(r8) :: rij_kro_a
-  REAL(r8) :: rij_kro_alpha
-  REAL(r8) :: rij_kro_beta
-  REAL(r8) :: rij_kro_gamma
-  REAL(r8) :: rij_kro_delta
-  REAL(r8) :: nfix_timeconst
-  REAL(r8) :: organic_max
-  REAL(r8) :: d_con_g21
-  REAL(r8) :: d_con_g22
-  REAL(r8) :: d_con_w21
-  REAL(r8) :: d_con_w22
-  REAL(r8) :: d_con_w23
-  REAL(r8) :: denit_resp_coef
-  REAL(r8) :: denit_resp_exp
-  REAL(r8) :: denit_nitrate_coef
-  REAL(r8) :: denit_nitrate_exp
-  REAL(r8) :: k_nitr_max
-  REAL(r8) :: Q10
-  REAL(r8) :: froz_q10 
-  REAL(r8) :: tau_l1
-  REAL(r8) :: tau_l2_l3
-  REAL(r8) :: tau_s1   
-  REAL(r8) :: tau_s2  
-  REAL(r8) :: tau_s3 
-  REAL(r8) :: tau_cwd
-  REAL(r8) :: lwtop
+  REAL(r8) :: nitrif_n2o_loss_frac           ! fraction of N lost as N2O in nitrification
+  REAL(r8) :: dnp                            ! denitrification proportion
+  REAL(r8) :: bdnr                           ! bulk denitrification rate (1/day)
+  REAL(r8) :: compet_plant_no3               ! relative compettiveness of plants for NO3
+  REAL(r8) :: compet_plant_nh4               ! relative compettiveness of plants for NH4
+  REAL(r8) :: compet_decomp_no3              ! relative competitiveness of immobilizers for NO3
+  REAL(r8) :: compet_decomp_nh4              ! relative competitiveness of immobilizers for NH4
+  REAL(r8) :: compet_denit                   ! relative competitiveness of denitrifiers for NO3
+  REAL(r8) :: compet_nit                     ! relative competitiveness of nitrifiers for NH4
+  REAL(r8) :: surface_tension_water          ! surface tension of water (J m-2)
+  REAL(r8) :: rij_kro_a                      !!! anoxic fraction calculated parameter  
+  REAL(r8) :: rij_kro_alpha                  !!! anoxic fraction calculated parameter  
+  REAL(r8) :: rij_kro_beta                   !!! anoxic fraction calculated parameter  
+  REAL(r8) :: rij_kro_gamma                  !!! anoxic fraction calculated parameter  
+  REAL(r8) :: rij_kro_delta                  !!! anoxic fraction calculated parameter  
+  REAL(r8) :: nfix_timeconst                 !!! timescale for smoothing npp in N fixation term
+  REAL(r8) :: organic_max                    !!! organic matter content (kg m-3) where soil is assumed to act like peat
+  REAL(r8) :: d_con_g21                      !!! O2 diffusivity constants in gas (cm2 s-1)
+  REAL(r8) :: d_con_g22                      !!! O2 diffusivity constants in gas (cm2 s-1)
+  REAL(r8) :: d_con_w21                      !!! O2 diffusivity constants in water (cm2 s-1)
+  REAL(r8) :: d_con_w22                      !!! O2 diffusivity constants in water (cm2 s-1)
+  REAL(r8) :: d_con_w23                      !!! O2 diffusivity constants in water (cm2 s-1)
+  REAL(r8) :: denit_resp_coef                ! coefficient for maximum N denitrification rate based on respiration
+  REAL(r8) :: denit_resp_exp                 ! exponent for maximum N denitrification rate based on respiration
+  REAL(r8) :: denit_nitrate_coef             ! coefficient for maximum N denitrification rate based on nitrate concentration
+  REAL(r8) :: denit_nitrate_exp              ! exponent for maximum N denitrification rate based on nitrate concentration
+  REAL(r8) :: k_nitr_max                     ! maximum N nitrification rate (day-1)
+  REAL(r8) :: Q10                            ! respiration rate increments when temperature rising 10 degree C
+  REAL(r8) :: froz_q10                       ! respiration rate increments when temperature rising 10 degree C for frozen soil
+  REAL(r8) :: tau_l1                         ! 1/turnover time of metabolic litter from Century   
+  REAL(r8) :: tau_l2_l3                      ! 1/turnover time of cellulose litter and lignin litter from Century      
+  REAL(r8) :: tau_s1                         ! 1/turnover time of active soil organic matter from Century     
+  REAL(r8) :: tau_s2                         ! 1/turnover time of slow soil organic matter from Century 
+  REAL(r8) :: tau_s3                         ! 1/turnover time of passive soil organic matter from Century 
+  REAL(r8) :: tau_cwd                        ! corrected fragmentation rate constant CWD, century leaves wood decomposition rates open (year-1)
+  REAL(r8) :: lwtop                          ! live wood turnover proportion
 
-  REAL(r8) :: som_adv_flux
-  REAL(r8) :: som_diffus
-  REAL(r8) :: cryoturb_diffusion_k
-  REAL(r8) :: max_altdepth_cryoturbation
-  REAL(r8) :: max_depth_cryoturb
+  REAL(r8) :: som_adv_flux                   !! the advection term in soil organic matter mixing
+  REAL(r8) :: som_diffus                     !! the diffusion term in soil organic matter mixing
+  REAL(r8) :: cryoturb_diffusion_k           !!! the cryoturbation diffusive constant cryoturbation to the active layer thickness (m2 s-1)
+  REAL(r8) :: max_altdepth_cryoturbation     ! maximum active layer thickness for cryoturbation to occur (m)
+  REAL(r8) :: max_depth_cryoturb             !!! the maximum depth of cryoturbation (m)
 
-  REAL(r8) :: br         ! basal respiration rate for aboveground biomass
-  REAL(r8) :: br_root    ! basal respiration rate for belowground biomass
-  REAL(r8) :: fstor2tran
-  REAL(r8) :: ndays_on
-  REAL(r8) :: ndays_off
-  REAL(r8) :: crit_dayl
-  REAL(r8) :: crit_onset_fdd
-  REAL(r8) :: crit_onset_swi
-  REAL(r8) :: crit_offset_fdd
-  REAL(r8) :: crit_offset_swi
-  REAL(r8) :: soilpsi_on
-  REAL(r8) :: soilpsi_off
+  REAL(r8) :: br                             ! basal maintenance respiration rate for aboveground biomass (gC gN-1 s-1)
+  REAL(r8) :: br_root                        ! basal maintenance respiration rate for belowground biomass (gC gN-1 s-1)
+  REAL(r8) :: fstor2tran                     ! fraction of storage to move to transfer for each onset
+  REAL(r8) :: ndays_on                       ! number of days to complete leaf onset 
+  REAL(r8) :: ndays_off                      ! number of days to complete leaf offset
+  REAL(r8) :: crit_dayl                      ! critical day length for senescence (s)
+  REAL(r8) :: crit_onset_fdd                 ! critical number of freezing days to begin gdd accumulation
+  REAL(r8) :: crit_onset_swi                 ! critical number of days exceeding soil water potential threshold to initiate onset
+  REAL(r8) :: crit_offset_fdd                ! critical number of freezing days to initiate offset
+  REAL(r8) :: crit_offset_swi                ! critical number of days below soil water potential threshold to initiate offset
+  REAL(r8) :: soilpsi_on                     ! critical soil water potential threshold for onset
+  REAL(r8) :: soilpsi_off                    ! critical soil water potential threshold for offset
 
-  REAL(r8) :: occur_hi_gdp_tree
-  REAL(r8) :: lfuel
-  REAL(r8) :: ufuel
-  REAL(r8) :: cropfire_a1
-  REAL(r8) :: borealat
-  REAL(r8) :: troplat
-  REAL(r8) :: non_boreal_peatfire_c
-  REAL(r8) :: boreal_peatfire_c
-  REAL(r8) :: rh_low
-  REAL(r8) :: rh_hgh
-  REAL(r8) :: bt_min
-  REAL(r8) :: bt_max
-  REAL(r8) :: pot_hmn_ign_counts_alpha
-  REAL(r8) :: g0
+  REAL(r8) :: occur_hi_gdp_tree              !!!
+  REAL(r8) :: lfuel                          !!!
+  REAL(r8) :: ufuel                          !!!
+  REAL(r8) :: cropfire_a1                    !!!
+  REAL(r8) :: borealat                       !!!
+  REAL(r8) :: troplat                        !!!
+  REAL(r8) :: non_boreal_peatfire_c          !!!
+  REAL(r8) :: boreal_peatfire_c              !!!
+  REAL(r8) :: rh_low                         !!!
+  REAL(r8) :: rh_hgh                         !!!
+  REAL(r8) :: bt_min                         !!!
+  REAL(r8) :: bt_max                         !!!
+  REAL(r8) :: pot_hmn_ign_counts_alpha       !!!
+  REAL(r8) :: g0                             !!! 
 
-  REAL(r8) :: sf
-  REAL(r8) :: sf_no3
+  REAL(r8) :: sf                             ! soluble fraction of mineral N (unitless)
+  REAL(r8) :: sf_no3                         ! soluble fraction of NO3 (unitless)
 
 !----------------------------------- end BGC constants -----------------
 
