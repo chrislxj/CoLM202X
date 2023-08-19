@@ -757,7 +757,7 @@ ENDIF
               mss_dst1(lbsn:0)  ,mss_dst2(lbsn:0)  ,mss_dst3(lbsn:0)   ,mss_dst4(lbsn:0), &
 ! END SNICAR model variables
 !  irrigation variables
-              qflx_irrig_drip   ,qflx_irrig_flood  ,qflx_irrig_paddy
+              qflx_irrig_drip   ,qflx_irrig_flood  ,qflx_irrig_paddy &
               )
       ELSE
 
@@ -788,7 +788,7 @@ ENDIF
              mss_dst1(lbsn:0)   ,mss_dst2(lbsn:0)  ,mss_dst3(lbsn:0)  ,mss_dst4(lbsn:0)  ,&
 ! END SNICAR model variables
 !  irrigation variables
-             qflx_irrig_drip    ,qflx_irrig_flood  ,qflx_irrig_paddy
+             qflx_irrig_drip    ,qflx_irrig_flood  ,qflx_irrig_paddy &
              )
 
       ENDIF
