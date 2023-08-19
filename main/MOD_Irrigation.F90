@@ -14,7 +14,7 @@ module MOD_Irrigation
     use MOD_Qsadv, only: qsadv
     use MOD_Vars_TimeInvariants, only: &
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
-        theta_r, alpha_vgm, n_vgm, &
+        theta_r, alpha_vgm, n_vgm, L_vgm, sc_vgm, fc_vgm, &
 #endif
         porsl, psi0, bsw
     use MOD_Vars_TimeVariables, only : tref, t_soisno, wliq_soisno, irrig_rate, deficit_irrig, sum_irrig, sum_irrig_count, n_irrig_steps_left, &
@@ -199,13 +199,12 @@ contains
 
     end subroutine CalIrrigationPotentialNeeded
 
-    subroutine CalIrrigationApplicationFluxes(i,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy,irrig_flag)
+    subroutine CalIrrigationApplicationFluxes(i,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy)
         !   DESCRIPTION:
         !   This subroutine is used to calculate irrigation application fluxes for each irrigated crop patch
         integer , intent(in) :: i
         integer , intent(in) :: ps, pe
         real(r8), intent(in) :: deltim
-        integer , intent(in) :: irrig_flag  ! 1 if sprinker, 2 if others 
         real(r8), intent(out):: qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy
 
         integer :: m 
@@ -223,24 +222,19 @@ contains
         !   add irrigation fluxes to precipitation or land surface
         do m = ps, pe
             if (n_irrig_steps_left(i) > 0) then
-                if ((irrig_flag == 1) .and. (irrig_method_p(m) == irrig_method_sprinkler)) then 
+                if (irrig_method_p(m) == irrig_method_drip) then
+                    qflx_irrig_drip = irrig_rate(i)
+                else if (irrig_method_p(m) == irrig_method_sprinkler) then 
                     qflx_irrig_sprinkler = irrig_rate(i)
-                    n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
-                    deficit_irrig(i) = deficit_irrig(i) - irrig_rate(i)*deltim
-                else if (irrig_flag == 2) then
-                    if (irrig_method_p(m) == irrig_method_drip) then
-                        qflx_irrig_drip = irrig_rate(i)
-                    else if (irrig_method_p(m) == irrig_method_flood) then
-                        qflx_irrig_flood = irrig_rate(i)
-                    else if (irrig_method_p(m) == irrig_method_paddy) then
-                        qflx_irrig_paddy = irrig_rate(i)
-                    else if ((irrig_method_p(m) /= irrig_method_drip) .and. (irrig_method_p(m) /= irrig_method_sprinkler) &
-                        .and. (irrig_method_p(m) /= irrig_method_flood) .and. (irrig_method_p(m) /= irrig_method_paddy)) then
-                        qflx_irrig_drip = irrig_rate(i)
-                    end if
-                    n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
-                    deficit_irrig(i) = deficit_irrig(i) - irrig_rate(i)*deltim
+                else if (irrig_method_p(m) == irrig_method_flood) then
+                    qflx_irrig_flood = irrig_rate(i)
+                else if (irrig_method_p(m) == irrig_method_paddy) then
+                    qflx_irrig_paddy = irrig_rate(i)
+                else
+                    qflx_irrig_drip = irrig_rate(i)
                 end if
+                n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
+                deficit_irrig(i) = deficit_irrig(i) - irrig_rate(i)*deltim
                 if (deficit_irrig(i) < 0._r8) then
                     deficit_irrig(i) = 0._r8
                 end if

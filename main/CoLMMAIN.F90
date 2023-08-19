@@ -503,10 +503,17 @@ SUBROUTINE CoLMMAIN ( &
       real(r8) dz_soisno_(maxsnl+1:1)  !layer thickness (m)
       real(r8) sabg_lyr  (maxsnl+1:1)  !snow layer absorption [W/m-2]
 
+      !  For irrigation 
+      !----------------------------------------------------------------------
+      real(r8) :: qflx_irrig_drip         ! drip irrigation rate [mm/s]
+      real(r8) :: qflx_irrig_sprinkler    ! sprinkler irrigation rate [mm/s]
+      real(r8) :: qflx_irrig_flood        ! flood irrigation rate [mm/s]
+      real(r8) :: qflx_irrig_paddy        ! paddy irrigation rate [mm/s]
+
       !----------------------------------------------------------------------
 
       real(r8) :: a, aa
-      integer ps, pe, pc
+      integer ps, pe, pc, m
 
 !======================================================================
 #if(defined CaMa_Flood)
@@ -609,35 +616,53 @@ IF (patchtype <= 2) THEN ! <=== is - URBAN and BUILT-UP   (patchtype = 1)
       ENDIF
 
 !----------------------------------------------------------------------
-! [2] Canopy interception and precipitation onto ground surface
+! [2] Irrigation 
+!----------------------------------------------------------------------
+      qflx_irrig_drip = 0._r8
+      qflx_irrig_sprinkler = 0._r8
+      qflx_irrig_flood = 0._r8
+      qflx_irrig_paddy = 0._r8
+
+#ifdef CROP
+   if(DEF_USE_IRRIGATION)then
+      if(patchtype == 0)then
+         ps = patch_pft_s(ipatch)
+         pe = patch_pft_e(ipatch)
+         call CalIrrigationApplicationFluxes(ipatch,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy)
+      end if
+   end if
+#endif
+
+!----------------------------------------------------------------------
+! [3] Canopy interception and precipitation onto ground surface
 !----------------------------------------------------------------------
 
 IF (patchtype == 0) THEN
 
 #if(defined LULC_USGS || defined LULC_IGBP)
       CALL LEAF_interception_wrap (deltim,dewmx,forc_us,forc_vs,chil,sigf,lai,sai,forc_t, tleaf,&
-                              prc_rain,prc_snow,prl_rain,prl_snow,&
+                              prc_rain,prc_snow,prl_rain,prl_snow,qflx_irrig_sprinkler,&
                               ldew,ldew_rain,ldew_snow,z0m,forc_hgt_u,pg_rain,pg_snow,qintr,qintr_rain,qintr_snow)
 
 #endif
 
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
       CALL LEAF_interception_pftwrap (ipatch,deltim,dewmx,forc_us,forc_vs,forc_t,&
-                              prc_rain,prc_snow,prl_rain,prl_snow,&
+                              prc_rain,prc_snow,prl_rain,prl_snow,qflx_irrig_sprinkler,&
                               ldew,ldew_rain,ldew_snow,z0m,forc_hgt_u,pg_rain,pg_snow,qintr,qintr_rain,qintr_snow)
 
 #endif
 
 ELSE
       CALL LEAF_interception_wrap (deltim,dewmx,forc_us,forc_vs,chil,sigf,lai,sai,forc_t, tleaf,&
-                              prc_rain,prc_snow,prl_rain,prl_snow,&
+                              prc_rain,prc_snow,prl_rain,prl_snow,qflx_irrig_sprinkler,&
                               ldew,ldew_rain,ldew_snow,z0m,forc_hgt_u,pg_rain,pg_snow,qintr,qintr_rain,qintr_snow)
 ENDIF
 
       qdrip = pg_rain + pg_snow
 
 !----------------------------------------------------------------------
-! [3] Initilize new snow nodes for snowfall / sleet
+! [4] Initilize new snow nodes for snowfall / sleet
 !----------------------------------------------------------------------
 
       snl_bef = snl
@@ -653,7 +678,7 @@ ENDIF
       ENDIF
 
 !----------------------------------------------------------------------
-! [4] Energy and Water balance
+! [5] Energy and Water balance
 !----------------------------------------------------------------------
       lb  = snl + 1           !lower bound of array
       lbsn = min(lb,0)
@@ -729,8 +754,10 @@ ENDIF
 ! SNICAR model variables
              ,forc_aer          ,&
               mss_bcpho(lbsn:0) ,mss_bcphi(lbsn:0) ,mss_ocpho(lbsn:0)  ,mss_ocphi(lbsn:0),&
-              mss_dst1(lbsn:0)  ,mss_dst2(lbsn:0)  ,mss_dst3(lbsn:0)   ,mss_dst4(lbsn:0)  &
+              mss_dst1(lbsn:0)  ,mss_dst2(lbsn:0)  ,mss_dst3(lbsn:0)   ,mss_dst4(lbsn:0), &
 ! END SNICAR model variables
+!  irrigation variables
+              qflx_irrig_drip   ,qflx_irrig_flood  ,qflx_irrig_paddy
               )
       ELSE
 
@@ -758,8 +785,10 @@ ENDIF
 ! SNICAR model variables
              ,forc_aer          ,&
              mss_bcpho(lbsn:0)  ,mss_bcphi(lbsn:0) ,mss_ocpho(lbsn:0) ,mss_ocphi(lbsn:0) ,&
-             mss_dst1(lbsn:0)   ,mss_dst2(lbsn:0)  ,mss_dst3(lbsn:0)  ,mss_dst4(lbsn:0)   &
+             mss_dst1(lbsn:0)   ,mss_dst2(lbsn:0)  ,mss_dst3(lbsn:0)  ,mss_dst4(lbsn:0)  ,&
 ! END SNICAR model variables
+!  irrigation variables
+             qflx_irrig_drip    ,qflx_irrig_flood  ,qflx_irrig_paddy
              )
 
       ENDIF

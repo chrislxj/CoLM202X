@@ -233,8 +233,10 @@ CONTAINS
 ! SNICAR model variables
              ,forc_aer   ,&
              mss_bcpho   ,mss_bcphi   ,mss_ocpho   ,mss_ocphi   ,&
-             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4     &
+             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4    ,&
 ! END SNICAR model variables
+!  irrigation variables
+             qflx_irrig_drip   ,qflx_irrig_flood  ,qflx_irrig_paddy&
             )
 
 !=======================================================================

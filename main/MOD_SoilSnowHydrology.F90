@@ -51,9 +51,11 @@ MODULE MOD_SoilSnowHydrology
 ! SNICAR model variables
              ,forc_aer   ,&
              mss_bcpho   ,mss_bcphi   ,mss_ocpho   ,mss_ocphi   ,&
-             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4     &
+             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4    ,&
 ! END SNICAR model variables
-            )
+!  irrigation variable 
+             qflx_irrig_drip  ,qflx_irrig_flood ,qflx_irrig_paddy&
+             )
 !=======================================================================
 ! this is the main subroutine to execute the calculation of
 ! hydrological processes
@@ -144,6 +146,10 @@ MODULE MOD_SoilSnowHydrology
         mss_dst4  (lb:0)   ! mass of dust species 4 in snow  (col,lyr) [kg]
 ! Aerosol Fluxes (Jan. 07, 2023)
 ! END SNICAR model variables
+!  irrigaiton 
+  real(r8), intent(in) :: qflx_irrig_drip         ! drip irrigation rate [mm/s]
+  real(r8), intent(in) :: qflx_irrig_flood        ! flood irrigation rate [mm/s]
+  real(r8), intent(in) :: qflx_irrig_paddy        ! paddy irrigation rate [mm/s]
 
 !-----------------------Local Variables------------------------------
 !
@@ -166,15 +172,6 @@ MODULE MOD_SoilSnowHydrology
   real(r8) ::gfld ,rsur_fld, qinfl_fld_subgrid ! inundation water input from top (mm/s)
 #endif
 
-#ifdef CROP
-   integer  :: ps, pe
-   integer  :: irrig_flag  ! 1 if sprinker, 2 if others
-   real(r8) :: qflx_irrig_drip
-   real(r8) :: qflx_irrig_sprinkler
-   real(r8) :: qflx_irrig_flood
-   real(r8) :: qflx_irrig_paddy
-#endif
-
 !=======================================================================
 ! [1] update the liquid water within snow layer and the water onto soil
 !=======================================================================
@@ -195,14 +192,8 @@ MODULE MOD_SoilSnowHydrology
                          mss_dst1(lb:0), mss_dst2(lb:0), mss_dst3(lb:0), mss_dst4(lb:0) )
          ENDIF
       endif
-#ifdef CROP
-      if(DEF_USE_IRRIGATION)then
-         ps = patch_pft_s(ipatch)
-         pe = patch_pft_e(ipatch)
-         call CalIrrigationApplicationFluxes(ipatch,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy,irrig_flag=2)
-         gwat = gwat + qflx_irrig_drip + qflx_irrig_flood + qflx_irrig_paddy
-      end if
-#endif
+
+      gwat = gwat + qflx_irrig_drip + qflx_irrig_flood + qflx_irrig_paddy
 !=======================================================================
 ! [2] surface runoff and infiltration
 !=======================================================================
@@ -390,8 +381,10 @@ MODULE MOD_SoilSnowHydrology
 ! SNICAR model variables
              ,forc_aer   ,&
              mss_bcpho   ,mss_bcphi   ,mss_ocpho   ,mss_ocphi ,&
-             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4   &
+             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4  ,&
 ! END SNICAR model variables
+!  irrigation variable 
+             qflx_irrig_drip  ,qflx_irrig_flood ,qflx_irrig_paddy&
              )
 
 !===================================================================================
@@ -503,6 +496,10 @@ MODULE MOD_SoilSnowHydrology
         mss_dst4  (lb:0)   ! mass of dust species 4 in snow  (col,lyr) [kg]
 ! Aerosol Fluxes (Jan. 07, 2023)
 ! END SNICAR model variables
+!  irrigaiton 
+  real(r8), intent(in) :: qflx_irrig_drip         ! drip irrigation rate [mm/s]
+  real(r8), intent(in) :: qflx_irrig_flood        ! flood irrigation rate [mm/s]
+  real(r8), intent(in) :: qflx_irrig_paddy        ! paddy irrigation rate [mm/s]
 
 !-----------------------Local Variables------------------------------
 !
@@ -525,15 +522,6 @@ MODULE MOD_SoilSnowHydrology
   LOGICAL  :: is_permeable(1:nl_soil)
   REAL(r8) :: dzsum, dz
   REAL(r8) :: icefracsum, fracice_rsub, imped
-
-#ifdef CROP
-   integer  :: ps, pe
-   integer  :: irrig_flag  ! 1 if sprinker, 2 if others
-   real(r8) :: qflx_irrig_drip
-   real(r8) :: qflx_irrig_sprinkler
-   real(r8) :: qflx_irrig_flood
-   real(r8) :: qflx_irrig_paddy
-#endif
 
 #ifdef Campbell_SOIL_MODEL
   real(r8) :: theta_r(1:nl_soil)
@@ -576,17 +564,8 @@ MODULE MOD_SoilSnowHydrology
                          mss_dst1(lb:0), mss_dst2(lb:0), mss_dst3(lb:0), mss_dst4(lb:0) )
          ENDIF
       endif
-
-#ifdef CROP
-      if(DEF_USE_IRRIGATION)then
-         if(patchtype==0)then
-            ps = patch_pft_s(ipatch)
-            pe = patch_pft_e(ipatch)
-            call CalIrrigationApplicationFluxes(ipatch,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy,irrig_flag=2)
-            gwat = gwat + qflx_irrig_drip + qflx_irrig_flood + qflx_irrig_paddy
-         end if
-      end if
-#endif
+      
+      gwat = gwat + qflx_irrig_drip + qflx_irrig_flood + qflx_irrig_paddy
 !=======================================================================
 ! [2] surface runoff and infiltration
 !=======================================================================
