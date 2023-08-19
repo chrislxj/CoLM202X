@@ -24,6 +24,7 @@ module MOD_Irrigation
     use MOD_BGC_Vars_PFTimeVariables, only: cphase_p
     use MOD_Vars_1DForcing, only: forc_t, forc_frl, forc_psrf, forc_us, forc_vs
     use MOD_Vars_1DFluxes, only: sabg, sabvsun, sabvsha, olrg, fgrnd
+    use MOD_Hydro_SoilFunction, only: soil_vliq_from_psi
 
     implicit none
 
