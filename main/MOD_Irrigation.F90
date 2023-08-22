@@ -261,6 +261,14 @@ contains
         real(r8):: ldate(3)
         real(r8):: seconds_since_irrig_start_time
 
+        !   adjust flood irrigation in rice to paddy irrigaiton
+        do m = ps, pe 
+            ivt = pftclass(m)
+            if ((ivt == 62) .and. (irrig_method_p(m) == irrig_method_flood))then
+                irrig_method_p(m) = irrig_method_paddy
+            endif
+        enddo
+
         do m = ps, pe 
             ivt = pftclass(m)
             if ((ivt >= npcropmin) .and. (irrig_crop(ivt)) .and. &
