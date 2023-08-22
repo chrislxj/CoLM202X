@@ -1913,7 +1913,7 @@ contains
             pg_rain_tmp = pg_rain_tmp + pg_rain*pftfrac(i)
             pg_snow_tmp = pg_snow_tmp + pg_snow*pftfrac(i)
          ENDDO
-      END IF s
+      END IF
 
      pg_rain = pg_rain_tmp
      pg_snow = pg_snow_tmp
