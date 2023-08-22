@@ -32,9 +32,6 @@ MODULE MOD_LeafInterception
    USE MOD_Precision
    USE MOD_Const_Physical, only: tfrz, denh2o, denice
    USE MOD_Namelist, only : DEF_Interception_scheme, DEF_USE_IRRIGATION
-#ifdef CROP
-   USE MOD_Irrigation, only: CalIrrigationApplicationFluxes   
-#endif
 
    IMPLICIT NONE
 

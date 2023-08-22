@@ -9,10 +9,6 @@ MODULE MOD_SoilSnowHydrology
 #if(defined CaMa_Flood)
    USE YOS_CMF_INPUT,      ONLY: LWINFILT
 #endif
-#ifdef CROP
-   use MOD_LandPFT, only: patch_pft_s, patch_pft_e
-   use MOD_Irrigation, only: CalIrrigationApplicationFluxes
-#endif
   IMPLICIT NONE
   SAVE
 
