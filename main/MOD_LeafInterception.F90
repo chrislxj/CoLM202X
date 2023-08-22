@@ -31,6 +31,7 @@ MODULE MOD_LeafInterception
    ! 2002.08.31  Yongjiu Dai
    USE MOD_Precision
    USE MOD_Const_Physical, only: tfrz, denh2o, denice
+   USE MOD_Namelist, only : DEF_Interception_scheme
 
    IMPLICIT NONE
 
