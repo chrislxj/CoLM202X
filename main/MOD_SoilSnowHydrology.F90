@@ -665,7 +665,7 @@ MODULE MOD_SoilSnowHydrology
 
       ! check consistancy between water table location and liquid water content
       DO j = 1, nl_soil
-         IF ((vol_liq(j) < eff_porosity(j)-1.e-6) .and. (zwtmm <= sp_zi(j-1))) THEN
+         IF ((vol_liq(j) < eff_porosity(j)-1.e-8) .and. (zwtmm <= sp_zi(j-1))) THEN
             zwtmm = sp_zi(j)
          ENDIF
       ENDDO
