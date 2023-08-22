@@ -5,7 +5,7 @@ MODULE MOD_SoilSnowHydrology
 !-----------------------------------------------------------------------
   use MOD_Precision
   use MOD_Namelist, only: DEF_USE_PLANTHYDRAULICS, DEF_USE_SNICAR, &
-                          DEF_URBAN_RUN, DEF_USE_IRRIGATION
+                          DEF_URBAN_RUN
 #if(defined CaMa_Flood)
    USE YOS_CMF_INPUT,      ONLY: LWINFILT
 #endif
