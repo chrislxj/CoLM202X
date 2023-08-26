@@ -488,10 +488,15 @@ MODULE MOD_Vars_TimeVariables
      real(r8), allocatable :: fq           (:) ! integral of profile function for moisture
 
      real(r8), allocatable :: irrig_rate          (:) ! irrigation rate [mm s-1]
-     real(r8), allocatable :: deficit_irrig       (:) ! irrigation amount [kg/m2]
+     real(r8), allocatable :: deficit_irrig       (:) ! need irrigation amount [kg/m2]
+     real(r8), allocatable :: actual_irrig        (:) ! actual irrigation amount [kg/m2]
      real(r8), allocatable :: sum_irrig           (:) ! total irrigation amount [kg/m2]
      real(r8), allocatable :: sum_irrig_count     (:) ! total irrigation counts [-]
      integer , allocatable :: n_irrig_steps_left  (:) ! left steps for once irrigation [-]
+     real(r8), allocatable :: waterstorage_supply (:) ! irrigation supply from water storage pool [kg/m2]
+     real(r8), allocatable :: uncongwirrig_supply (:) ! irrigation supply from unconfined water [kg/m2]
+     real(r8), allocatable :: congwirrig_supply   (:) ! irrigation supply from confined water [kg/m2]
+     real(r8), allocatable :: waterstorage        (:) ! water of water storage pool (from reservoir and river) [kg/m2]
      real(r8), allocatable :: tairday                       (:) ! daily mean temperature [degree C]
      real(r8), allocatable :: usday                         (:) ! daily mean wind component in eastward direction [m/s]
      real(r8), allocatable :: vsday                         (:) ! daily mean wind component in northward direction [m/s]
@@ -499,7 +504,7 @@ MODULE MOD_Vars_TimeVariables
      real(r8), allocatable :: rnetday                       (:) ! daily net radiation flux [MJ/m2/day]
      real(r8), allocatable :: fgrndday                      (:) ! daily ground heat flux [MJ/m2/day]
      real(r8), allocatable :: potential_evapotranspiration  (:) ! daily potential evapotranspiration [mm/day]
-
+ 
      integer , allocatable :: irrig_method_corn      (:) ! irrigation method for corn (0-3)
      integer , allocatable :: irrig_method_swheat    (:) ! irrigation method for spring wheat (0-3)
      integer , allocatable :: irrig_method_wwheat    (:) ! irrigation method for winter wheat (0-3)
@@ -636,9 +641,14 @@ MODULE MOD_Vars_TimeVariables
 
            allocate ( irrig_rate                 (numpatch)); irrig_rate             (:) = spval
            allocate ( deficit_irrig              (numpatch)); deficit_irrig          (:) = spval
+           allocate ( actual_irrig               (numpatch)); actual_irrig           (:) = spval
            allocate ( sum_irrig                  (numpatch)); sum_irrig              (:) = spval
            allocate ( sum_irrig_count            (numpatch)); sum_irrig_count        (:) = spval
            allocate ( n_irrig_steps_left         (numpatch)); n_irrig_steps_left     (:) = spval_i4
+           allocate ( waterstorage_supply        (numpatch)); waterstorage_supply    (:) = spval
+           allocate ( uncongwirrig_supply        (numpatch)); uncongwirrig_supply    (:) = spval
+           allocate ( congwirrig_supply          (numpatch)); congwirrig_supply      (:) = spval
+           allocate ( waterstorage               (numpatch)); waterstorage           (:) = spval
            allocate ( tairday                    (numpatch)); tairday                (:) = spval
            allocate ( usday                      (numpatch)); usday                  (:) = spval
            allocate ( vsday                      (numpatch)); vsday                  (:) = spval
@@ -788,10 +798,14 @@ MODULE MOD_Vars_TimeVariables
 
            deallocate (irrig_rate             )
            deallocate (deficit_irrig          )
+           deallocate (actual_irrig           )
            deallocate (sum_irrig              )
            deallocate (sum_irrig_count        )
            deallocate (n_irrig_steps_left     )
-
+           deallocate (waterstorage_supply    )
+           deallocate (uncongwirrig_supply    )
+           deallocate (congwirrig_supply      )
+           deallocate (waterstorage           )
            deallocate (tairday                )
            deallocate (usday                  )
            deallocate (vsday                  )
@@ -992,9 +1006,11 @@ ENDIF
 IF (DEF_USE_IRRIGATION) THEN
      CALL Ncio_write_vector (file_restart, 'irrig_rate            ' , 'patch',landpatch,irrig_rate            , compress)
      CALL Ncio_write_vector (file_restart, 'deficit_irrig         ' , 'patch',landpatch,deficit_irrig         , compress)
+     CALL Ncio_write_vector (file_restart, 'actual_irrig         '  , 'patch',landpatch,actual_irrig          , compress)
      CALL Ncio_write_vector (file_restart, 'sum_irrig             ' , 'patch',landpatch,sum_irrig             , compress)
      CALL Ncio_write_vector (file_restart, 'sum_irrig_count       ' , 'patch',landpatch,sum_irrig_count       , compress)
      CALL Ncio_write_vector (file_restart, 'n_irrig_steps_left    ' , 'patch',landpatch,n_irrig_steps_left    , compress)
+     CALL Ncio_write_vector (file_restart, 'waterstorage    '       , 'patch',landpatch,waterstorage          , compress)
      CALL Ncio_write_vector (file_restart, 'tairday               ' , 'patch',landpatch,tairday               , compress)
      CALL Ncio_write_vector (file_restart, 'usday                 ' , 'patch',landpatch,usday                 , compress)
      CALL Ncio_write_vector (file_restart, 'vsday                 ' , 'patch',landpatch,vsday                 , compress)
@@ -1151,26 +1167,28 @@ ENDIF
      CALL ncio_read_vector (file_restart, 'fq   ', landpatch, fq   ) ! integral of profile function for moisture
 
 IF (DEF_USE_IRRIGATION) THEN
-     CALL ncio_read_vector (file_restart, 'irrig_rate            ' , landpatch, irrig_rate            )
-     CALL ncio_read_vector (file_restart, 'deficit_irrig         ' , landpatch, deficit_irrig         )
-     CALL ncio_read_vector (file_restart, 'sum_irrig             ' , landpatch, sum_irrig             )
-     CALL ncio_read_vector (file_restart, 'sum_irrig_count       ' , landpatch, sum_irrig_count       )
-     CALL ncio_read_vector (file_restart, 'n_irrig_steps_left    ' , landpatch, n_irrig_steps_left    )
-     CALL ncio_read_vector (file_restart, 'tairday               ' , landpatch, tairday               )
-     CALL ncio_read_vector (file_restart, 'usday                 ' , landpatch, usday                 )
-     CALL ncio_read_vector (file_restart, 'vsday                 ' , landpatch, vsday                 )
-     CALL ncio_read_vector (file_restart, 'pairday               ' , landpatch, pairday               )
-     CALL ncio_read_vector (file_restart, 'rnetday               ' , landpatch, rnetday               )
-     CALL ncio_read_vector (file_restart, 'fgrndday              ' , landpatch, fgrndday              )
-     CALL ncio_read_vector (file_restart, 'potential_evapotranspiration' , landpatch, potential_evapotranspiration)
-     CALL ncio_read_vector (file_restart, 'irrig_method_corn     ' , landpatch, irrig_method_corn     )
-     CALL ncio_read_vector (file_restart, 'irrig_method_swheat   ' , landpatch, irrig_method_swheat   )
-     CALL ncio_read_vector (file_restart, 'irrig_method_wwheat   ' , landpatch, irrig_method_wwheat   )
-     CALL ncio_read_vector (file_restart, 'irrig_method_soybean  ' , landpatch, irrig_method_soybean  )
-     CALL ncio_read_vector (file_restart, 'irrig_method_cotton   ' , landpatch, irrig_method_cotton   )
-     CALL ncio_read_vector (file_restart, 'irrig_method_rice1    ' , landpatch, irrig_method_rice1    )
-     CALL ncio_read_vector (file_restart, 'irrig_method_rice2    ' , landpatch, irrig_method_rice2    )
-     CALL ncio_read_vector (file_restart, 'irrig_method_sugarcane' , landpatch, irrig_method_sugarcane)
+     CALL ncio_read_vector (file_restart, 'irrig_rate            ' , landpatch, irrig_rate            ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'deficit_irrig         ' , landpatch, deficit_irrig         ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'actual_irrig         '  , landpatch, actual_irrig          ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'sum_irrig             ' , landpatch, sum_irrig             ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'sum_irrig_count       ' , landpatch, sum_irrig_count       ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'n_irrig_steps_left    ' , landpatch, n_irrig_steps_left    ,defval = 0)
+     CALL ncio_read_vector (file_restart, 'waterstorage    '       , landpatch, waterstorage          ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'tairday               ' , landpatch, tairday               ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'usday                 ' , landpatch, usday                 ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'vsday                 ' , landpatch, vsday                 ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'pairday               ' , landpatch, pairday               ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'rnetday               ' , landpatch, rnetday               ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'fgrndday              ' , landpatch, fgrndday              ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'potential_evapotranspiration' , landpatch, potential_evapotranspiration,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'irrig_method_corn     ' , landpatch, irrig_method_corn     ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_swheat   ' , landpatch, irrig_method_swheat   ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_wwheat   ' , landpatch, irrig_method_wwheat   ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_soybean  ' , landpatch, irrig_method_soybean  ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_cotton   ' , landpatch, irrig_method_cotton   ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_rice1    ' , landpatch, irrig_method_rice1    ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_rice2    ' , landpatch, irrig_method_rice2    ,defval = 1)
+     CALL ncio_read_vector (file_restart, 'irrig_method_sugarcane' , landpatch, irrig_method_sugarcane,defval = 1)
 ENDIF
 
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
@@ -1275,9 +1293,11 @@ ENDIF
 IF (DEF_USE_IRRIGATION) THEN
      CALL check_vector_data ('irrig_rate            ' , irrig_rate            )
      CALL check_vector_data ('deficit_irrig         ' , deficit_irrig         )
+     CALL check_vector_data ('actual_irrig         '  , actual_irrig          )
      CALL check_vector_data ('sum_irrig             ' , sum_irrig             )
      CALL check_vector_data ('sum_irrig_count       ' , sum_irrig_count       )
      CALL check_vector_data ('n_irrig_steps_left    ' , n_irrig_steps_left    )
+     CALL check_vector_data ('waterstorage    '       , waterstorage          )
      CALL check_vector_data ('tairday               ' , tairday               )
      CALL check_vector_data ('usday                 ' , usday                 )
      CALL check_vector_data ('vsday                 ' , vsday                 )
