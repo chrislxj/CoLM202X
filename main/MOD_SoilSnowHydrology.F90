@@ -5,10 +5,15 @@ MODULE MOD_SoilSnowHydrology
 !-----------------------------------------------------------------------
   use MOD_Precision
   use MOD_Namelist, only: DEF_USE_PLANTHYDRAULICS, DEF_USE_SNICAR, &
-                          DEF_URBAN_RUN
+                          DEF_URBAN_RUN, DEF_USE_IRRIGATION
 #if(defined CaMa_Flood)
    USE YOS_CMF_INPUT,      ONLY: LWINFILT
 #endif
+#ifdef CROP
+   USE MOD_Vars_PFTimeInvariants, only: pftclass
+   USE MOD_Irrigation, only: irrig_method_paddy
+   USE MOD_Vars_TimeVariables, only: irrig_method_p, groundwater_supply
+#endif 
   IMPLICIT NONE
   SAVE
 
@@ -168,6 +173,10 @@ MODULE MOD_SoilSnowHydrology
   real(r8) ::gfld ,rsur_fld, qinfl_fld_subgrid ! inundation water input from top (mm/s)
 #endif
 
+#ifdef CROP
+   integer :: ps, pe, m
+#endif
+
 !=======================================================================
 ! [1] update the liquid water within snow layer and the water onto soil
 !=======================================================================
@@ -215,9 +224,19 @@ MODULE MOD_SoilSnowHydrology
 
       rsur = 0.
       if (gwat > 0.) then
-      call surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
-                          z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
-                          eff_porosity,icefrac,zwt,gwat,rsur)
+#ifdef CROP
+         do m = ps, pe
+            if ((.not. DEF_USE_IRRIGATION) .or. (.not. (irrig_method_p(m) == irrig_method_paddy))) then
+#endif
+               call surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
+                                 z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
+                                 eff_porosity,icefrac,zwt,gwat,rsur)
+#ifdef CROP
+            else
+               rsur = 0.
+            end if
+         end do   
+#endif
       else
            rsur = 0.
       endif
@@ -277,7 +296,7 @@ MODULE MOD_SoilSnowHydrology
 ! [4] subsurface runoff and the corrections
 !=======================================================================
 
-      call subsurfacerunoff (nl_soil,deltim,pondmx,&
+      call subsurfacerunoff (ipatch,nl_soil,deltim,pondmx,&
                              eff_porosity,icefrac,dz_soisno(1:),zi_soisno(0:),&
                              wice_soisno(1:),wliq_soisno(1:),&
                              porsl,psi0,bsw,zwt,wa,&
@@ -519,6 +538,10 @@ MODULE MOD_SoilSnowHydrology
   REAL(r8) :: dzsum, dz
   REAL(r8) :: icefracsum, fracice_rsub, imped
 
+#ifdef CROP
+   integer :: ps, pe, m
+#endif
+
 #ifdef Campbell_SOIL_MODEL
   real(r8) :: theta_r(1:nl_soil)
 #endif
@@ -607,13 +630,22 @@ MODULE MOD_SoilSnowHydrology
 
 #ifndef LATERAL_FLOW
       if (gwat > 0.) then
-         call surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
-                             z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
-                             eff_porosity,icefrac,zwt,gwat,rsur)
+#ifdef CROP
+         do m = ps, pe
+            if ((.not. DEF_USE_IRRIGATION) .or. (.not. (irrig_method_p(m) == irrig_method_paddy))) then
+#endif
+               call surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
+                                 z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
+                                 eff_porosity,icefrac,zwt,gwat,rsur)
+#ifdef CROP
+            else
+               rsur = 0.
+            end if
+         end do   
+#endif
       else
-         rsur = 0.
+           rsur = 0.
       endif
-
       ! infiltration into surface soil layer
       qraing = gwat - rsur
 #else
@@ -695,6 +727,12 @@ MODULE MOD_SoilSnowHydrology
       rsubst = 0
 #endif
 
+      ! irrigation withdraw 
+#ifdef CROP
+      if (DEF_USE_IRRIGATION) then
+         rsubst = rsubst + groundwater_supply(ipatch)/deltim
+      end if
+#endif
 
 #ifdef Campbell_SOIL_MODEL
       prms(1,:) = bsw(1:nl_soil)
@@ -762,9 +800,17 @@ MODULE MOD_SoilSnowHydrology
 
 #ifndef LATERAL_FLOW
      IF (wdsrf > pondmx) THEN
-        rsur = rsur + (wdsrf - pondmx) / deltim
-        wdsrf = pondmx
-     ENDIF
+#ifdef CROP
+        DO m = ps, pe
+            IF ((.not. DEF_USE_IRRIGATION) .or. (.not. (irrig_method_p(m) == irrig_method_paddy))) THEN
+#endif          
+               rsur = rsur + (wdsrf - pondmx) / deltim
+               wdsrf = pondmx
+#ifdef CROP
+            ENDIF
+         ENDDO
+#endif
+      ENDIF
 
      ! total runoff (mm/s)
      rnof = rsub(ipatch) + rsur
@@ -1809,7 +1855,7 @@ MODULE MOD_SoilSnowHydrology
   end subroutine soilwater
 
 
-  subroutine subsurfacerunoff(nl_soil,deltim,pondmx,&
+  subroutine subsurfacerunoff(ipatch,nl_soil,deltim,pondmx,&
                               eff_porosity,icefrac,&
                               dz_soisno,zi_soisno,wice_soisno,wliq_soisno,&
                               porsl,psi0,bsw,zwt,wa,&
@@ -1823,7 +1869,7 @@ MODULE MOD_SoilSnowHydrology
 !
 ! ARGUMENTS:
     IMPLICIT NONE
-
+    integer, INTENT(in) :: ipatch
     integer, INTENT(in) :: nl_soil       !
     real(r8), INTENT(in) :: deltim       ! land model time step (sec)
     real(r8), INTENT(in) :: pondmx       !
@@ -1966,6 +2012,12 @@ MODULE MOD_SoilSnowHydrology
     fracice_rsub = max(0.,exp(-3.*(1.-(icefracsum/dzsum)))-exp(-3.))/(1.0-exp(-3.))
     imped = max(0.,1.-fracice_rsub)
     drainage = imped * 5.5e-3 * exp(-2.5*zwt)  ! drainage (positive = out of soil column)
+    ! irrigation withdraw 
+#ifdef CROP
+    if (DEF_USE_IRRIGATION) then
+      drainage = drainage + groundwater_supply(ipatch)/deltim
+    end if
+#endif
 
 !-- Water table is below the soil column  ----------------------------------------
     if(jwt == nl_soil) then

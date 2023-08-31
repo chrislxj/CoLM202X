@@ -494,8 +494,7 @@ MODULE MOD_Vars_TimeVariables
      real(r8), allocatable :: sum_irrig_count     (:) ! total irrigation counts [-]
      integer , allocatable :: n_irrig_steps_left  (:) ! left steps for once irrigation [-]
      real(r8), allocatable :: waterstorage_supply (:) ! irrigation supply from water storage pool [kg/m2]
-     real(r8), allocatable :: uncongwirrig_supply (:) ! irrigation supply from unconfined water [kg/m2]
-     real(r8), allocatable :: congwirrig_supply   (:) ! irrigation supply from confined water [kg/m2]
+     real(r8), allocatable :: groundwater_supply  (:) ! irrigation supply from ground water [kg/m2]
      real(r8), allocatable :: waterstorage        (:) ! water of water storage pool (from reservoir and river) [kg/m2]
      real(r8), allocatable :: tairday                       (:) ! daily mean temperature [degree C]
      real(r8), allocatable :: usday                         (:) ! daily mean wind component in eastward direction [m/s]
@@ -646,8 +645,7 @@ MODULE MOD_Vars_TimeVariables
            allocate ( sum_irrig_count            (numpatch)); sum_irrig_count        (:) = spval
            allocate ( n_irrig_steps_left         (numpatch)); n_irrig_steps_left     (:) = spval_i4
            allocate ( waterstorage_supply        (numpatch)); waterstorage_supply    (:) = spval
-           allocate ( uncongwirrig_supply        (numpatch)); uncongwirrig_supply    (:) = spval
-           allocate ( congwirrig_supply          (numpatch)); congwirrig_supply      (:) = spval
+           allocate ( groundwater_supply         (numpatch)); groundwater_supply     (:) = spval
            allocate ( waterstorage               (numpatch)); waterstorage           (:) = spval
            allocate ( tairday                    (numpatch)); tairday                (:) = spval
            allocate ( usday                      (numpatch)); usday                  (:) = spval
@@ -803,8 +801,7 @@ MODULE MOD_Vars_TimeVariables
            deallocate (sum_irrig_count        )
            deallocate (n_irrig_steps_left     )
            deallocate (waterstorage_supply    )
-           deallocate (uncongwirrig_supply    )
-           deallocate (congwirrig_supply      )
+           deallocate (groundwater_supply     )
            deallocate (waterstorage           )
            deallocate (tairday                )
            deallocate (usday                  )

@@ -20,7 +20,7 @@ module MOD_Irrigation
     use MOD_Vars_TimeVariables, only : tref, t_soisno, wliq_soisno, zwt, &
         irrig_rate, sum_irrig, sum_irrig_count, n_irrig_steps_left, &
         tairday, usday, vsday, pairday, rnetday, fgrndday, potential_evapotranspiration, &
-        waterstorage_supply, uncongwirrig_supply, congwirrig_supply, &
+        waterstorage_supply, groundwater_supply, &
         waterstorage, deficit_irrig, actual_irrig
     use MOD_Vars_PFTimeInvariants, only: pftclass
     use MOD_Vars_PFTimeVariables, only: irrig_method_p
@@ -243,6 +243,10 @@ contains
                     qflx_irrig_drip = irrig_rate(i)
                 end if
                 n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
+                waterstorage(i) = waterstorage(i) - irrig_rate(i)
+                if (waterstorage(i) <= 0._r8) then
+                    waterstorage(i) = 0._r8
+                end if
             else 
                 irrig_rate(i) = 0._r8
             end if
@@ -358,159 +362,28 @@ contains
         integer, intent(in) :: nbedrock
         real(r8),intent(in) :: zi_soi(1:nl_soil)
         
-        logical :: limitedirrig
-
         waterstorage_supply(i) = 0._r8
-        uncongwirrig_supply(i) = 0._r8
-        congwirrig_supply(i) = 0._r8
-        limitedirrig = .true.
+        groundwater_supply(i) = 0._r8
 
         !   irrigation withdraw from water storage pool to adjust the unmatched time for different water supply systems
         if (deficit_irrig(i) > 0._r8) then
             waterstorage_supply(i) = min(waterstorage(i),deficit_irrig(i))
-            waterstorage(i) = waterstorage(i) - waterstorage_supply(i)
             actual_irrig(i) = actual_irrig(i) + waterstorage_supply(i)
         endif
 #ifdef CaMa_Flood
-        ! call CalWithdrawReservoirWater() deficit noupdate
-        ! call CalWithdrawRiverWater() deficit actual
+        ! Reservoirwater_demand(i) = deficit_irrig(i) - actual_irrig(i)
+        ! !   问一下树鹏老师，如何计算网格的面积
+        ! ! Reservoirwater_demand(i) = Reservoirwater_demand(i)
+        ! ! call CalWithdrawReservoirWater() deficit noupdate
+        ! ! call CalWithdrawRiverWater() deficit actual
+        ! waterstorage(i) = waterstorage(i) + Reservoirwater_supply(i)
 #endif
-        !   irrigation withdraw from unconfined ground water
+        !   irrigation withdraw from ground water (unconfined and confined)
         if (deficit_irrig(i) > actual_irrig(i)) then
-            call CalWithdrawUndergroundWater(i,nl_soil,nbedrock,zi_soi)
-            actual_irrig(i) = actual_irrig(i) + uncongwirrig_supply(i)
-        end if
-        !   irrigation withdraw from confined ground water
-        if ((deficit_irrig(i) > actual_irrig(i)) .and. (.not. limitedirrig)) then
-            congwirrig_supply(i) = deficit_irrig(i)
-            actual_irrig(i) = actual_irrig(i) + congwirrig_supply(i)
+            groundwater_supply(i) = deficit_irrig(i) - actual_irrig(i)
+            waterstorage(i) = waterstorage(i) + groundwater_supply(i)
         endif
     end subroutine CalIrrigationLimitedSupply
-
-
-!   地下水抽取部分，需要在这个部分重新call water过程？？？ 还是保留相应的信息，然后在后面计算？？？
-!   常规的地下水方案->call subsurfacerunoff；VSF方案->call soilwater_aquifer_exchange
-    subroutine CalWithdrawUndergroundWater(i,nl_soil,nbedrock,zi_soi)
-        !   DESCRIPTION:
-        !   This subroutine is used to calculate how much irrigation supplied in each irrigated crop patch from unconfined ground water
-        integer, intent(in) :: i
-        integer, intent(in) :: nl_soil
-        integer, intent(in) :: nbedrock
-        real(r8),intent(in) :: zi_soi(1:nl_soil)
-
-        !   local variable
-        integer :: j, jwt
-        real(r8):: s_y
-        real(r8):: uncongwirrig_demand
-        real(r8):: uncongwirrig_supply_layer(1:nl_soil)
-            
-        ! if (.not. DEF_USE_VARIABLY_SATURATED_FLOW) then
-            uncongwirrig_demand = -(deficit_irrig(i) - actual_irrig(i))
-            uncongwirrig_supply(i) = 0._r8
-            do j = 1, nl_soil 
-                uncongwirrig_supply_layer(j) = 0._r8
-            end do 
-            
-            !   The layer index of the first unsaturated layer
-            jwt = nl_soil
-            !   allow jwt to equal zero when zwt is in top layer
-            do j = 1, nl_soil
-                if (zwt(i) <= zi_soi(j)) then
-                    jwt = j-1
-                    exit
-                end if
-            enddo
-
-            do j = jwt+1, nl_soil
-                if (j > nbedrock) then
-                    exit
-                else
-                    ! use analytical expression for specific yield
-                    s_y = porsl(j,i) * (1.-(1.-1.e3*zwt(i)/psi0(j,i))**(-1./bsw(j,i)))
-                    s_y = max(s_y,0.02)
-                    uncongwirrig_supply_layer(j) = max(uncongwirrig_demand,-(s_y*(zi_soi(j) - zwt(i))*1.e3))
-                    uncongwirrig_supply_layer(j) = min(uncongwirrig_supply_layer(j),0.)
-                    uncongwirrig_demand = uncongwirrig_demand - uncongwirrig_supply_layer(j)
-
-                    if (uncongwirrig_demand >= 0.) then
-                        zwt = max(0.,zwt - uncongwirrig_supply_layer(j)/s_y/1000.)
-                        exit
-                    else
-                        zwt(i) = zi_soi(j)
-                    endif
-                end if
-            enddo
-
-            do j = 1, nl_soil
-                uncongwirrig_supply(i) = uncongwirrig_supply(i) - uncongwirrig_supply_layer(j)
-                wliq_soisno(j,i) = wliq_soisno(j,i) + uncongwirrig_supply_layer(j)
-            enddo
-
-        ! else
-            ! uncongwirrig_demand = deficit_irrig(i)
-            ! do j = 1, nl_soil 
-            !     uncongwirrig_supply_layer(j) = 0._r8
-            ! end do 
-            ! sp_zi(0:nl_soil) = zi_soi(0:nl_soil) * 1000.0   ! from meter to mm
-
-            ! izwt = findloc(zwt >= sp_zi, .true., dim=1, back=.true.)
-            ! is_permeable(j) = eff_porosity(j) > max(wimp, theta_r(j))
-
-            ! DO WHILE (uncongwirrig_demand > 0.)
-            !     IF (izwt <= nlev) THEN
-            !         IF (is_permeable(izwt)) THEN
-            !             call get_zwt_from_wa ( &
-            !                 porsl(izwt), vl_r(izwt), psi_s(izwt), hksat(izwt), &
-            !                 nprm, prms(:,izwt), tol_v, tol_z, -uncongwirrig_demand, zwt, zwtp)
-            !             IF (zwtp < sp_zi(izwt)) THEN
-            !                 ss_vliq(izwt) = (ss_vliq(izwt)*(zwtmm-sp_zi(izwt-1))  &
-            !                     + porsl(izwt)*(zwtp-zwtmm) - uncongwirrig_demand) / (zwtp - sp_zi(izwt-1))
-            !                 uncongwirrig_supply_layer(j) = uncongwirrig_demand
-            !                 uncongwirrig_demand = 0.
-            !                 zwtmm = zwtp
-            !             ELSE
-            !                 psi  = psi_s(izwt) - (zwtp - 0.5*(sp_zi(izwt) + zwtmm))
-            !                 vliq = soil_vliq_from_psi (psi, &
-            !                     porsl(izwt), vl_r(izwt), psi_s(izwt), nprm, prms(:,izwt))
-            !                 IF (uncongwirrig_demand > (porsl(izwt)-vliq) * (sp_zi(izwt)-zwtmm)) THEN
-            !                     ss_vliq(izwt) = (ss_vliq(izwt)*(zwtmm-sp_zi(izwt-1))  &
-            !                     + vliq * (sp_zi(izwt)-zwtmm)) / sp_dz(izwt)
-            !                     uncongwirrig_supply_layer(j) = (porsl(izwt)-vliq) * (sp_zi(izwt)-zwtmm)
-            !                     uncongwirrig_demand = uncongwirrig_demand - (porsl(izwt)-vliq) * (sp_zi(izwt)-zwtmm)
-            !                 ELSE
-            !                     ss_vliq(izwt) = (ss_vliq(izwt)*(zwtmm-sp_zi(izwt-1))  &
-            !                     + porsl(izwt)*(sp_zi(izwt)-zwtmm) - uncongwirrig_demand) / sp_dz(izwt)
-            !                     uncongwirrig_supply_layer(j) = uncongwirrig_demand
-            !                     uncongwirrig_demand = 0.
-            !                 ENDIF
-            !                 zwtmm  = sp_zi(izwt)
-            !                 izwt = izwt + 1
-            !             ENDIF
-            !         ELSE
-            !             zwtmm  = sp_zi(izwt)
-            !             izwt = izwt + 1
-            !         ENDIF
-            !     ENDIF
-            ! ENDDO
-
-            ! ! update the mass of liquid water
-            ! DO j = nl_soil, 1, -1
-            !     IF (is_permeable(j)) THEN
-            !         IF (zwtmm < sp_zi(j)) THEN
-            !             IF (zwtmm >= sp_zi(j-1)) THEN
-            !                 wliq_soisno(j,i)  = denh2o * ((eff_porosity(j)*(sp_zi(j)-zwtmm))  &
-            !                     + vol_liq(j) * (zwtmm - sp_zi(j-1)))/1000.0
-            !             ELSE
-            !                 wliq_soisno(j,i)  = denh2o * (eff_porosity(j)*(sp_zi(j)-sp_zi(j-1)))/1000.0
-            !             ENDIF
-            !         ELSE
-            !             wliq_soisno(j,i) = denh2o * (vol_liq(j)*(sp_zi(j)-sp_zi(j-1)))/1000.0
-            !         ENDIF
-            !     ENDIF
-            ! ENDDO
-            ! zwt = zwtmm/1000.0
-        ! end if
-        end subroutine CalWithdrawUndergroundWater
 
 end module MOD_Irrigation
 #endif
