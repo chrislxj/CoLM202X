@@ -11,6 +11,7 @@ MODULE MOD_SoilSnowHydrology
 #endif
 #ifdef CROP
    USE MOD_Vars_PFTimeInvariants, only: pftclass
+   USE MOD_LandPFT, only: patch_pft_s, patch_pft_e
    USE MOD_Irrigation, only: irrig_method_paddy
    USE MOD_Vars_TimeVariables, only: irrig_method_p, groundwater_supply
 #endif 
@@ -177,6 +178,10 @@ MODULE MOD_SoilSnowHydrology
    integer :: ps, pe, m
 #endif
 
+#ifdef CROP
+   ps = patch_pft_s(ipatch)      
+   pe = patch_pft_e(ipatch)
+#endif
 !=======================================================================
 ! [1] update the liquid water within snow layer and the water onto soil
 !=======================================================================
@@ -559,6 +564,11 @@ MODULE MOD_SoilSnowHydrology
 
 #ifdef Campbell_SOIL_MODEL
       theta_r(1:nl_soil) = 0._r8
+#endif
+
+#ifdef CROP
+   ps = patch_pft_s(ipatch)      
+   pe = patch_pft_e(ipatch)
 #endif
 
 !=======================================================================

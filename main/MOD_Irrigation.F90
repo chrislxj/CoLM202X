@@ -20,7 +20,7 @@ module MOD_Irrigation
     use MOD_Vars_TimeVariables, only : tref, t_soisno, wliq_soisno, zwt, &
         irrig_rate, sum_irrig, sum_irrig_count, n_irrig_steps_left, &
         tairday, usday, vsday, pairday, rnetday, fgrndday, potential_evapotranspiration, &
-        waterstorage_supply, groundwater_supply, &
+        waterstorage_supply, groundwater_supply, ReservoirRiver_supply, ReservoirRiver_demand, &
         waterstorage, deficit_irrig, actual_irrig
     use MOD_Vars_PFTimeInvariants, only: pftclass
     use MOD_Vars_PFTimeVariables, only: irrig_method_p
@@ -76,10 +76,10 @@ contains
         !   calculate irrigation needed
         if (check_for_irrig) then
             call CalIrrigationPotentialNeeded(i,ps,pe,nl_soil,nbedrock,z_soi,dz_soi)
-            call CalIrrigationLimitedSupply(i,nl_soil,nbedrock,zi_soi)
+            call CalIrrigationLimitedSupply(i)
         end if
 
-        !   calculate irrigation rate kg/m2->mm/s
+        !   calculate irrigation rate
         if ((check_for_irrig) .and. (actual_irrig(i) > 0)) then
             irrig_nsteps_per_day = nint(irrig_time_per_day/deltim)
             irrig_rate(i) = actual_irrig(i)/deltim/irrig_nsteps_per_day
@@ -87,7 +87,10 @@ contains
             sum_irrig(i) = sum_irrig(i) + actual_irrig(i)
             sum_irrig_count(i) = sum_irrig_count(i) + 1._r8
         end if
-        
+
+#ifdef CaMa_Flood
+        waterstorage(i) = waterstorage(i) + ReservoirRiver_supply(i)
+#endif  
         ! !   zero irrigation at the end of growing season 
         ! do m = ps, pe
         !     if (cphase_p(m) >= 4._r8) then
@@ -354,16 +357,15 @@ contains
     !     end if
     ! end subroutine CalPotentialEvapotranspiration
 
-    subroutine CalIrrigationLimitedSupply(i,nl_soil,nbedrock,zi_soi)
+    subroutine CalIrrigationLimitedSupply(i)
         !   DESCRIPTION:
         !   This subroutine is used to calculate how much irrigation supplied in each irrigated crop patch with water supply restriction
         integer, intent(in) :: i
-        integer, intent(in) :: nl_soil
-        integer, intent(in) :: nbedrock
-        real(r8),intent(in) :: zi_soi(1:nl_soil)
         
         waterstorage_supply(i) = 0._r8
         groundwater_supply(i) = 0._r8
+        ReservoirRiver_supply(i) = 0._r8
+        ReservoirRiver_demand(i) = 0._r8
 
         !   irrigation withdraw from water storage pool to adjust the unmatched time for different water supply systems
         if (deficit_irrig(i) > 0._r8) then
@@ -371,16 +373,14 @@ contains
             actual_irrig(i) = actual_irrig(i) + waterstorage_supply(i)
         endif
 #ifdef CaMa_Flood
-        ! Reservoirwater_demand(i) = deficit_irrig(i) - actual_irrig(i)
-        ! !   问一下树鹏老师，如何计算网格的面积
-        ! ! Reservoirwater_demand(i) = Reservoirwater_demand(i)
-        ! ! call CalWithdrawReservoirWater() deficit noupdate
-        ! ! call CalWithdrawRiverWater() deficit actual
-        ! waterstorage(i) = waterstorage(i) + Reservoirwater_supply(i)
+        if (deficit_irrig(i) > actual_irrig(i)) then
+            ReservoirRiver_demand(i) = deficit_irrig(i) - actual_irrig(i)
+        end if
 #endif
         !   irrigation withdraw from ground water (unconfined and confined)
         if (deficit_irrig(i) > actual_irrig(i)) then
-            groundwater_supply(i) = deficit_irrig(i) - actual_irrig(i)
+            groundwater_supply(i) = max(deficit_irrig(i) - actual_irrig(i),0._r8)
+            actual_irrig(i) = actual_irrig(i) + groundwater_supply(i)
             waterstorage(i) = waterstorage(i) + groundwater_supply(i)
         endif
     end subroutine CalIrrigationLimitedSupply

@@ -613,9 +613,16 @@ MODULE MOD_Initialize
       if(DEF_USE_IRRIGATION)then
          irrig_rate(:) = 0._r8
          deficit_irrig(:) = 0._r8
+         actual_irrig(:) = 0._r8
          sum_irrig(:) = 0._r8        
          sum_irrig_count(:) = 0._r8
          n_irrig_steps_left(:) = 0
+         waterstorage_supply(:) = 0._r8
+         groundwater_supply(:) = 0._r8
+#ifdef CaMa_Flood
+         ReservoirRiver_demand(:) = 0._r8
+         ReservoirRiver_supply(:) = 0._r8
+#endif
       end if
 #endif
 #endif
