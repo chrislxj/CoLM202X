@@ -211,7 +211,7 @@ MODULE MOD_SoilSnowHydrology
   if(patchtype<=1)then   ! soil ground only
 
       ! For water balance check, the sum of water in soil column before the calcultion
-      w_sum = sum(wliq_soisno(1:)) + sum(wice_soisno(1:)) + wa
+      w_sum = sum(wliq_soisno(1:)) + sum(wice_soisno(1:)) + wa 
 
       ! porosity of soil, partitial volume of ice and liquid
       do j = 1, nl_soil
@@ -229,19 +229,19 @@ MODULE MOD_SoilSnowHydrology
 
       rsur = 0.
       if (gwat > 0.) then
-#ifdef CROP
-         do m = ps, pe
-            if ((.not. DEF_USE_IRRIGATION) .or. (.not. (irrig_method_p(m) == irrig_method_paddy))) then
-#endif
+! #ifdef CROP
+!          do m = ps, pe
+!             if ((.not. DEF_USE_IRRIGATION) .or. (.not. (irrig_method_p(m) == irrig_method_paddy))) then
+! #endif
                call surfacerunoff (nl_soil,wtfact,wimp,porsl,psi0,hksati,&
                                  z_soisno(1:),dz_soisno(1:),zi_soisno(0:),&
                                  eff_porosity,icefrac,zwt,gwat,rsur)
-#ifdef CROP
-            else
-               rsur = 0.
-            end if
-         end do   
-#endif
+! #ifdef CROP
+!             else
+!                rsur = 0.
+!             end if
+!          end do   
+! #endif
       else
            rsur = 0.
       endif
@@ -310,7 +310,6 @@ MODULE MOD_SoilSnowHydrology
       ! total runoff (mm/s)
       rnof = rsubst + rsur
 
-
       ! Renew the ice and liquid mass due to condensation
       if(lb >= 1)then
          ! make consistent with how evap_grnd removed in infiltration
@@ -320,7 +319,9 @@ MODULE MOD_SoilSnowHydrology
 
       err_solver = (sum(wliq_soisno(1:))+sum(wice_soisno(1:))+wa) - w_sum &
                  - (gwat-etr-rnof-errw_rsub)*deltim
-
+#ifdef CROP
+   if (DEF_USE_IRRIGATION) err_solver = err_solver + groundwater_supply(ipatch)
+#endif
       if(lb >= 1)then
          err_solver = err_solver-(qsdew+qfros-qsubl)*deltim
       endif
@@ -721,18 +722,18 @@ MODULE MOD_SoilSnowHydrology
       ENDIF
 
       rsubst = imped * 5.5e-3 * exp(-2.5*zwt)  ! drainage (positive = out of soil column)
-#else
-      ! for lateral flow:
-      ! "rsub" is calculated and removed from soil water in HYDRO/MOD_Hydro_SubsurfaceFlow.F90
-      rsubst = 0
-#endif
-
       ! irrigation withdraw 
 #ifdef CROP
       if (DEF_USE_IRRIGATION) then
          rsubst = rsubst + groundwater_supply(ipatch)/deltim
       end if
 #endif
+#else
+      ! for lateral flow:
+      ! "rsub" is calculated and removed from soil water in HYDRO/MOD_Hydro_SubsurfaceFlow.F90
+      rsubst = 0
+#endif
+
 
 #ifdef Campbell_SOIL_MODEL
       prms(1,:) = bsw(1:nl_soil)
@@ -834,6 +835,11 @@ MODULE MOD_SoilSnowHydrology
 #endif
       ENDIF
 
+#ifdef CROP
+      if (DEF_USE_IRRIGATION) then
+         rsubst = rsubst - groundwater_supply(ipatch)/deltim
+      end if
+#endif
      ! total runoff (mm/s)
      rnof = rsubst + rsur
 #endif
@@ -841,6 +847,9 @@ MODULE MOD_SoilSnowHydrology
 #ifndef LATERAL_FLOW
       err_solver = (sum(wliq_soisno(1:))+sum(wice_soisno(1:))+wa+wdsrf) - w_sum &
          - (gwat-etr-rsur-rsubst)*deltim
+#ifdef CROP
+      if (DEF_USE_IRRIGATION) err_solver = err_solver + groundwater_supply(ipatch)
+#endif
 #else
       err_solver = (sum(wliq_soisno(1:))+sum(wice_soisno(1:))+wa+wdsrf) - w_sum &
          - (gwat-etr)*deltim
@@ -2081,6 +2090,11 @@ MODULE MOD_SoilSnowHydrology
 
     rsubst = drainage
 
+#ifdef CROP
+    if (DEF_USE_IRRIGATION) then
+      rsubst = drainage - groundwater_supply(ipatch)/deltim
+    end if
+#endif
 
     ! Correction [1]
     ! NON-physically based corection on wliq_soisno

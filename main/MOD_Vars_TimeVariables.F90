@@ -496,8 +496,8 @@ MODULE MOD_Vars_TimeVariables
      integer , allocatable :: n_irrig_steps_left  (:) ! left steps for once irrigation [-]
      real(r8), allocatable :: waterstorage_supply (:) ! irrigation supply from water storage pool [kg/m2]
      real(r8), allocatable :: groundwater_supply  (:) ! irrigation supply from ground water [kg/m2]
-     real(r8), allocatable :: ReservoirRiver_demand(:)! irrigation demand for reservoir or river [kg/m2]
-     real(r8), allocatable :: ReservoirRiver_supply(:)! irrigation supply from reservoir or river [kg/m2]
+     real(r8), allocatable :: reservoirriver_demand(:)! irrigation demand for reservoir or river [kg/m2]
+     real(r8), allocatable :: reservoirriver_supply(:)! irrigation supply from reservoir or river [kg/m2]
      real(r8), allocatable :: waterstorage        (:) ! water of water storage pool (from reservoir and river) [kg/m2]
      real(r8), allocatable :: tairday                       (:) ! daily mean temperature [degree C]
      real(r8), allocatable :: usday                         (:) ! daily mean wind component in eastward direction [m/s]
@@ -649,8 +649,8 @@ MODULE MOD_Vars_TimeVariables
            allocate ( n_irrig_steps_left         (numpatch)); n_irrig_steps_left     (:) = spval_i4
            allocate ( waterstorage_supply        (numpatch)); waterstorage_supply    (:) = spval
            allocate ( groundwater_supply         (numpatch)); groundwater_supply     (:) = spval
-           allocate ( ReservoirRiver_demand      (numpatch)); ReservoirRiver_demand  (:) = spval
-           allocate ( ReservoirRiver_supply      (numpatch)); ReservoirRiver_supply  (:) = spval
+           allocate ( reservoirriver_demand      (numpatch)); reservoirriver_demand  (:) = spval
+           allocate ( reservoirriver_supply      (numpatch)); reservoirriver_supply  (:) = spval
            allocate ( waterstorage               (numpatch)); waterstorage           (:) = spval
            allocate ( tairday                    (numpatch)); tairday                (:) = spval
            allocate ( usday                      (numpatch)); usday                  (:) = spval
@@ -808,8 +808,8 @@ MODULE MOD_Vars_TimeVariables
            deallocate (n_irrig_steps_left     )
            deallocate (waterstorage_supply    )
            deallocate (groundwater_supply     )
-           deallocate (ReservoirRiver_demand  )
-           deallocate (ReservoirRiver_supply  )
+           deallocate (reservoirriver_demand  )
+           deallocate (reservoirriver_supply  )
            deallocate (waterstorage           )
            deallocate (tairday                )
            deallocate (usday                  )
@@ -1016,7 +1016,13 @@ IF (DEF_USE_IRRIGATION) THEN
      CALL Ncio_write_vector (file_restart, 'sum_irrig             ' , 'patch',landpatch,sum_irrig             , compress)
      CALL Ncio_write_vector (file_restart, 'sum_irrig_count       ' , 'patch',landpatch,sum_irrig_count       , compress)
      CALL Ncio_write_vector (file_restart, 'n_irrig_steps_left    ' , 'patch',landpatch,n_irrig_steps_left    , compress)
-     CALL Ncio_write_vector (file_restart, 'waterstorage    '       , 'patch',landpatch,waterstorage          , compress)
+     CALL Ncio_write_vector (file_restart, 'waterstorage          ' , 'patch',landpatch,waterstorage          , compress)
+     CALL Ncio_write_vector (file_restart, 'waterstorage_supply   ' , 'patch',landpatch,waterstorage_supply   , compress)
+     CALL Ncio_write_vector (file_restart, 'groundwater_supply    ' , 'patch',landpatch,groundwater_supply    , compress)
+#ifdef CaMa_Flood
+     CALL Ncio_write_vector (file_restart, 'reservoirriver_demand ' , 'patch',landpatch,reservoirriver_demand , compress)
+     CALL Ncio_write_vector (file_restart, 'reservoirriver_supply ' , 'patch',landpatch,reservoirriver_supply , compress)
+#endif
      CALL Ncio_write_vector (file_restart, 'tairday               ' , 'patch',landpatch,tairday               , compress)
      CALL Ncio_write_vector (file_restart, 'usday                 ' , 'patch',landpatch,usday                 , compress)
      CALL Ncio_write_vector (file_restart, 'vsday                 ' , 'patch',landpatch,vsday                 , compress)
@@ -1181,6 +1187,12 @@ IF (DEF_USE_IRRIGATION) THEN
      CALL ncio_read_vector (file_restart, 'sum_irrig_count       ' , landpatch, sum_irrig_count       ,defval = 0._r8)
      CALL ncio_read_vector (file_restart, 'n_irrig_steps_left    ' , landpatch, n_irrig_steps_left    ,defval = 0)
      CALL ncio_read_vector (file_restart, 'waterstorage    '       , landpatch, waterstorage          ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'waterstorage_supply   ' , landpatch, waterstorage_supply   ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'groundwater_supply    ' , landpatch, groundwater_supply    ,defval = 0._r8)
+#ifdef CaMa_Flood
+     CALL ncio_read_vector (file_restart, 'reservoirriver_demand ' , landpatch, reservoirriver_demand ,defval = 0._r8)
+     CALL ncio_read_vector (file_restart, 'groundwater_supply    ' , landpatch, groundwater_supply    ,defval = 0._r8)
+#endif
      CALL ncio_read_vector (file_restart, 'tairday               ' , landpatch, tairday               ,defval = 0._r8)
      CALL ncio_read_vector (file_restart, 'usday                 ' , landpatch, usday                 ,defval = 0._r8)
      CALL ncio_read_vector (file_restart, 'vsday                 ' , landpatch, vsday                 ,defval = 0._r8)
@@ -1304,6 +1316,12 @@ IF (DEF_USE_IRRIGATION) THEN
      CALL check_vector_data ('sum_irrig_count       ' , sum_irrig_count       )
      CALL check_vector_data ('n_irrig_steps_left    ' , n_irrig_steps_left    )
      CALL check_vector_data ('waterstorage    '       , waterstorage          )
+     CALL check_vector_data ('waterstorage_supply   ' , waterstorage_supply   )
+     CALL check_vector_data ('groundwater_supply    ' , groundwater_supply    )
+#ifdef CaMa_Flood
+     CALL check_vector_data ('reservoirriver_demand ' , reservoirriver_demand )
+     CALL check_vector_data ('reservoirriver_supply ' , reservoirriver_supply )
+#endif
      CALL check_vector_data ('tairday               ' , tairday               )
      CALL check_vector_data ('usday                 ' , usday                 )
      CALL check_vector_data ('vsday                 ' , vsday                 )

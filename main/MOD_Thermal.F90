@@ -501,7 +501,7 @@ MODULE MOD_Thermal
       ! ------------------------------------------------
       !NOTE: (1) DEF_RSS_SCHEME=0 means no rss considered
       !      (2) Do NOT calculate rss for the first timestep
-      IF (DEF_RSS_SCHEME>0 .and. rss/=spval) THEN
+      IF (DEF_RSS_SCHEME > 0 .and. rss/=spval) THEN
 
          !NOTE: If the beta scheme is used, the rss is not soil resistance,
          !but soil beta factor (soil wetness relative to field capacity [0-1]).

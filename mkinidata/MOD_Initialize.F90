@@ -618,11 +618,12 @@ MODULE MOD_Initialize
          sum_irrig(:) = 0._r8        
          sum_irrig_count(:) = 0._r8
          n_irrig_steps_left(:) = 0
+         waterstorage(:) = 0._r8
          waterstorage_supply(:) = 0._r8
          groundwater_supply(:) = 0._r8
 #ifdef CaMa_Flood
-         ReservoirRiver_demand(:) = 0._r8
-         ReservoirRiver_supply(:) = 0._r8
+         reservoirriver_demand(:) = 0._r8
+         reservoirriver_supply(:) = 0._r8
 #endif
       end if
 #endif

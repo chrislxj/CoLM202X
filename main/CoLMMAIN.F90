@@ -137,7 +137,7 @@ SUBROUTINE CoLMMAIN ( &
   USE MOD_Precision
   USE MOD_Vars_Global
   USE MOD_Const_Physical, only: tfrz, denh2o, denice
-  USE MOD_Vars_TimeVariables, only: tlai, tsai, irrig_rate
+  USE MOD_Vars_TimeVariables, only: tlai, tsai, waterstorage
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
   USE MOD_LandPFT, only : patch_pft_s, patch_pft_e
   USE MOD_Vars_PFTimeInvariants
@@ -160,7 +160,7 @@ SUBROUTINE CoLMMAIN ( &
   USE MOD_Namelist, only : DEF_Interception_scheme, DEF_USE_VARIABLY_SATURATED_FLOW, DEF_USE_PLANTHYDRAULICS, DEF_USE_IRRIGATION
   USE MOD_LeafInterception
 #ifdef CROP
-  USE MOD_Irrigation, only : CalIrrigationApplicationFluxes
+  USE MOD_Irrigation, only : CalIrrigationNeeded, CalIrrigationApplicationFluxes
 #endif
 #if(defined CaMa_Flood)
    ! get flood depth [mm], flood fraction[0-1], flood evaporation [mm/s], flood inflow [mm/s]
@@ -609,6 +609,10 @@ IF (patchtype <= 2) THEN ! <=== is - URBAN and BUILT-UP   (patchtype = 1)
 
       totwb = ldew + scv + sum(wice_soisno(1:)+wliq_soisno(1:)) + wa
 
+#ifdef CROP      
+      if(DEF_USE_IRRIGATION) totwb = totwb + waterstorage(ipatch)
+#endif
+
       IF (DEF_USE_VARIABLY_SATURATED_FLOW) THEN
          totwb = totwb + wdsrf
       ENDIF
@@ -629,9 +633,8 @@ IF (patchtype <= 2) THEN ! <=== is - URBAN and BUILT-UP   (patchtype = 1)
 #ifdef CROP
    if(DEF_USE_IRRIGATION)then
       if(patchtype == 0)then
-         ps = patch_pft_s(ipatch)
-         pe = patch_pft_e(ipatch)
-         call CalIrrigationApplicationFluxes(ipatch,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy)
+         call CalIrrigationApplicationFluxes(ipatch,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy)   
+         call CalIrrigationNeeded(ipatch,idate,nl_soil,nbedrock,z_soi,dz_soi,zi_soi,deltim,patchlonr*180/PI,npcropmin)
       end if
    end if
 #endif
@@ -861,11 +864,16 @@ ENDIF
       ! ----------------------------------------
       ! water balance
       ! ----------------------------------------
-      endwb=sum(wice_soisno(1:)+wliq_soisno(1:))+ldew+scv + wa
+      endwb=sum(wice_soisno(1:)+wliq_soisno(1:))+ldew+scv+wa
 
       IF (DEF_USE_VARIABLY_SATURATED_FLOW) THEN
          endwb = endwb + wdsrf
       ENDIF
+
+#ifdef CROP
+      if(DEF_USE_IRRIGATION) endwb = endwb + waterstorage(ipatch)
+#endif
+
 #if(defined CaMa_Flood)
    IF (LWINFILT) THEN
        IF (patchtype == 0) THEN
@@ -879,10 +887,6 @@ ENDIF
 #else
       ! for lateral flow, "rsur" is considered in HYDRO/MOD_Hydro_SurfaceFlow.F90
       errorw=(endwb-totwb)-(forc_prc+forc_prl-fevpa-errw_rsub)*deltim
-#endif
-
-#ifdef CROP
-   if (DEF_USE_IRRIGATION) errorw = errorw - irrig_rate(ipatch)*deltim
 #endif
 
       IF(patchtype==2) errorw=0.    !wetland
