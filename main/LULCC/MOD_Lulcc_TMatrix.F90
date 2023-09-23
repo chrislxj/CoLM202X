@@ -51,7 +51,6 @@ MODULE MOD_Lulcc_TMatrix
    SUBROUTINE READ_LulccTMatrix (lc_year)
 
       USE MOD_Precision
-      USE MOD_Namelist
       USE MOD_SPMD_Task
       USE MOD_Grid
       USE MOD_LandPatch

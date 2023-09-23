@@ -675,6 +675,121 @@ contains
 
    END SUBROUTINE colm2cama_real8
 
+      SUBROUTINE colmflux2cama_real8 (WorkerVar, IOVar, MasterVar)
+      !DESCRIPTION
+      !===========
+      ! This subrountine is used for mapping colm flux output to cama input.
+
+      !ANCILLARY FUNCTIONS AND SUBROUTINES
+      !-------------------
+      !* :SUBROUTINE:"allocate_block_data"                      :  allocate data into block
+
+      !REVISION HISTORY
+      !----------------
+      ! 2023.02.23  Zhongwang Wei @ SYSU
+
+      USE MOD_Precision
+      USE MOD_Namelist
+      USE MOD_TimeManager
+      USE MOD_SPMD_Task
+      USE MOD_Block
+      USE MOD_DataType
+      USE MOD_LandPatch
+      USE MOD_Mapping_Pset2Grid
+      USE MOD_Vars_TimeInvariants, ONLY : patchtype
+      USE MOD_Forcing, ONLY : forcmask
+
+      IMPLICIT NONE
+
+      real(r8),                  intent(inout) :: WorkerVar(:)    !varialbe on worker processer
+      TYPE(block_data_real8_2d), intent(inout) :: IOVar           !varialbe on IO processer
+      real(r8),                  INTENT(inout) :: MasterVar(:,:)  !varialbe on master processer
+
+      real(r8), allocatable     :: vectmp(:)                      !temporary vector
+      logical,  allocatable     :: filter(:)                      !filter for patchtype
+      !----------------------- Dummy argument --------------------------------
+      integer :: xblk, yblk, xloc, yloc
+      integer :: iblk, jblk, idata, ixseg, iyseg
+      integer :: rmesg(3), smesg(3), isrc
+      real(r8), allocatable :: rbuf(:,:), sbuf(:,:), vdata(:,:)
+      integer :: xdsp, ydsp, xcnt, ycnt
+
+      if(p_is_master)then
+         MasterVar(:,:) = spval
+      endif
+
+      IF (p_is_worker) THEN
+         where (WorkerVar /= spval)
+            WorkerVar = WorkerVar / nacc
+         endwhere
+
+         if (numpatch > 0) then
+            allocate (filter (numpatch))
+            allocate (vectmp (numpatch))
+
+            filter(:) = patchtype < 99
+            IF (DEF_forcing%has_missing_value) THEN
+               filter = filter .and. forcmask
+            ENDIF
+            vectmp (:) = 1.
+         end if
+      ENDIF
+
+      CALL mp2g_cama%map (WorkerVar, IOVar, spv = spval, msk = filter)
+
+      if (p_is_master) then
+         do idata = 1, cama_gather%ndatablk
+            call mpi_recv (rmesg, 3, MPI_INTEGER, MPI_ANY_SOURCE, 10011, p_comm_glb, p_stat, p_err)
+            isrc  = rmesg(1)
+            ixseg = rmesg(2)
+            iyseg = rmesg(3)
+
+            xdsp = cama_gather%xsegs(ixseg)%gdsp
+            ydsp = cama_gather%ysegs(iyseg)%gdsp
+            xcnt = cama_gather%xsegs(ixseg)%cnt
+            ycnt = cama_gather%ysegs(iyseg)%cnt
+
+            allocate (rbuf(xcnt,ycnt))
+            call mpi_recv (rbuf, xcnt * ycnt, MPI_DOUBLE, &
+               isrc, 10011, p_comm_glb, p_stat, p_err)
+            MasterVar (xdsp+1:xdsp+xcnt,ydsp+1:ydsp+ycnt) = rbuf
+            deallocate (rbuf)
+         end do
+
+      elseif (p_is_io) then
+         do iyseg = 1, cama_gather%nyseg
+            do ixseg = 1, cama_gather%nxseg
+
+               iblk = cama_gather%xsegs(ixseg)%blk
+               jblk = cama_gather%ysegs(iyseg)%blk
+
+               if (gblock%pio(iblk,jblk) == p_iam_glb) then
+                  xdsp = cama_gather%xsegs(ixseg)%bdsp
+                  ydsp = cama_gather%ysegs(iyseg)%bdsp
+                  xcnt = cama_gather%xsegs(ixseg)%cnt
+                  ycnt = cama_gather%ysegs(iyseg)%cnt
+
+                  allocate (sbuf (xcnt,ycnt))
+                  sbuf = IOVar%blk(iblk,jblk)%val(xdsp+1:xdsp+xcnt,ydsp+1:ydsp+ycnt)
+
+                  smesg = (/p_iam_glb, ixseg, iyseg/)
+                  call mpi_send (smesg, 3, MPI_INTEGER, &
+                     p_root, 10011, p_comm_glb, p_err)
+                  call mpi_send (sbuf, xcnt*ycnt, MPI_DOUBLE, &
+                     p_root, 10011, p_comm_glb, p_err)
+
+                  deallocate (sbuf)
+
+               end if
+            end do
+         end do
+      end if
+
+      if (allocated(filter)) deallocate(filter)
+      if (allocated(vectmp)) deallocate(vectmp)
+
+   END SUBROUTINE colmflux2cama_real8
+
    SUBROUTINE cama2colm_real8 (MasterVar, IOVar, WorkerVar)
 
       !DESCRIPTION

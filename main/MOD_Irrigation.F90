@@ -10,15 +10,19 @@ module MOD_Irrigation
     ! ,DEF_IRRIGATION_METHOD
     use MOD_Const_Physical, only: tfrz
     use MOD_Const_PFT, only: irrig_crop
+    use MOD_LandPFT, only : patch_pft_s, patch_pft_e
     use MOD_Vars_Global, only: irrig_start_time, irrig_max_depth, irrig_threshold_fraction, irrig_min_cphase, irrig_max_cphase, irrig_time_per_day    
     use MOD_Qsadv, only: qsadv
     use MOD_Vars_TimeInvariants, only: &
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
-        theta_r, alpha_vgm, n_vgm, L_vgm, fc_vgm, sc_vgm,&
+        theta_r, alpha_vgm, n_vgm, L_vgm, sc_vgm, fc_vgm, &
 #endif
         porsl, psi0, bsw
-    use MOD_Vars_TimeVariables, only : tref, t_soisno, wliq_soisno, irrig_rate, deficit_irrig, sum_irrig, sum_irrig_count, n_irrig_steps_left, &
-        tairday, usday, vsday, pairday, rnetday, fgrndday, potential_evapotranspiration
+    use MOD_Vars_TimeVariables, only : tref, t_soisno, wliq_soisno, zwt, &
+        irrig_rate, sum_irrig, sum_irrig_count, n_irrig_steps_left, &
+        tairday, usday, vsday, pairday, rnetday, fgrndday, potential_evapotranspiration, &
+        waterstorage_supply, groundwater_supply, reservoirriver_supply, reservoirriver_demand, &
+        waterstorage, deficit_irrig, actual_irrig
     use MOD_Vars_PFTimeInvariants, only: pftclass
     use MOD_Vars_PFTimeVariables, only: irrig_method_p
     use MOD_BGC_Vars_PFTimeVariables, only: cphase_p
@@ -39,25 +43,36 @@ module MOD_Irrigation
 
 contains
             
-    subroutine CalIrrigationNeeded(i,ps,pe,idate,nl_soil,nbedrock,z_soi,dz_soi,deltim,dlon,npcropmin)
+    subroutine CalIrrigationNeeded(i,idate,nl_soil,nbedrock,z_soi,dz_soi,zi_soi,deltim,dlon,npcropmin)
 
         !   DESCRIPTION:
         !   This subroutine is used to calculate how much irrigation needed in each irrigated crop patch
         integer , intent(in) :: i
-        integer , intent(in) :: ps, pe
         integer , intent(in) :: idate(3)
         integer , intent(in) :: nl_soil
         integer , intent(in) :: nbedrock
         real(r8), intent(in) :: z_soi(1:nl_soil)
         real(r8), intent(in) :: dz_soi(1:nl_soil)
+        real(r8), intent(in) :: zi_soi(1:nl_soil)
         real(r8), intent(in) :: deltim
         real(r8), intent(in) :: dlon
         integer , intent(in) :: npcropmin
 
         ! local 
-        integer :: m
+        integer :: ps, pe, m
         integer :: irrig_nsteps_per_day
         logical :: check_for_irrig 
+
+        ps = patch_pft_s(i)
+        pe = patch_pft_e(i)
+
+        !   initialize irrigation
+        deficit_irrig(i) = 0._r8
+        actual_irrig(i) = 0._r8
+        waterstorage_supply(i) = 0._r8
+        groundwater_supply(i) = 0._r8
+        reservoirriver_supply(i) = 0._r8
+        reservoirriver_demand(i) = 0._r8
 
         ! !   calculate last day potential evapotranspiration 
         ! call CalPotentialEvapotranspiration(i,idate,dlon,deltim)
@@ -68,18 +83,17 @@ contains
         !   calculate irrigation needed
         if (check_for_irrig) then
             call CalIrrigationPotentialNeeded(i,ps,pe,nl_soil,nbedrock,z_soi,dz_soi)
-            ! call CalIrrigationLimitedNeeded(i,ps,pe)
+            call CalIrrigationLimitedSupply(i)
         end if
 
-        !   calculate irrigation rate kg/m2->mm/s
-        if ((check_for_irrig) .and. (deficit_irrig(i) > 0)) then
+        !   calculate irrigation rate
+        if ((check_for_irrig) .and. (actual_irrig(i) > 0)) then
             irrig_nsteps_per_day = nint(irrig_time_per_day/deltim)
-            irrig_rate(i) = deficit_irrig(i)/deltim/irrig_nsteps_per_day
+            irrig_rate(i) = actual_irrig(i)/deltim/irrig_nsteps_per_day
             n_irrig_steps_left(i) = irrig_nsteps_per_day
-            sum_irrig(i) = sum_irrig(i) + deficit_irrig(i)
+            sum_irrig(i) = sum_irrig(i) + actual_irrig(i)
             sum_irrig_count(i) = sum_irrig_count(i) + 1._r8
         end if
-        
         ! !   zero irrigation at the end of growing season 
         ! do m = ps, pe
         !     if (cphase_p(m) >= 4._r8) then
@@ -200,16 +214,18 @@ contains
 
     end subroutine CalIrrigationPotentialNeeded
 
-    subroutine CalIrrigationApplicationFluxes(i,ps,pe,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy,irrig_flag)
+    subroutine CalIrrigationApplicationFluxes(i,deltim,qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy)
         !   DESCRIPTION:
         !   This subroutine is used to calculate irrigation application fluxes for each irrigated crop patch
         integer , intent(in) :: i
-        integer , intent(in) :: ps, pe
         real(r8), intent(in) :: deltim
-        integer , intent(in) :: irrig_flag  ! 1 if sprinker, 2 if others 
         real(r8), intent(out):: qflx_irrig_drip,qflx_irrig_sprinkler,qflx_irrig_flood,qflx_irrig_paddy
 
-        integer :: m 
+        !   local variable
+        integer :: ps, pe, m 
+
+        ps = patch_pft_s(i)
+        pe = patch_pft_e(i)
 
         qflx_irrig_drip = 0._r8
         qflx_irrig_sprinkler = 0._r8
@@ -224,26 +240,19 @@ contains
         !   add irrigation fluxes to precipitation or land surface
         do m = ps, pe
             if (n_irrig_steps_left(i) > 0) then
-                if ((irrig_flag == 1) .and. (irrig_method_p(m) == irrig_method_sprinkler)) then 
+                n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
+                if (waterstorage(i) - irrig_rate(i)*deltim < 0._r8) irrig_rate(i) = waterstorage(i)/deltim
+                waterstorage(i) = max(waterstorage(i) - irrig_rate(i)*deltim, 0._r8)
+                if (irrig_method_p(m) == irrig_method_drip) then
+                    qflx_irrig_drip = irrig_rate(i)
+                else if (irrig_method_p(m) == irrig_method_sprinkler) then 
                     qflx_irrig_sprinkler = irrig_rate(i)
-                    n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
-                    deficit_irrig(i) = deficit_irrig(i) - irrig_rate(i)*deltim
-                else if (irrig_flag == 2) then
-                    if (irrig_method_p(m) == irrig_method_drip) then
-                        qflx_irrig_drip = irrig_rate(i)
-                    else if (irrig_method_p(m) == irrig_method_flood) then
-                        qflx_irrig_flood = irrig_rate(i)
-                    else if (irrig_method_p(m) == irrig_method_paddy) then
-                        qflx_irrig_paddy = irrig_rate(i)
-                    else if ((irrig_method_p(m) /= irrig_method_drip) .and. (irrig_method_p(m) /= irrig_method_sprinkler) &
-                        .and. (irrig_method_p(m) /= irrig_method_flood) .and. (irrig_method_p(m) /= irrig_method_paddy)) then
-                        qflx_irrig_drip = irrig_rate(i)
-                    end if
-                    n_irrig_steps_left(i) = n_irrig_steps_left(i) -1
-                    deficit_irrig(i) = deficit_irrig(i) - irrig_rate(i)*deltim
-                end if
-                if (deficit_irrig(i) < 0._r8) then
-                    deficit_irrig(i) = 0._r8
+                else if (irrig_method_p(m) == irrig_method_flood) then
+                    qflx_irrig_flood = irrig_rate(i)
+                else if (irrig_method_p(m) == irrig_method_paddy) then
+                    qflx_irrig_paddy = irrig_rate(i)
+                else
+                    qflx_irrig_drip = irrig_rate(i)
                 end if
             else 
                 irrig_rate(i) = 0._r8
@@ -266,6 +275,14 @@ contains
         integer :: m, ivt
         real(r8):: ldate(3)
         real(r8):: seconds_since_irrig_start_time
+
+        !   adjust flood irrigation in rice to paddy irrigaiton
+        do m = ps, pe 
+            ivt = pftclass(m)
+            if ((ivt == 62) .and. (irrig_method_p(m) == irrig_method_flood))then
+                irrig_method_p(m) = irrig_method_paddy
+            endif
+        enddo
 
         do m = ps, pe 
             ivt = pftclass(m)
@@ -343,6 +360,36 @@ contains
     !             (evsat-es))/(delta+(gamma*(1+0.34*ur)))
     !     end if
     ! end subroutine CalPotentialEvapotranspiration
+
+    subroutine CalIrrigationLimitedSupply(i)
+        !   DESCRIPTION:
+        !   This subroutine is used to calculate how much irrigation supplied in each irrigated crop patch with water supply restriction
+        integer, intent(in) :: i
+        
+
+#ifdef CaMa_Flood
+        !   irrigation withdraw from reservoir and river
+        waterstorage(i) = waterstorage(i) + reservoirriver_supply(i)
+#endif  
+
+        !   irrigation withdraw from water storage pool to adjust the unmatched time for different water supply systems
+        if (deficit_irrig(i) > 0._r8) then
+            waterstorage_supply(i) = min(waterstorage(i),deficit_irrig(i))
+            waterstorage_supply(i) = max(waterstorage_supply(i),0._r8)
+            actual_irrig(i) = actual_irrig(i) + waterstorage_supply(i)
+        endif
+#ifdef CaMa_Flood
+        if (deficit_irrig(i) > actual_irrig(i)) then
+            reservoirriver_demand(i) = deficit_irrig(i) - actual_irrig(i)
+        end if
+#endif
+        !   irrigation withdraw from ground water (unconfined and confined)
+        if (deficit_irrig(i) > actual_irrig(i)) then
+            groundwater_supply(i) = max(deficit_irrig(i) - actual_irrig(i),0._r8)
+            actual_irrig(i) = actual_irrig(i) + groundwater_supply(i)
+            waterstorage(i) = waterstorage(i) + groundwater_supply(i)
+        endif
+    end subroutine CalIrrigationLimitedSupply
 
 end module MOD_Irrigation
 #endif

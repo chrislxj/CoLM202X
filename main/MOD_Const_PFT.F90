@@ -16,7 +16,6 @@ MODULE MOD_Const_PFT
    USE MOD_Precision
    USE MOD_Vars_Global
    USE MOD_TimeManager, only: get_calday
-   USE MOD_Namelist, only: DEF_USE_IRRIGATION
 
    IMPLICIT NONE
    SAVE

@@ -236,7 +236,10 @@ SUBROUTINE colm_cama_drv(idate_sec)
 #endif
       ! Prepare sending the accumulated runoff flux varilble to cama model (master processor to worker processors)
       CALL colm2cama_real8 (a_rnof_cama, f_rnof_cama, runoff_2d)
-
+#ifdef USEMPI
+      CALL mpi_barrier(p_comm_glb, p_err)
+#endif
+      CALL colmflux2cama_real8(a_deficit_cama,a_deficit_cama,deficit_2d)
       ! Prepare sending the accumulated inundation evaporation flux to cama model (master processor to worker processors)
       ! only if the inundation evaporation is turned on
       IF (LWEVAP) THEN

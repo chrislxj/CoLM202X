@@ -43,6 +43,8 @@ CONTAINS
         mss_bcpho      ,mss_bcphi      ,mss_ocpho      ,mss_ocphi      ,&
         mss_dst1       ,mss_dst2       ,mss_dst3       ,mss_dst4       ,&
 ! END SNICAR model variables
+!  irrigation variables
+             qflx_irrig_drip    ,qflx_irrig_flood  ,qflx_irrig_paddy   ,&
 
         ! output
         rsur           ,rnof           ,qinfl          ,zwt            ,&
@@ -146,6 +148,11 @@ CONTAINS
 ! Aerosol Fluxes (Jan. 07, 2023)
 ! END SNICAR model variables
 
+!  irrigaiton 
+  real(r8), intent(in) :: qflx_irrig_drip         ! drip irrigation rate [mm/s]
+  real(r8), intent(in) :: qflx_irrig_flood        ! flood irrigation rate [mm/s]
+  real(r8), intent(in) :: qflx_irrig_paddy        ! paddy irrigation rate [mm/s]
+
   INTEGER, intent(in) :: &
         imelt_lake(maxsnl+1:nl_soil)! lake flag for melting or freezing snow and soil layer [-]
 
@@ -233,8 +240,10 @@ CONTAINS
 ! SNICAR model variables
              ,forc_aer   ,&
              mss_bcpho   ,mss_bcphi   ,mss_ocpho   ,mss_ocphi   ,&
-             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4     &
+             mss_dst1    ,mss_dst2    ,mss_dst3    ,mss_dst4    ,&
 ! END SNICAR model variables
+!  irrigation variables
+             qflx_irrig_drip   ,qflx_irrig_flood  ,qflx_irrig_paddy&
             )
 
 !=======================================================================
@@ -317,6 +326,7 @@ CONTAINS
            ! ---------------------------
            z_lakesno    ,dz_lakesno   ,zi_lakesno      ,t_lakesno       ,&
            wice_lakesno ,wliq_lakesno ,t_lake          ,lake_icefrac    ,&
+           gwat         ,                                                &
            dfseng       ,dfgrnd       ,snll            ,scv_lake        ,&
            snowdp_lake  ,sm_lake      ,forc_us         ,forc_vs          &
 ! SNICAR model variables

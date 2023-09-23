@@ -623,9 +623,20 @@ SUBROUTINE UrbanCoLMMAIN ( &
    REAL(r8) snofrz    (maxsnl+1:0)  !snow freezing rate (col,lyr) [kg m-2 s-1]
    REAL(r8) sabg_lyr  (maxsnl+1:1)  !snow layer absorption [W/m-2]
 
+   !  For irrigation 
+   !----------------------------------------------------------------------
+   real(r8) :: qflx_irrig_drip         ! drip irrigation rate [mm/s]
+   real(r8) :: qflx_irrig_sprinkler    ! sprinkler irrigation rate [mm/s]
+   real(r8) :: qflx_irrig_flood        ! flood irrigation rate [mm/s]
+   real(r8) :: qflx_irrig_paddy        ! paddy irrigation rate [mm/s]
+
       theta = acos(max(coszen,0.001))
       forc_aer(:) = 0.        !aerosol deposition from atmosphere model (grd,aer) [kg m-1 s-1]
 
+      qflx_irrig_drip = 0._r8
+      qflx_irrig_sprinkler = 0._r8
+      qflx_irrig_flood = 0._r8
+      qflx_irrig_paddy = 0._r8
 !======================================================================
 !  [1] Solar absorbed by vegetation and ground
 !      and precipitation information (rain/snow fall and precip temperature
@@ -783,7 +794,7 @@ SUBROUTINE UrbanCoLMMAIN ( &
 
       ! with vegetation canopy
       CALL LEAF_interception_CoLM2014 (deltim,dewmx,forc_us,forc_vs,chil,sigf,lai,sai,tref,tleaf,&
-                              prc_rain,prc_snow,prl_rain,prl_snow,&
+                              prc_rain,prc_snow,prl_rain,prl_snow,qflx_irrig_sprinkler,&
                               ldew,ldew,ldew,z0m,forc_hgt_u,pgper_rain,pgper_snow,qintr,qintr,qintr)
 
       ! for output, patch scale
@@ -996,7 +1007,8 @@ SUBROUTINE UrbanCoLMMAIN ( &
         mss_bcpho(lbsn:0)    ,mss_bcphi(lbsn:0)    ,mss_ocpho(lbsn:0)    ,mss_ocphi(lbsn:0)    ,&
         mss_dst1(lbsn:0)     ,mss_dst2(lbsn:0)     ,mss_dst3(lbsn:0)     ,mss_dst4(lbsn:0)     ,&
 ! END SNICAR model variables
-
+!  irrigation variables
+             qflx_irrig_drip    ,qflx_irrig_flood  ,qflx_irrig_paddy                           ,&
         ! output
         rsur                 ,rnof                 ,qinfl                ,zwt                  ,&
         wa                   ,qcharge              ,smp                  ,hk                   ,&
