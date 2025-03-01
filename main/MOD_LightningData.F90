@@ -2,17 +2,17 @@
 
 #ifdef BGC
 MODULE MOD_LightningData
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  This module read in lightning data for fire subroutine
-!
-! !ORIGINAL:
-!  Zhang Shupeng, 2022, prepare the original version of the lightning data module.
-!-----------------------------------------------------------------------
+ !-----------------------------------------------------------------------
+ ! !DESCRIPTION:
+ ! This module read in lightning data for fire subroutine
+ !
+ ! !ORIGINAL:
+ ! Zhang Shupeng, 2022, prepare the original version of the lightning data module.
+
 
    USE MOD_Grid
    USE MOD_DataType
-   USE MOD_SpatialMapping
+   USE MOD_Mapping_Grid2Pset
    USE MOD_BGC_Vars_TimeVariables, only: lnfm
    IMPLICIT NONE
 
@@ -21,17 +21,17 @@ MODULE MOD_LightningData
 
    type(block_data_real8_2d) :: f_lnfm
 
-   type (spatial_mapping_type) :: mg2p_lnfm
+   type (mapping_grid2pset_type) :: mg2p_lnfm
 
 CONTAINS
 
+   ! ----------
    SUBROUTINE init_lightning_data (idate)
 
-!-----------------------------------------------------------------------
-! !DESCTIPTION:
-!  open lightning netcdf file from DEF_dir_rawdata, read latitude and longitude info.
-!  Initialize lightning data read in.
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! open lightning netcdf file from DEF_dir_rawdata, read latitude and longitude info.
+   ! Initialize lightning data read in.
 
    USE MOD_SPMD_Task
    USE MOD_Namelist
@@ -58,7 +58,7 @@ CONTAINS
 
       CALL allocate_block_data (grid_lightning, f_lnfm)
 
-      CALL mg2p_lnfm%build_arealweighted (grid_lightning, landpatch)
+      CALL mg2p_lnfm%build (grid_lightning, landpatch)
 
       itime = (idate(2)-1)*8 + min(idate(3)/10800+1,8)
       IF (itime .gt. 2920)itime = itime - 8 ! for the leap year
@@ -70,13 +70,12 @@ CONTAINS
 
    END SUBROUTINE init_lightning_data
 
-
+   ! ----------
    SUBROUTINE update_lightning_data (time, deltim)
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  read lightning data during simulation
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! read lightning data during simulation
 
    USE MOD_TimeManager
    USE MOD_NetCDFBlock
@@ -103,7 +102,7 @@ CONTAINS
          CALL check_block_data ('lightning', f_lnfm)
 #endif
 
-         CALL mg2p_lnfm%grid2pset (f_lnfm, lnfm)
+         CALL mg2p_lnfm%map_aweighted (f_lnfm, lnfm)
 #ifdef RangeCheck
          CALL check_vector_data ('lightning', lnfm)
 #endif

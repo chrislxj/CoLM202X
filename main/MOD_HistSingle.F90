@@ -1,20 +1,20 @@
 #include <define.h>
 
 #ifdef SinglePoint
-MODULE MOD_HistSingle
+module MOD_HistSingle
 
-!----------------------------------------------------------------------------
-! !DESCRIPTION:
-!
-!     Write out model results at sites to history files.
-!
-!  Created by Shupeng Zhang, July 2023
-!
-!  TODO...(need complement)
-!----------------------------------------------------------------------------
+   !----------------------------------------------------------------------------
+   ! DESCRIPTION:
+   ! 
+   !     Write out model results at sites to history files.
+   !
+   ! Created by Shupeng Zhang, July 2023
+   !
+   ! TODO...(need complement)
+   !----------------------------------------------------------------------------
    USE MOD_Precision
    USE MOD_NetCDFSerial
-   USE MOD_Namelist, only: USE_SITE_HistWriteBack
+   USE MOD_Namelist, only : USE_SITE_HistWriteBack
    USE MOD_SPMD_Task
 
    logical :: memory_to_disk
@@ -35,11 +35,12 @@ MODULE MOD_HistSingle
    type(hist_memory_type), target  :: hist_memory
    type(hist_memory_type), pointer :: thisvar, nextvar
 
-CONTAINS
+contains
+! ----- subroutines ------
 
    ! -- initialize history IO --
    SUBROUTINE hist_single_init ()
-
+      
       USE MOD_Namelist
       IMPLICIT NONE
 
@@ -48,26 +49,26 @@ CONTAINS
 
       IF (USE_SITE_HistWriteBack) THEN
 
-         IF ( trim(DEF_HIST_groupby) == 'YEAR' ) THEN
+         IF ( trim(DEF_HIST_groupby) == 'YEAR' ) then
             secs_group = 366*24*3600
-         ELSEIF ( trim(DEF_HIST_groupby) == 'MONTH' ) THEN
+         ELSEIF ( trim(DEF_HIST_groupby) == 'MONTH' ) then
             secs_group = 31*24*3600
-         ELSEIF ( trim(DEF_HIST_groupby) == 'DAY' ) THEN
+         ELSEIF ( trim(DEF_HIST_groupby) == 'DAY' ) then
             secs_group = 24*3600
          ENDIF
 
-         select CASE (trim(adjustl(DEF_HIST_FREQ)))
-         CASE ('TIMESTEP')
+         select case (trim(adjustl(DEF_HIST_FREQ)))
+         case ('TIMESTEP')
             secs_write = DEF_simulation_time%timestep
-         CASE ('HOURLY')
+         case ('HOURLY')
             secs_write = 3600
-         CASE ('DAILY')
+         case ('DAILY')
             secs_write = 24*3600
-         CASE ('MONTHLY')
+         case ('MONTHLY')
             secs_write = 31*24*3600
-         CASE ('YEARLY')
+         case ('YEARLY')
             secs_write = 366*31*24*3600
-         END select
+         end select
 
          ntime_mem = ceiling(secs_group / secs_write) + 2
 
@@ -86,11 +87,11 @@ CONTAINS
 
    ! -- finalize history IO --
    SUBROUTINE hist_single_final ()
-
+      
       IMPLICIT NONE
 
       IF (USE_SITE_HistWriteBack) THEN
-
+            
          thisvar => hist_memory%next
          DO WHILE (associated(thisvar))
             nextvar => thisvar%next
@@ -108,17 +109,17 @@ CONTAINS
    END SUBROUTINE hist_single_final
 
    ! -- write history time --
-   SUBROUTINE hist_single_write_time (filename, dataname, time, itime)
+   subroutine hist_single_write_time (filename, dataname, time, itime)
 
-      USE MOD_Namelist
+      use MOD_Namelist
       USE MOD_TimeManager
       USE MOD_SingleSrfData
       USE MOD_NetCDFSerial
-      USE MOD_Landpatch, only: numpatch
+      USE MOD_Landpatch, only : numpatch
 #ifdef URBAN_MODEL
-      USE MOD_Landurban, only: numurban
+      USE MOD_Landurban, only : numurban
 #endif
-      IMPLICIT NONE
+      implicit none
 
       character (len=*), intent(in) :: filename
       character (len=*), intent(in) :: dataname
@@ -131,50 +132,48 @@ CONTAINS
       logical :: fexists
 
       inquire (file=filename, exist=fexists)
-      IF (.not. fexists) THEN
-         CALL ncio_create_file (trim(filename))
-         CALL ncio_define_dimension(filename, 'patch', numpatch)
+      if (.not. fexists) then
+         call ncio_create_file (trim(filename))
+         call ncio_define_dimension(filename, 'patch', numpatch)
 #ifdef URBAN_MODEL
-         CALL ncio_define_dimension(filename, 'urban', numurban)
+         call ncio_define_dimension(filename, 'urban', numurban)
 #endif
 
-         CALL ncio_write_serial (filename, 'lat', SITE_lat_location)
+         call ncio_write_serial (filename, 'lat', SITE_lat_location)
          CALL ncio_put_attr (filename, 'lat', 'long_name', 'latitude')
          CALL ncio_put_attr (filename, 'lat', 'units', 'degrees_north')
 
-         CALL ncio_write_serial (filename, 'lon', SITE_lon_location)
+         call ncio_write_serial (filename, 'lon', SITE_lon_location)
          CALL ncio_put_attr (filename, 'lon', 'long_name', 'longitude')
          CALL ncio_put_attr (filename, 'lon', 'units', 'degrees_east')
-
-         CALL ncio_write_colm_dimension (filename)
 
          IF (.not. USE_SITE_HistWriteBack) THEN
             CALL ncio_define_dimension(filename, 'time', 0)
          ENDIF
 
-      ENDIF
+      endif
 
       IF (USE_SITE_HistWriteBack) THEN
-
+      
          minutes = minutes_since_1900 (time(1), time(2), time(3))
-
-         select CASE (trim(adjustl(DEF_HIST_FREQ)))
-         CASE ('HOURLY')
+      
+         select case (trim(adjustl(DEF_HIST_FREQ)))
+         case ('HOURLY')
             minutes = minutes - 30
-         CASE ('DAILY')
+         case ('DAILY')
             minutes = minutes - 720
-         CASE ('MONTHLY')
+         case ('MONTHLY')
             minutes = minutes - 21600
-         CASE ('YEARLY')
+         case ('YEARLY')
             minutes = minutes - 262800
-         END select
-
+         END select 
+         
          itime_mem = itime_mem + 1
          time_memory(itime_mem) = minutes
 
          IF (memory_to_disk) THEN
             CALL ncio_define_dimension(filename, 'time', itime_mem)
-            CALL ncio_write_serial (filename, dataname, time_memory(1:itime_mem), 'time')
+            call ncio_write_serial (filename, dataname, time_memory(1:itime_mem), 'time')
             CALL ncio_put_attr (filename, dataname, 'long_name', 'time')
             CALL ncio_put_attr (filename, dataname, 'units', 'minutes since 1900-1-1 0:0:0')
          ENDIF
@@ -182,18 +181,18 @@ CONTAINS
          thisvar => hist_memory
 
       ELSE
-         CALL ncio_write_time (filename, dataname, time, itime, DEF_HIST_FREQ)
+         call ncio_write_time (filename, dataname, time, itime, DEF_HIST_FREQ)
       ENDIF
 
-   END SUBROUTINE hist_single_write_time
+   END SUBROUTINE hist_single_write_time 
 
    ! -- write 2D data --
    SUBROUTINE single_write_2d ( &
          acc_vec, file_hist, varname, itime_in_file, longname, units)
-
-      USE MOD_Vars_1DAccFluxes, only: nac
-      USE MOD_Vars_Global,      only: spval
-      IMPLICIT NONE
+         
+      USE MOD_Vars_1DAccFluxes, only : nac
+      use MOD_Vars_Global,      only : spval
+      implicit none
 
       real(r8),         intent(inout) :: acc_vec(:)
       character(len=*), intent(in)    :: file_hist
@@ -202,8 +201,8 @@ CONTAINS
       character(len=*), intent(in)    :: longname
       character(len=*), intent(in)    :: units
 
-      WHERE (acc_vec /= spval)  acc_vec = acc_vec / nac
-
+      where (acc_vec /= spval)  acc_vec = acc_vec / nac
+      
       IF (USE_SITE_HistWriteBack) THEN
 
          IF (.not. associated(thisvar%next)) THEN
@@ -216,13 +215,13 @@ CONTAINS
          ELSE
             thisvar => thisvar%next
          ENDIF
-
+         
          IF (thisvar%varname /= varname) THEN
             write(*,*) 'Warning: history variable in memory is wrong: ' &
-               // trim(thisvar%varname) // ' should be ' // trim(varname)
+               // trim(thisvar%varname) // ' should be ' // trim(varname) 
             CALL CoLM_stop ()
          ENDIF
-
+         
          thisvar%v2d(:,itime_mem) = acc_vec(:)
 
          IF (memory_to_disk) THEN
@@ -236,7 +235,7 @@ CONTAINS
       ELSE
          CALL ncio_write_serial_time (file_hist, varname, itime_in_file, acc_vec, &
             'patch', 'time')
-         IF (itime_in_file == 1) THEN
+         IF (itime_in_file == 1) then
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
             CALL ncio_put_attr (file_hist, varname, 'units', units)
             CALL ncio_put_attr (file_hist, varname, 'missing_value', spval)
@@ -248,10 +247,10 @@ CONTAINS
    ! -- write urban 2D data --
    SUBROUTINE single_write_urb_2d ( &
          acc_vec, file_hist, varname, itime_in_file, longname, units)
-
-      USE MOD_Vars_1DAccFluxes, only: nac
-      USE MOD_Vars_Global,      only: spval
-      IMPLICIT NONE
+         
+      USE MOD_Vars_1DAccFluxes, only : nac
+      use MOD_Vars_Global,      only : spval
+      implicit none
 
       real(r8),         intent(inout) :: acc_vec(:)
       character(len=*), intent(in)    :: file_hist
@@ -260,27 +259,27 @@ CONTAINS
       character(len=*), intent(in)    :: longname
       character(len=*), intent(in)    :: units
 
-      WHERE (acc_vec /= spval)  acc_vec = acc_vec / nac
-
+      where (acc_vec /= spval)  acc_vec = acc_vec / nac
+      
       IF (USE_SITE_HistWriteBack) THEN
 
          IF (.not. associated(thisvar%next)) THEN
             allocate (thisvar%next)
             thisvar => thisvar%next
-
+         
             thisvar%next    => null()
             thisvar%varname = varname
             allocate(thisvar%v2d (size(acc_vec),ntime_mem))
          ELSE
             thisvar => thisvar%next
          ENDIF
-
+         
          IF (thisvar%varname /= varname) THEN
             write(*,*) 'Warning: history variable in memory is wrong: ' &
-               // trim(thisvar%varname) // ' should be ' // trim(varname)
+               // trim(thisvar%varname) // ' should be ' // trim(varname) 
             CALL CoLM_stop ()
          ENDIF
-
+         
          thisvar%v2d(:,itime_mem) = acc_vec
 
          IF (memory_to_disk) THEN
@@ -294,7 +293,7 @@ CONTAINS
       ELSE
          CALL ncio_write_serial_time (file_hist, varname, itime_in_file, acc_vec, &
             'urban', 'time')
-         IF (itime_in_file == 1) THEN
+         IF (itime_in_file == 1) then
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
             CALL ncio_put_attr (file_hist, varname, 'units', units)
             CALL ncio_put_attr (file_hist, varname, 'missing_value', spval)
@@ -306,10 +305,10 @@ CONTAINS
    ! -- write local noon 2D data --
    SUBROUTINE single_write_ln ( &
          acc_vec, file_hist, varname, itime_in_file, longname, units)
-
-      USE MOD_Vars_1DAccFluxes, only: nac_ln
-      USE MOD_Vars_Global,      only: spval
-      IMPLICIT NONE
+         
+      USE MOD_Vars_1DAccFluxes, only : nac_ln
+      use MOD_Vars_Global,      only : spval
+      implicit none
 
       real(r8),         intent(inout) :: acc_vec(:)
       character(len=*), intent(in)    :: file_hist
@@ -318,10 +317,10 @@ CONTAINS
       character(len=*), intent(in)    :: longname
       character(len=*), intent(in)    :: units
 
-      WHERE ((acc_vec /= spval) .and. (nac_ln > 0))
+      where ((acc_vec /= spval) .and. (nac_ln > 0))
          acc_vec = acc_vec / nac_ln
       END WHERE
-
+      
       IF (USE_SITE_HistWriteBack) THEN
 
          IF (.not. associated(thisvar%next)) THEN
@@ -334,14 +333,14 @@ CONTAINS
          ELSE
             thisvar => thisvar%next
          ENDIF
-
-
+         
+         
          IF (thisvar%varname /= varname) THEN
             write(*,*) 'Warning: history variable in memory is wrong: ' &
-               // trim(thisvar%varname) // ' should be ' // trim(varname)
+               // trim(thisvar%varname) // ' should be ' // trim(varname) 
             CALL CoLM_stop ()
          ENDIF
-
+         
          thisvar%v2d(:,itime_mem) = acc_vec
 
          IF (memory_to_disk) THEN
@@ -354,7 +353,7 @@ CONTAINS
       ELSE
          CALL ncio_write_serial_time (file_hist, varname, itime_in_file, acc_vec, &
             'patch', 'time')
-         IF (itime_in_file == 1) THEN
+         IF (itime_in_file == 1) then
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
             CALL ncio_put_attr (file_hist, varname, 'units', units)
             CALL ncio_put_attr (file_hist, varname, 'missing_value', spval)
@@ -366,10 +365,10 @@ CONTAINS
    ! -- write 3D data --
    SUBROUTINE single_write_3d ( &
          acc_vec, file_hist, varname, itime_in_file, dim1name, ndim1, longname, units)
-
-      USE MOD_Vars_1DAccFluxes, only: nac
-      USE MOD_Vars_Global,      only: spval
-      IMPLICIT NONE
+         
+      USE MOD_Vars_1DAccFluxes, only : nac
+      use MOD_Vars_Global,      only : spval
+      implicit none
 
       real(r8),         intent(inout) :: acc_vec(:,:)
       character(len=*), intent(in)    :: file_hist
@@ -380,31 +379,31 @@ CONTAINS
       character(len=*), intent(in)    :: longname
       character(len=*), intent(in)    :: units
 
-      WHERE (acc_vec /= spval)  acc_vec = acc_vec / nac
-
+      where (acc_vec /= spval)  acc_vec = acc_vec / nac
+      
       IF (USE_SITE_HistWriteBack) THEN
 
          IF (.not. associated(thisvar%next)) THEN
             allocate (thisvar%next)
             thisvar => thisvar%next
-
+         
             thisvar%next    => null()
             thisvar%varname = varname
             allocate(thisvar%v3d (ndim1,size(acc_vec,2),ntime_mem))
          ELSE
             thisvar => thisvar%next
          ENDIF
-
+         
          IF (thisvar%varname /= varname) THEN
             write(*,*) 'Warning: history variable in memory is wrong: ' &
-               // trim(thisvar%varname) // ' should be ' // trim(varname)
+               // trim(thisvar%varname) // ' should be ' // trim(varname) 
             CALL CoLM_stop ()
          ENDIF
-
+         
          thisvar%v3d(:,:,itime_mem) = acc_vec
 
          IF (memory_to_disk) THEN
-            CALL ncio_define_dimension (file_hist, dim1name, ndim1)
+            call ncio_define_dimension (file_hist, dim1name, ndim1)
             CALL ncio_write_serial (file_hist, varname, thisvar%v3d(:,:,1:itime_mem), &
                dim1name, 'patch', 'time')
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
@@ -413,10 +412,10 @@ CONTAINS
          ENDIF
 
       ELSE
-         CALL ncio_define_dimension (file_hist, dim1name, ndim1)
+         call ncio_define_dimension (file_hist, dim1name, ndim1)
          CALL ncio_write_serial_time (file_hist, varname, itime_in_file, acc_vec, &
             dim1name, 'patch', 'time')
-         IF (itime_in_file == 1) THEN
+         IF (itime_in_file == 1) then
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
             CALL ncio_put_attr (file_hist, varname, 'units', units)
             CALL ncio_put_attr (file_hist, varname, 'missing_value', spval)
@@ -429,10 +428,10 @@ CONTAINS
    SUBROUTINE single_write_4d ( &
          acc_vec, file_hist, varname, itime_in_file, &
          dim1name, ndim1, dim2name, ndim2, longname, units)
-
-      USE MOD_Vars_1DAccFluxes, only: nac
-      USE MOD_Vars_Global,      only: spval
-      IMPLICIT NONE
+         
+      USE MOD_Vars_1DAccFluxes, only : nac
+      use MOD_Vars_Global,      only : spval
+      implicit none
 
       real(r8),         intent(inout) :: acc_vec(:,:,:)
       character(len=*), intent(in)    :: file_hist
@@ -445,32 +444,32 @@ CONTAINS
       character(len=*), intent(in)    :: longname
       character(len=*), intent(in)    :: units
 
-      WHERE (acc_vec /= spval)  acc_vec = acc_vec / nac
-
+      where (acc_vec /= spval)  acc_vec = acc_vec / nac
+      
       IF (USE_SITE_HistWriteBack) THEN
 
          IF (.not. associated(thisvar%next)) THEN
             allocate (thisvar%next)
             thisvar => thisvar%next
-
+         
             thisvar%next    => null()
             thisvar%varname = varname
             allocate(thisvar%v4d (ndim1,ndim2,size(acc_vec,3),ntime_mem))
          ELSE
             thisvar => thisvar%next
          ENDIF
-
+         
          IF (thisvar%varname /= varname) THEN
             write(*,*) 'Warning: history variable in memory is wrong: ' &
-               // trim(thisvar%varname) // ' should be ' // trim(varname)
+               // trim(thisvar%varname) // ' should be ' // trim(varname) 
             CALL CoLM_stop ()
          ENDIF
-
+         
          thisvar%v4d(:,:,:,itime_mem) = acc_vec
 
          IF (memory_to_disk) THEN
-            CALL ncio_define_dimension (file_hist, dim1name, ndim1)
-            CALL ncio_define_dimension (file_hist, dim2name, ndim2)
+            call ncio_define_dimension (file_hist, dim1name, ndim1)
+            call ncio_define_dimension (file_hist, dim2name, ndim2)
             CALL ncio_write_serial (file_hist, varname, thisvar%v4d(:,:,:,1:itime_mem), &
                dim1name, dim2name, 'patch', 'time')
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
@@ -479,11 +478,11 @@ CONTAINS
          ENDIF
 
       ELSE
-         CALL ncio_define_dimension (file_hist, dim1name, ndim1)
-         CALL ncio_define_dimension (file_hist, dim2name, ndim2)
+         call ncio_define_dimension (file_hist, dim1name, ndim1)
+         call ncio_define_dimension (file_hist, dim2name, ndim2)
          CALL ncio_write_serial_time (file_hist, varname, itime_in_file, acc_vec, &
             dim1name, dim2name, 'patch', 'time')
-         IF (itime_in_file == 1) THEN
+         IF (itime_in_file == 1) then
             CALL ncio_put_attr (file_hist, varname, 'long_name', longname)
             CALL ncio_put_attr (file_hist, varname, 'units', units)
             CALL ncio_put_attr (file_hist, varname, 'missing_value', spval)
@@ -492,5 +491,5 @@ CONTAINS
 
    END SUBROUTINE single_write_4d
 
-END MODULE MOD_HistSingle
+end module MOD_HistSingle
 #endif

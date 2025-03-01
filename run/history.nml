@@ -1,0 +1,11 @@
+&nl_colm_history
+
+
+
+    DEF_hist_vars%lai = .true.
+    DEF_hist_vars%grainc_to_cropprodc = .true.
+
+/
+
+
+

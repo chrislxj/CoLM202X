@@ -20,51 +20,16 @@ MODULE MOD_Urban_Longwave
 
 CONTAINS
 
-   SUBROUTINE UrbanOnlyLongwave (theta, HL, fb, fgper, H, LW, &
+   !-------------------------------------------------
+   SUBROUTINE UrbanOnlyLongwave (theta, HW, fb, fgper, H, LW, &
               twsun, twsha, tgimp, tgper, ewall, egimp, egper, &
               Ainv, B, B1, dBdT, SkyVF, fcover)
 
-!-----------------------------------------------------------------------
-!                Sun
-!                 \\\
-!                  \\\
-!                         ______
-!                        |++++++|              roof
-!                        |++++++|             ______
-!                        |++++++|            |++++++|
-!                    ______+++++|            |++++++|
-!                   |++++++|++++|            |++++++|
-!            sunlit |[]++[]|++++|            |++++++| shaded
-!             wall  |++++++|                 |++++++|  wall
-!                   |[]++[]|                 |++++++|
-!                   |++++++|  impervious/pervious ground
-!         __________|++++++|____________________________________
-!
-!
-! !DESCRIPTION:
-!
-!  The process of long-wave radiation transmission in the absence of
-!  vegetation is similar to the incident diffuse case of short-wave
-!  radiation transmission in the absence of vegetation (where long-wave
-!  radiation is approximated as a diffuse source). The long-wave
-!  radiation flux reaching each component surface is calculated, as well
-!  as the long-wave radiation emitted outward from each component
-!  surface. Multiple scattering and absorption between components are
-!  considered, and a long-wave radiation transmission equilibrium
-!  equation is established for solving.
-!
-!  Created by Hua Yuan, 09/2021
-!
-! !REVISIONS:
-!
-!-----------------------------------------------------------------------
-
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
    real(r8), intent(in) :: &
         theta,      &! Sun zenith angle [radian]
-        HL,         &! Ratio of building height to ground width [-]
+        HW,         &! Ratio of building height to ground width [-]
         fb,         &! Fraction of building area [-]
         fgper,      &! Fraction of impervious ground [-]
         H,          &! Building average height [m]
@@ -81,17 +46,18 @@ CONTAINS
 
    real(r8), intent(out) :: &
         Ainv(4,4),  &! Inverse of Radiation transfer matrix
-        B(4),       &! Vectors of incident radiation on each surface
-        B1(4),      &! Vectors of incident radiation on each surface
-        dBdT(4),    &! Vectors of incident radiation on each surface
-        SkyVF(4),   &! View factor to sky
+        B(4),       &! Vectors of incident radition on each surface
+        B1(4),      &! Vectors of incident radition on each surface
+        dBdT(4),    &! Vectors of incident radition on each surface
+        SkyVF(4),   &! Viewall factor to sky
         fcover(0:4)  ! View factor to sky
 
-!-------------------------- Local Variables ----------------------------
+   ! Local variables
+   !-------------------------------------------------
    real(r8) ::    &
         W,          &! Urban ground average width [m]
         L,          &! Urban building average length [m]
-        HW,         &! Ratio of H to W, H/W [-]
+        HL,         &! Ratio of H to L, H/L [-]
         fg,         &! Fraction of ground [-]
         fgimp,      &! Fraction of snow ground [-]
 
@@ -116,13 +82,12 @@ CONTAINS
 
    ! Temporal
    real(r8) :: tmp, eb
-!-----------------------------------------------------------------------
 
-      ! Calculate urban structure parameters
+      ! Claculate urban structure parameters
       !-------------------------------------------------
-      !W  = H/HW
-      !L  = W*sqrt(fb)/(1-sqrt(fb))
-      !HL = H/L !NOTE: Same as HL = HW*(1-sqrt(fb))/sqrt(fb)
+      W  = H/HW
+      L  = W*sqrt(fb)/(1-sqrt(fb))
+      HL = H/L !NOTE: Same as HL = HW*(1-sqrt(fb))/sqrt(fb)
       fg = 1. - fb
       fgimp = 1. - fgper
 
@@ -178,7 +143,7 @@ CONTAINS
       Igimp = Ig*fgimp
       Igper = Ig*fgper
 
-      ! Vector of initial LW radiation on each surface
+      ! Vector of initial LW radiatioin on each surface
       !NOTE: for 3D, absorption per unit area: 4*HL*fb/fg
       !      for canyon: absorption per unit area: 2*HW
       B(1) = Iwsun*(1.-ewall) + 4*fwsun*HL*fb/fg*stefnc*ewall*twsun**4
@@ -244,44 +209,16 @@ CONTAINS
 
    END SUBROUTINE UrbanOnlyLongwave
 
-
-   SUBROUTINE UrbanVegLongwave (theta, HL, fb, fgper, H, LW, &
+   !-------------------------------------------------
+   SUBROUTINE UrbanVegLongwave (theta, HW, fb, fgper, H, LW, &
               twsun, twsha, tgimp, tgper, ewall, egimp, egper, lai, sai, fv, hv, &
               ev, Ainv, B, B1, dBdT, SkyVF, VegVF, fcover)
 
-!-----------------------------------------------------------------------
-!              Sun
-!               \\\
-!                \\\
-!                       ______
-!                      |++++++|              roof
-!                      |++++++|             ______
-!                      |++++++|    ___     |++++++|
-!                  ______+++++|   |||||    |++++++|
-!                 |++++++|++++|  |||||||   |++++++|
-!          sunlit |[]++[]|++++|   |||||    |++++++| shaded
-!           wall  |++++++|          | tree |++++++|  wall
-!                 |[]++[]|          |      |++++++|
-!                 |++++++|  impervious/pervious ground
-!       __________|++++++|___________________________________
-!
-! !DESCRIPTION:
-!
-!  The calculation of longwave radiation when considering vegetation
-!  (trees only) is similar to the shortwave radiation transmission with
-!  vegetation. On the basis of the longwave radiation transmission
-!  balance equation without vegetation, a balanced equation with
-!  vegetation is constructed, and the solution process is similar.
-!
-!  Created by Hua Yuan, 09/2021
-!-----------------------------------------------------------------------
-
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
    real(r8), intent(in) :: &
         theta,      &! Sun zenith angle [radian]
-        HL,         &! Ratio of building height to ground width [-]
+        HW,         &! Ratio of building height to ground width [-]
         fb,         &! Fraction of building area [-]
         fgper,      &! Fraction of impervious ground [-]
         H,          &! Building average height [m]
@@ -303,20 +240,21 @@ CONTAINS
    real(r8), intent(out) :: &
         ev,         &! emissivity of vegetation
         Ainv(5,5),  &! Inverse of Radiation transfer matrix
-        B(5),       &! Vectors of incident radiation on each surface
-        B1(5),      &! Vectors of incident radiation on each surface
-        dBdT(5),    &! Vectors of incident radiation on each surface
+        B(5),       &! Vectors of incident radition on each surface
+        B1(5),      &! Vectors of incident radition on each surface
+        dBdT(5),    &! Vectors of incident radition on each surface
         SkyVF(5),   &! View factor to sky
         VegVF(5),   &! View factor to sky
         fcover(0:5)  ! View factor to sky
 
-!-------------------------- Local Variables ----------------------------
-   real(r16),parameter :: DD1=1.0_r16 !quad accuracy real number
+   ! Local variables
+   !-------------------------------------------------
+   real(r16),parameter:: DD1=1.0_r16 !quad accuracy real number
 
    real(r8) :: &
         W,          &! Urban ground average width [m]
         L,          &! Urban building average length [m]
-        HW,         &! Ratio of H to W, H/W [-]
+        HL,         &! Ratio of H to L, H/L [-]
         fg,         &! Fraction of ground [-]
         fgimp,      &! Fraction of pervious ground [-]
 
@@ -372,19 +310,17 @@ CONTAINS
 
    ! Temporal
    real(r8) :: tmp, eb, fac1, fac2, lsai
-!-----------------------------------------------------------------------
 
-      ! Calculate urban structure parameters
+      ! Claculate urban structure parameters
       !-------------------------------------------------
-      !W  = H/HW
-      !L  = W*sqrt(fb)/(1-sqrt(fb))
-      !HL = H/L !NOTE: Same as HL = HW*(1-sqrt(fb))/sqrt(fb)
-      L  = H/HL
+      W  = H/HW
+      L  = W*sqrt(fb)/(1-sqrt(fb))
+      HL = H/L !NOTE: Same as HL = HW*(1-sqrt(fb))/sqrt(fb)
       fg = 1. - fb
 
       fgimp = 1. - fgper
 
-      ! Calculate transmission and albedo of tree
+      ! Calculate transmittion and albedo of tree
       !-------------------------------------------------
       lsai = (lai+sai)*fv/cos(PI/3)/ShadowTree(fv, PI/3)
       Td = tee(DD1*3/8.*lsai)
@@ -420,7 +356,7 @@ CONTAINS
       Sv  = ShadowTree(fv_, PI/3)
 
       ! Overlapped shadow between tree and building
-      ! (to ground only)
+      ! (to groud only)
       Swv = (Sw-Sw_) * Sv
 
       ! convert Sv to ground ratio
@@ -445,7 +381,7 @@ CONTAINS
       Sv  = ShadowTree(fv_, PI/3)
 
       ! Overlapped shadow between tree and building
-      ! (to ground only)
+      ! (to groud only)
       Swv = (Sw-Sw_) * Sv
 
       ! convert Sv to ground ratio
@@ -501,7 +437,7 @@ CONTAINS
       ! Calculate wall sunlit fraction
       !-------------------------------------------------
 
-      ! Building wall shadow
+      ! Builing wall shadow
       Sw = ShadowWall_dir(fb/fg, HL, theta)
 
       Sw_ = Sw; fv_ = fv;
@@ -513,7 +449,7 @@ CONTAINS
       Sv = ShadowTree(fv_, theta)
 
       ! Overlapped shadow between tree and building
-      ! (to ground only)
+      ! (to groud only)
       Swv = (Sw-Sw_) * Sv
 
       ! convert Sv to ground ratio
@@ -557,7 +493,7 @@ CONTAINS
       Igper = Ig*fgper
       Iv    = LW*Fsv
 
-      ! Vector of initial LW radiation on each surface
+      ! Vector of initial LW radiatioin on each surface
       !NOTE: for 3D, absorption per unit area: 4*HL*fb/fg
       !      for canyon: absorption per unit area: 2*HW
       B(1) = Iwsun*(1.-ewall) + 4*fwsun*HL*fb/fg*stefnc*ewall*twsun**4
@@ -664,4 +600,3 @@ CONTAINS
    END SUBROUTINE UrbanVegLongwave
 
 END MODULE MOD_Urban_Longwave
-! ---------- EOP ------------

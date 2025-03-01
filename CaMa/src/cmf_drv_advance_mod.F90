@@ -30,14 +30,14 @@ CONTAINS
 !
 !####################################################################
    SUBROUTINE CMF_DRV_ADVANCE(KSTEPS)
-   USE YOS_CMF_INPUT,           ONLY: LSEALEV
+   USE YOS_CMF_INPUT,           ONLY: LSEALEV, LDAMOUT, LDAMIRR
    USE YOS_CMF_TIME,            ONLY: KSTEP, JYYYYMMDD, JHHMM
    !
    USE CMF_CTRL_TIME_MOD,       ONLY: CMF_TIME_NEXT, CMF_TIME_UPDATE
    USE CMF_CTRL_PHYSICS_MOD,    ONLY: CMF_PHYSICS_ADVANCE, CMF_PHYSICS_FLDSTG
    USE CMF_CTRL_RESTART_MOD,    ONLY: CMF_RESTART_WRITE
    USE CMF_CTRL_OUTPUT_MOD,     ONLY: CMF_OUTPUT_WRITE, CMF_OUTTXT_WRTE
-   USE CMF_CTRL_DAMOUT_MOD,     ONLY: CMF_DAMOUT_WRTE
+   USE CMF_CTRL_DAMOUT_MOD,     ONLY: CMF_DAMOUT_WRTE, CMF_DAM_DEMAND_UPDATE!,CMF_DAM_WUSE_INIT,CMF_DAM_WUSE_ALLOC, CMF_RIV_WUSE_INIT, CMF_RIV_WUSE_ALLOC
 
    USE CMF_CALC_DIAG_MOD,       ONLY: CMF_DIAG_AVERAGE, CMF_DIAG_RESET
    USE CMF_CTRL_BOUNDARY_MOD,   ONLY: CMF_BOUNDARY_UPDATE
@@ -73,6 +73,7 @@ CONTAINS
 
          !============================
          !*** 1. Set next time
+         !print*,"LHB debug line76 camarun error : Set next time"
          CALL CMF_TIME_NEXT               !! set KMINNEXT, JYYYYMMDD, JHHMM
 
          !*** (optional)
@@ -82,7 +83,22 @@ CONTAINS
 
          !============================
          !*** 2. Advance model integration 
+         ! IF ( LDAMOUT .AND. LDAMIRR) THEN
+         !    ! CALL CMF_RIV_WUSE_INIT
+         !    ! CALL CMF_DAM_WUSE_INIT
+         ! ENDIF
+         
          CALL CMF_PHYSICS_ADVANCE
+
+         IF ( LDAMOUT .and. LDAMIRR ) THEN
+            CALL CMF_DAM_DEMAND_UPDATE
+         ENDIF
+
+         ! IF ( LDAMOUT .AND. LDAMIRR) THEN
+         !    write(LOGNAM,*) "debug-zsl-v0609: before CMF_RIV_WUSE_ALLOC"
+         !    CALL CMF_RIV_WUSE_ALLOC
+         !    ! CALL CMF_DAM_WUSE_ALLOC
+         ! ENDIF
 
 #ifdef sediment
          !*** 2b.  Advance sediment model integration
@@ -113,6 +129,7 @@ CONTAINS
 #endif
 
          ! --- Optional: text file output
+         !print*,"LHB debug line118 camarun error : text file output"
          CALL CMF_OUTTXT_WRTE            !! reservoir operation
          CALL CMF_DAMOUT_WRTE            !! reservoir operation
 
@@ -128,6 +145,7 @@ CONTAINS
 
          !============================ 
          !*** 5. Update current time      !! Update KMIN, IYYYYMMDD, IHHMM (to KMINNEXT, JYYYYMMDD, JHHMM)
+         !print*,"LHB debug line134 camarun error : Update current time"
          CALL CMF_TIME_UPDATE
 
          !============================
@@ -136,7 +154,7 @@ CONTAINS
          !$ ZTT2=OMP_GET_WTIME()
          WRITE(LOGNAM,*) "CMF::DRV_ADVANCE END: KSTEP, time (end of Tstep):", KSTEP, JYYYYMMDD, JHHMM
          WRITE(LOGNAM,'(a,f8.1,a,f8.1,a)') "Elapsed cpu time", ZTT2-ZTT0,"Sec. // File output ", ZTT2-ZTT1, "Sec"
-
+         !print*,"LHB debug line143 camarun error : drv end"
       ENDDO
    !*** END:time step loop
    !================================================

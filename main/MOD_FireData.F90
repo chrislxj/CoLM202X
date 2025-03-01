@@ -4,15 +4,13 @@
 MODULE MOD_FireData
 !-----------------------------------------------------------------------
 ! !DESCRIPTION:
-!  This module read in fire data.
+! This module read in fire data.
 !
-!  Original:
-!  2023, Lu Xingjie and Zhang Shupeng: prepare the original version of
-!        the fire data module.
-!-----------------------------------------------------------------------
+! !ORIGINAL:
+! Lu Xingjie and Zhang Shupeng, 2023, prepare the original version of the fire data module.
 
    USE MOD_Grid
-   USE MOD_SpatialMapping
+   USE MOD_Mapping_Grid2Pset
    USE MOD_Vars_TimeInvariants, only: abm_lf, gdp_lf, peatf_lf
    USE MOD_Vars_TimeVariables,  only: hdm_lf
    IMPLICIT NONE
@@ -20,17 +18,17 @@ MODULE MOD_FireData
    character(len=256) :: file_fire
 
    type(grid_type) :: grid_fire
-   type(spatial_mapping_type) :: mg2p_fire
+   type(mapping_grid2pset_type) :: mg2p_fire
 
 CONTAINS
 
+   ! ----------
    SUBROUTINE init_fire_data (YY)
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  open fire netcdf file from DEF_dir_runtime, read latitude and
-!  longitude info.  Initialize fire data read in.
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! open fire netcdf file from DEF_dir_runtime, read latitude and longitude info.
+   ! Initialize fire data read in.
 
    USE MOD_SPMD_Task
    USE MOD_Namelist
@@ -54,7 +52,7 @@ CONTAINS
 
       CALL grid_fire%define_by_center (lat, lon)
 
-      CALL mg2p_fire%build_arealweighted (grid_fire, landpatch)
+      CALL mg2p_fire%build (grid_fire, landpatch)
 
       IF (allocated(lon)) deallocate(lon)
       IF (allocated(lat)) deallocate(lat)
@@ -67,7 +65,7 @@ CONTAINS
       IF (p_is_io) THEN
          CALL ncio_read_block (file_fire, 'abm', grid_fire, f_xy_fire)
       ENDIF
-      CALL mg2p_fire%grid2pset (f_xy_fire, abm_lf)
+      CALL mg2p_fire%map_aweighted (f_xy_fire, abm_lf)
 #ifdef RangeCheck
       CALL check_vector_data ('abm', abm_lf)
 #endif
@@ -76,7 +74,7 @@ CONTAINS
       IF (p_is_io) THEN
          CALL ncio_read_block (file_fire, 'peatf', grid_fire, f_xy_fire)
       ENDIF
-      CALL mg2p_fire%grid2pset (f_xy_fire, peatf_lf)
+      CALL mg2p_fire%map_aweighted (f_xy_fire, peatf_lf)
 #ifdef RangeCheck
       CALL check_vector_data ('peatf', peatf_lf)
 #endif
@@ -85,7 +83,7 @@ CONTAINS
       IF (p_is_io) THEN
          CALL ncio_read_block (file_fire, 'gdp', grid_fire, f_xy_fire)
       ENDIF
-      CALL mg2p_fire%grid2pset (f_xy_fire, gdp_lf)
+      CALL mg2p_fire%map_aweighted (f_xy_fire, gdp_lf)
 #ifdef RangeCheck
       CALL check_vector_data ('gdp', gdp_lf)
 #endif
@@ -94,15 +92,16 @@ CONTAINS
 
    END SUBROUTINE init_fire_data
 
+   ! ----------
    SUBROUTINE update_hdm_data (YY)
-!-----------------------------------------------------------------------
-!
-! !DESCRIPTION:
-!  Read in the Fire data from CLM5 dataset (month when crop fire peak
-!  (abm), GDP, peatland fraction (peatf), and population density
-!
-!  Original: Xingjie Lu and Shupeng Zhang, 2022
-!-----------------------------------------------------------------------
+   ! ======================================================================================================
+   !
+   ! !DESCRIPTION:
+   ! Read in the Fire data from CLM5 dataset (month when crop fire peak (abm), GDP, peatland fraction (peatf),
+   ! and population density
+   !
+   ! !ORIGINAL: Xingjie Lu and Shupeng Zhang, 2022
+   ! ======================================================================================================
 
    USE MOD_SPMD_Task
    USE MOD_DataType
@@ -127,7 +126,7 @@ CONTAINS
          CALL ncio_read_block_time (file_fire, 'hdm', grid_fire, itime, f_xy_fire)
       ENDIF
 
-      CALL mg2p_fire%grid2pset (f_xy_fire, hdm_lf)
+      CALL mg2p_fire%map_aweighted (f_xy_fire, hdm_lf)
 
 #ifdef RangeCheck
       CALL check_vector_data ('hdm', hdm_lf)

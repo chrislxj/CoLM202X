@@ -3,7 +3,7 @@
 MODULE MOD_RangeCheck
 
 !-----------------------------------------------------------------------
-! !DESCRIPTION:
+! DESCRIPTION:
 !
 !    Subroutines show the range of values in block data or vector data.
 !
@@ -11,11 +11,10 @@ MODULE MOD_RangeCheck
 !    1. "check_block_data"  can only be called by IO     processes.
 !    2. "check_vector_data" can only be called by worker processes.
 !
-!  Created by Shupeng Zhang, May 2023
+! Created by Shupeng Zhang, May 2023
 !-----------------------------------------------------------------------
 
 #ifdef RangeCheck
-   USE MOD_UserDefFun, only: isnan_ud
    IMPLICIT NONE
 
    INTERFACE check_block_data
@@ -33,19 +32,18 @@ MODULE MOD_RangeCheck
 CONTAINS
 
    ! ----------
-   SUBROUTINE check_block_data_real8_2d (varname, gdata, spv_in, limits)
+   SUBROUTINE check_block_data_real8_2d (varname, gdata, spv_in, largevalue)
 
    USE MOD_Precision
    USE MOD_SPMD_Task
    USE MOD_Block
    USE MOD_DataType
-   USE MOD_Vars_Global, only: spval
    IMPLICIT NONE
 
    character(len=*), intent(in)   :: varname
    type(block_data_real8_2d), intent(in) :: gdata
    real(r8), intent(in), optional :: spv_in
-   real(r8), intent(in), optional :: limits(2)
+   real(r8), intent(in), optional :: largevalue
 
    ! Local variables
    real(r8) :: gmin, gmax, spv
@@ -60,7 +58,7 @@ CONTAINS
          IF (present(spv_in)) THEN
             spv = spv_in
          ELSE
-            spv = spval
+            spv = -1.0e36_r8
          ENDIF
 
          gmin = spv
@@ -92,7 +90,7 @@ CONTAINS
 
             DO iy = 1, size(gdata%blk(ib,jb)%val,2)
                DO ix = 1, size(gdata%blk(ib,jb)%val,1)
-                  has_nan = has_nan .or. isnan_ud(gdata%blk(ib,jb)%val(ix,iy))
+                  has_nan = has_nan .or. isnan(gdata%blk(ib,jb)%val(ix,iy))
                ENDDO
             ENDDO
 
@@ -138,9 +136,10 @@ CONTAINS
                info = trim(info) // ' with NAN'
             ENDIF
 
-            IF (present(limits)) THEN
-               IF ((gmin < limits(1)) .or. (gmax > limits(2))) THEN
-                  info = trim(info) // ' Out of Range!'
+            IF (present(largevalue)) THEN
+               IF (max(abs(gmin),abs(gmax)) > largevalue) THEN
+                  write(ss,'(e12.2)') largevalue
+                  info = trim(info) // ' with value > ' // trim(ss)
                ENDIF
             ENDIF
 
@@ -161,18 +160,16 @@ CONTAINS
 
 
    ! ----------
-   SUBROUTINE check_vector_data_real8_1d (varname, vdata, spv_in, limits)
+   SUBROUTINE check_vector_data_real8_1d (varname, vdata, spv_in, largevalue)
 
    USE MOD_Precision
    USE MOD_SPMD_Task
-   USE MOD_Vars_Global, only: spval
    IMPLICIT NONE
 
-   character(len=*),      intent(in) :: varname
-   real(r8), allocatable, intent(in) :: vdata(:)
-
+   character(len=*), intent(in)   :: varname
+   real(r8), intent(in)           :: vdata(:)
    real(r8), intent(in), optional :: spv_in
-   real(r8), intent(in), optional :: limits(2)
+   real(r8), intent(in), optional :: largevalue
 
    ! Local variables
    real(r8) :: vmin, vmax, spv
@@ -186,26 +183,21 @@ CONTAINS
          IF (present(spv_in)) THEN
             spv = spv_in
          ELSE
-            spv = spval
+            spv = -1.0e36_r8
          ENDIF
 
-         IF (allocated(vdata)) THEN
-            IF (any(vdata /= spv)) THEN
-               vmin = minval(vdata, mask = vdata /= spv)
-               vmax = maxval(vdata, mask = vdata /= spv)
-            ELSE
-               vmin = spv
-               vmax = spv
-            ENDIF
-
-            has_nan = .false.
-            DO i = lbound(vdata,1), ubound(vdata,1)
-               has_nan = has_nan .or. isnan_ud(vdata(i))
-            ENDDO
+         IF (any(vdata /= spv)) THEN
+            vmin = minval(vdata, mask = vdata /= spv)
+            vmax = maxval(vdata, mask = vdata /= spv)
          ELSE
-            vmin = spv; vmax = spv
-            has_nan = .false.
+            vmin = spv
+            vmax = spv
          ENDIF
+
+         has_nan = .false.
+         DO i = 1, size(vdata)
+            has_nan = has_nan .or. isnan(vdata(i))
+         ENDDO
 
 #ifdef USEMPI
          IF (p_iam_worker == p_root) THEN
@@ -246,9 +238,10 @@ CONTAINS
                info = trim(info) // ' with NAN'
             ENDIF
 
-            IF (present(limits)) THEN
-               IF ((vmin < limits(1)) .or. (vmax > limits(2))) THEN
-                  info = trim(info) // ' Out of Range!'
+            IF (present(largevalue)) THEN
+               IF (max(abs(vmin),abs(vmax)) > largevalue) THEN
+                  write(ss,'(e12.2)') largevalue
+                  info = trim(info) // ' with value > ' // trim(ss)
                ENDIF
             ENDIF
 
@@ -268,18 +261,16 @@ CONTAINS
    END SUBROUTINE check_vector_data_real8_1d
 
    ! ----------
-   SUBROUTINE check_vector_data_real8_2d (varname, vdata, spv_in, limits)
+   SUBROUTINE check_vector_data_real8_2d (varname, vdata, spv_in, largevalue)
 
    USE MOD_Precision
    USE MOD_SPMD_Task
-   USE MOD_Vars_Global, only: spval
    IMPLICIT NONE
 
-   character(len=*),      intent(in) :: varname
-   real(r8), allocatable, intent(in) :: vdata(:,:)
-
+   character(len=*), intent(in)   :: varname
+   real(r8), intent(in)           :: vdata(:,:)
    real(r8), intent(in), optional :: spv_in
-   real(r8), intent(in), optional :: limits(2)
+   real(r8), intent(in), optional :: largevalue
 
    ! Local variables
    real(r8) :: vmin, vmax, spv
@@ -293,28 +284,23 @@ CONTAINS
          IF (present(spv_in)) THEN
             spv = spv_in
          ELSE
-            spv = spval
+            spv = -1.0e36_r8
          ENDIF
 
-         IF (allocated(vdata)) THEN
-            IF (any(vdata /= spv)) THEN
-               vmin = minval(vdata, mask = vdata /= spv)
-               vmax = maxval(vdata, mask = vdata /= spv)
-            ELSE
-               vmin = spv
-               vmax = spv
-            ENDIF
-
-            has_nan = .false.
-            DO j = lbound(vdata,2), ubound(vdata,2)
-               DO i = lbound(vdata,1), ubound(vdata,1)
-                  has_nan = has_nan .or. isnan_ud(vdata(i,j))
-               ENDDO
-            ENDDO
+         IF (any(vdata /= spv)) THEN
+            vmin = minval(vdata, mask = vdata /= spv)
+            vmax = maxval(vdata, mask = vdata /= spv)
          ELSE
-            vmin = spv; vmax = spv
-            has_nan = .false.
+            vmin = spv
+            vmax = spv
          ENDIF
+
+         has_nan = .false.
+         DO j = 1, size(vdata,2)
+            DO i = 1, size(vdata,1)
+               has_nan = has_nan .or. isnan(vdata(i,j))
+            ENDDO
+         ENDDO
 
 #ifdef USEMPI
          IF (p_iam_worker == p_root) THEN
@@ -355,9 +341,10 @@ CONTAINS
                info = trim(info) // ' with NAN'
             ENDIF
 
-            IF (present(limits)) THEN
-               IF ((vmin < limits(1)) .or. (vmax > limits(2))) THEN
-                  info = trim(info) // ' Out of Range!'
+            IF (present(largevalue)) THEN
+               IF (max(abs(vmin),abs(vmax)) > largevalue) THEN
+                  write(ss,'(e12.2)') largevalue
+                  info = trim(info) // ' with value > ' // trim(ss)
                ENDIF
             ENDIF
 
@@ -377,18 +364,16 @@ CONTAINS
    END SUBROUTINE check_vector_data_real8_2d
 
    ! ----------
-   SUBROUTINE check_vector_data_real8_3d (varname, vdata, spv_in, limits)
+   SUBROUTINE check_vector_data_real8_3d (varname, vdata, spv_in, largevalue)
 
    USE MOD_Precision
    USE MOD_SPMD_Task
-   USE MOD_Vars_Global, only: spval
    IMPLICIT NONE
 
-   character(len=*),      intent(in) :: varname
-   real(r8), allocatable, intent(in) :: vdata(:,:,:)
-
+   character(len=*), intent(in)   :: varname
+   real(r8), intent(in)           :: vdata(:,:,:)
    real(r8), intent(in), optional :: spv_in
-   real(r8), intent(in), optional :: limits(2)
+   real(r8), intent(in), optional :: largevalue
 
    ! Local variables
    real(r8) :: vmin, vmax, spv
@@ -402,30 +387,25 @@ CONTAINS
          IF (present(spv_in)) THEN
             spv = spv_in
          ELSE
-            spv = spval
+            spv = -1.0e36_r8
          ENDIF
 
-         IF (allocated(vdata)) THEN
-            IF (any(vdata /= spv)) THEN
-               vmin = minval(vdata, mask = vdata /= spv)
-               vmax = maxval(vdata, mask = vdata /= spv)
-            ELSE
-               vmin = spv
-               vmax = spv
-            ENDIF
+         IF (any(vdata /= spv)) THEN
+            vmin = minval(vdata, mask = vdata /= spv)
+            vmax = maxval(vdata, mask = vdata /= spv)
+         ELSE
+            vmin = spv
+            vmax = spv
+         ENDIF
 
-            has_nan = .false.
-            DO k = lbound(vdata,3), ubound(vdata,3)
-               DO j = lbound(vdata,2), ubound(vdata,2)
-                  DO i = lbound(vdata,1), ubound(vdata,1)
-                     has_nan = has_nan .or. isnan_ud(vdata(i,j,k))
-                  ENDDO
+         has_nan = .false.
+         DO k = 1, size(vdata,3)
+            DO j = 1, size(vdata,2)
+               DO i = 1, size(vdata,1)
+                  has_nan = has_nan .or. isnan(vdata(i,j,k))
                ENDDO
             ENDDO
-         ELSE
-            vmin = spv; vmax = spv
-            has_nan = .false.
-         ENDIF
+         ENDDO
 
 #ifdef USEMPI
          IF (p_iam_worker == p_root) THEN
@@ -467,9 +447,10 @@ CONTAINS
                info = trim(info) // ' with NAN'
             ENDIF
 
-            IF (present(limits)) THEN
-               IF ((vmin < limits(1)) .or. (vmax > limits(2))) THEN
-                  info = trim(info) // ' Out of Range!'
+            IF (present(largevalue)) THEN
+               IF (max(abs(vmin),abs(vmax)) > largevalue) THEN
+                  write(ss,'(e12.2)') largevalue
+                  info = trim(info) // ' with value > ' // trim(ss)
                ENDIF
             ENDIF
 
@@ -489,18 +470,16 @@ CONTAINS
    END SUBROUTINE check_vector_data_real8_3d
 
    ! ----------
-   SUBROUTINE check_vector_data_real8_4d (varname, vdata, spv_in, limits)
+   SUBROUTINE check_vector_data_real8_4d (varname, vdata, spv_in, largevalue)
 
    USE MOD_Precision
    USE MOD_SPMD_Task
-   USE MOD_Vars_Global, only: spval
    IMPLICIT NONE
 
-   character(len=*),      intent(in) :: varname
-   real(r8), allocatable, intent(in) :: vdata(:,:,:,:)
-
+   character(len=*), intent(in)   :: varname
+   real(r8), intent(in)           :: vdata(:,:,:,:)
    real(r8), intent(in), optional :: spv_in
-   real(r8), intent(in), optional :: limits(2)
+   real(r8), intent(in), optional :: largevalue
 
    ! Local variables
    real(r8) :: vmin, vmax, spv
@@ -514,32 +493,27 @@ CONTAINS
          IF (present(spv_in)) THEN
             spv = spv_in
          ELSE
-            spv = spval
+            spv = -1.0e36_r8
          ENDIF
 
-         IF (allocated(vdata)) THEN
-            IF (any(vdata /= spv)) THEN
-               vmin = minval(vdata, mask = vdata /= spv)
-               vmax = maxval(vdata, mask = vdata /= spv)
-            ELSE
-               vmin = spv
-               vmax = spv
-            ENDIF
+         IF (any(vdata /= spv)) THEN
+            vmin = minval(vdata, mask = vdata /= spv)
+            vmax = maxval(vdata, mask = vdata /= spv)
+         ELSE
+            vmin = spv
+            vmax = spv
+         ENDIF
 
-            has_nan = .false.
-            DO l = lbound(vdata,4), ubound(vdata,4)
-               DO k = lbound(vdata,3), ubound(vdata,3)
-                  DO j = lbound(vdata,2), ubound(vdata,2)
-                     DO i = lbound(vdata,1), ubound(vdata,1)
-                        has_nan = has_nan .or. isnan_ud(vdata(i,j,k,l))
-                     ENDDO
+         has_nan = .false.
+         DO l = 1, size(vdata,4)
+            DO k = 1, size(vdata,3)
+               DO j = 1, size(vdata,2)
+                  DO i = 1, size(vdata,1)
+                     has_nan = has_nan .or. isnan(vdata(i,j,k,l))
                   ENDDO
                ENDDO
             ENDDO
-         ELSE
-            vmin = spv; vmax = spv
-            has_nan = .false.
-         ENDIF
+         ENDDO
 
 #ifdef USEMPI
          IF (p_iam_worker == p_root) THEN
@@ -581,9 +555,10 @@ CONTAINS
                info = trim(info) // ' with NAN'
             ENDIF
 
-            IF (present(limits)) THEN
-               IF ((vmin < limits(1)) .or. (vmax > limits(2))) THEN
-                  info = trim(info) // ' Out of Range!'
+            IF (present(largevalue)) THEN
+               IF (max(abs(vmin),abs(vmax)) > largevalue) THEN
+                  write(ss,'(e12.2)') largevalue
+                  info = trim(info) // ' with value > ' // trim(ss)
                ENDIF
             ENDIF
 
@@ -609,60 +584,59 @@ CONTAINS
    USE MOD_SPMD_Task
    IMPLICIT NONE
 
-   character(len=*),     intent(in)  :: varname
-   integer, allocatable, intent(in)  :: vdata(:)
-
+   character(len=*), intent(in)  :: varname
+   integer, intent(in)           :: vdata(:)
    integer, intent(in), optional :: spv_in
 
    ! Local variables
    integer :: vmin, vmax
-   logical :: isnull
-   logical, allocatable :: null_all(:)
    integer, allocatable :: vmin_all(:), vmax_all(:)
    character(len=256) :: wfmt
 
       IF (p_is_worker) THEN
 
-         isnull = .not. allocated(vdata)
-
-         IF (.not. isnull) THEN
-            IF (present(spv_in)) THEN
-               IF (any(vdata /= spv_in)) THEN
-                  vmin = minval(vdata, mask = vdata /= spv_in)
-                  vmax = maxval(vdata, mask = vdata /= spv_in)
-               ELSE
-                  vmin = spv_in
-                  vmax = spv_in
-               ENDIF
+         IF (present(spv_in)) THEN
+            IF (any(vdata /= spv_in)) THEN
+               vmin = minval(vdata, mask = vdata /= spv_in)
+               vmax = maxval(vdata, mask = vdata /= spv_in)
             ELSE
-               vmin = minval(vdata)
-               vmax = maxval(vdata)
+               vmin = spv_in
+               vmax = spv_in
             ENDIF
+         ELSE
+            vmin = minval(vdata)
+            vmax = maxval(vdata)
          ENDIF
 
 #ifdef USEMPI
          IF (p_iam_worker == p_root) THEN
-            allocate (null_all (0:p_np_worker-1))
             allocate (vmin_all (0:p_np_worker-1))
             allocate (vmax_all (0:p_np_worker-1))
-            CALL mpi_gather (isnull, 1, MPI_LOGICAL, null_all, 1, MPI_LOGICAL, p_root, p_comm_worker, p_err)
-            CALL mpi_gather (vmin,   1, MPI_INTEGER, vmin_all, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
-            CALL mpi_gather (vmax,   1, MPI_INTEGER, vmax_all, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
+            CALL mpi_gather (vmin, 1, MPI_INTEGER, vmin_all, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
+            CALL mpi_gather (vmax, 1, MPI_INTEGER, vmax_all, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
          ELSE
-            CALL mpi_gather (isnull, 1, MPI_LOGICAL, MPI_LNULL_P, 1, MPI_LOGICAL, p_root, p_comm_worker, p_err)
-            CALL mpi_gather (vmin,   1, MPI_INTEGER, MPI_INULL_P, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
-            CALL mpi_gather (vmax,   1, MPI_INTEGER, MPI_INULL_P, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
+            CALL mpi_gather (vmin, 1, MPI_INTEGER, MPI_INULL_P, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
+            CALL mpi_gather (vmax, 1, MPI_INTEGER, MPI_INULL_P, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
          ENDIF
 
          IF (p_iam_worker == p_root) THEN
             IF (present(spv_in)) THEN
-               null_all = null_all .and. (vmin_all == spv_in)
+               IF (any(vmin_all /= spv_in)) THEN
+                  vmin = minval(vmin_all, mask = (vmin_all /= spv_in))
+               ELSE
+                  vmin = spv_in
+               ENDIF
+
+               IF (any(vmax_all /= spv_in)) THEN
+                  vmax = maxval(vmax_all, mask = (vmax_all /= spv_in))
+               ELSE
+                  vmax = spv_in
+               ENDIF
+            ELSE
+               vmin = minval(vmin_all)
+               vmax = maxval(vmax_all)
             ENDIF
 
-            vmin = minval(vmin_all, mask = .not. null_all)
-            vmax = maxval(vmax_all, mask = .not. null_all)
-
-            deallocate (null_all)
             deallocate (vmin_all)
             deallocate (vmax_all)
          ENDIF

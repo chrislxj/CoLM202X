@@ -15,19 +15,18 @@ CONTAINS
 
    USE MOD_Precision
    USE MOD_SPMD_Task
-   USE MOD_Namelist
-   USE MOD_UserDefFun
+   USE mod_namelist
    USE MOD_LandPatch
    USE MOD_NetCDFVector
-   USE MOD_Vars_Global, only: nl_soil, dz_soi
-   USE MOD_Vars_TimeInvariants, only: dbedrock, ibedrock
+   USE MOD_Vars_Global, only : nl_soil, dz_soi
+   USE MOD_Vars_TimeInvariants, only : dbedrock, ibedrock
 #ifdef SinglePoint
    USE MOD_SingleSrfdata
 #endif
 
    IMPLICIT NONE
 
-   character(len=256), intent(in) :: dir_landdata
+   character(LEN=256), intent(in) :: dir_landdata
 
    ! Local Variables
    character(len=256) :: lndname
@@ -54,7 +53,7 @@ CONTAINS
                dbedrock(ipatch) = max(dbedrock(ipatch), dz_soi(1))
 
                IF (dbedrock(ipatch) > zi_soi(1)) THEN
-                  ibedrock(ipatch) = findloc_ud(dbedrock(ipatch)>zi_soi, back=.true.) + 1
+                  ibedrock(ipatch) = findloc(dbedrock(ipatch)>zi_soi, .true., back=.true., dim=1) + 1
                ELSE
                   ibedrock(ipatch) = 1
                ENDIF
@@ -68,3 +67,4 @@ CONTAINS
    END SUBROUTINE dbedrock_readin
 
 END MODULE MOD_DBedrockReadin
+

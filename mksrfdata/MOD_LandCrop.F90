@@ -3,14 +3,14 @@
 #ifdef CROP
 MODULE MOD_LandCrop
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
+!------------------------------------------------------------------------------------
+! DESCRIPTION:
 !
 !    Build crop patches.
 !
-!  Created by Shupeng Zhang, Sep 2023
+! Created by Shupeng Zhang, Sep 2023
 !    porting codes from Hua Yuan's OpenMP version to MPI parallel version.
-!-----------------------------------------------------------------------
+!------------------------------------------------------------------------------------
 
    USE MOD_Precision
    USE MOD_Grid
@@ -67,18 +67,12 @@ CONTAINS
 
          numpatch = count(SITE_pctcrop > 0.)
 
-         allocate (pctshrpch(numpatch))
+         allocate (pctshrpch (numpatch))
          allocate (cropclass(numpatch))
          cropclass = pack(SITE_croptyp, SITE_pctcrop > 0.)
          pctshrpch = pack(SITE_pctcrop, SITE_pctcrop > 0.)
 
          pctshrpch = pctshrpch / sum(pctshrpch)
-
-         IF (allocated(landpatch%eindex))  deallocate(landpatch%eindex)
-         IF (allocated(landpatch%ipxstt))  deallocate(landpatch%ipxstt)
-         IF (allocated(landpatch%ipxend))  deallocate(landpatch%ipxend)
-         IF (allocated(landpatch%settyp))  deallocate(landpatch%settyp)
-         IF (allocated(landpatch%ielm  ))  deallocate(landpatch%ielm  )
 
          allocate (landpatch%eindex (numpatch))
          allocate (landpatch%ipxstt (numpatch))
@@ -91,10 +85,6 @@ CONTAINS
          landpatch%ipxstt(:) = 1
          landpatch%ipxend(:) = 1
          landpatch%settyp(:) = CROPLAND
-
-         landpatch%has_shared = .true.
-         allocate (landpatch%pctshared(numpatch))
-         landpatch%pctshared = pctshrpch
 
          landpatch%nset = numpatch
          CALL landpatch%set_vecgs
@@ -114,7 +104,7 @@ CONTAINS
 
          CALL allocate_block_data (gpatch, pctcrop_xy)
          CALL read_5x5_data (dir_5x5, suffix, gpatch, 'PCT_CROP', pctcrop_xy)
-
+         
          CALL allocate_block_data (gpatch, pctshared_xy, 2)
          DO iblkme = 1, gblock%nblkme
             ib = gblock%xblkme(iblkme)
@@ -123,16 +113,11 @@ CONTAINS
             pctshared_xy%blk(ib,jb)%val(2,:,:) = pctcrop_xy%blk(ib,jb)%val/100.
          ENDDO
       ENDIF
-
+      
       sharedfilter = (/ 1 /)
 
-      IF (landpatch%has_shared) then
-         CALL pixelsetshared_build (landpatch, gpatch, pctshared_xy, 2, sharedfilter, &
-            pctshared, classshared, fracin = landpatch%pctshared)
-      ELSE
-         CALL pixelsetshared_build (landpatch, gpatch, pctshared_xy, 2, sharedfilter, &
-            pctshared, classshared)
-      ENDIF
+      CALL pixelsetshared_build (landpatch, gpatch, pctshared_xy, 2, sharedfilter, &
+         pctshared, classshared)
 
       IF (p_is_worker) THEN
          IF (landpatch%nset > 0) THEN
@@ -147,25 +132,11 @@ CONTAINS
       ENDIF
 
       cropfilter = (/ CROPLAND /)
-
+      
       CALL pixelsetshared_build (landpatch, gcrop, cropdata, N_CFT, cropfilter, &
          pctshrpch, cropclass, fracin = pctshared)
-
-      cropclass = cropclass + N_PFT - 1
-
+      
       numpatch = landpatch%nset
-
-      landpatch%has_shared = .true.
-      IF (p_is_worker) THEN
-         IF (numpatch > 0) THEN
-            IF (allocated(landpatch%pctshared)) THEN
-               deallocate(landpatch%pctshared)
-            ENDIF
-
-            allocate(landpatch%pctshared(numpatch))
-            landpatch%pctshared = pctshrpch
-         ENDIF
-      ENDIF
 
       IF (allocated(pctshared  )) deallocate(pctshared  )
       IF (allocated(classshared)) deallocate(classshared)
@@ -183,13 +154,13 @@ CONTAINS
       write(*,'(A,I12,A)') 'Total: ', numpatch, ' patches.'
 #endif
 
-      CALL elm_patch%build (landelm, landpatch, use_frac = .true.)
+      CALL elm_patch%build (landelm, landpatch, use_frac = .true., sharedfrac = pctshrpch)
 #ifdef CATCHMENT
-      CALL hru_patch%build (landhru, landpatch, use_frac = .true.)
+      CALL hru_patch%build (landhru, landpatch, use_frac = .true., sharedfrac = pctshrpch)
 #endif
 
       CALL write_patchfrac (DEF_dir_landdata, lc_year)
-
+   
    END SUBROUTINE landcrop_build
 
 END MODULE MOD_LandCrop

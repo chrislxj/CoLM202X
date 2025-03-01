@@ -4,8 +4,8 @@
 
 MODULE MOD_LandPFT
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
+!------------------------------------------------------------------------------------
+! DESCRIPTION:
 !
 !    Build pixelset "landpft" (Plant Function Type).
 !
@@ -19,9 +19,9 @@ MODULE MOD_LandPFT
 !
 !    "landpft" refers to pixelset PFT.
 !
-!  Created by Shupeng Zhang, May 2023
+! Created by Shupeng Zhang, May 2023
 !    porting codes from Hua Yuan's OpenMP version to MPI parallel version.
-!-----------------------------------------------------------------------
+!------------------------------------------------------------------------------------
 
    USE MOD_Namelist
    USE MOD_Pixelset
@@ -108,9 +108,6 @@ CONTAINS
 
             allocate(pft2patch (numpft))
 
-            landpft%has_shared = .true.
-            allocate (landpft%pctshared (numpft))
-
 #ifndef CROP
             IF (patchtypes(landpatch%settyp(1)) == 0) THEN
 #else
@@ -121,18 +118,14 @@ CONTAINS
                pft2patch  (:) = 1
                patch_pft_s(:) = 1
                patch_pft_e(:) = numpft
-
-               landpft%pctshared = pack(SITE_pctpfts, SITE_pctpfts > 0.)
 #ifdef CROP
             ELSEIF (landpatch%settyp(1) == CROPLAND) THEN
                DO ipft = 1, numpft
-                  landpft%settyp(ipft) = cropclass(ipft)
+                  landpft%settyp(ipft) = cropclass(ipft) + N_PFT - 1
                   pft2patch   (ipft) = ipft
                   patch_pft_s (ipft) = ipft
                   patch_pft_e (ipft) = ipft
                ENDDO
-
-               landpft%pctshared = landpatch%pctshared
 #endif
             ENDIF
          ELSE
@@ -151,8 +144,6 @@ CONTAINS
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
-
-      landpft%has_shared = .true.
 
       IF (p_is_io) THEN
 
@@ -231,9 +222,6 @@ CONTAINS
             allocate (landpft%ipxend (numpft))
             allocate (landpft%ielm   (numpft))
 
-            allocate (landpft%pctshared (numpft))
-            landpft%pctshared(:) = 1.
-
             npft = 0
             npatch = 0
             DO ipatch = 1, numpatch
@@ -258,8 +246,6 @@ CONTAINS
                            landpft%ipxend(npft) = landpatch%ipxend(ipatch)
                            landpft%settyp(npft) = ipft
 
-                           landpft%pctshared(npft) = pctpft_patch(ipft,ipatch)
-
                            pft2patch(npft) = npatch
                         ENDIF
                      ENDDO
@@ -273,9 +259,7 @@ CONTAINS
                      landpft%eindex(npft) = landpatch%eindex(ipatch)
                      landpft%ipxstt(npft) = landpatch%ipxstt(ipatch)
                      landpft%ipxend(npft) = landpatch%ipxend(ipatch)
-                     landpft%settyp(npft) = cropclass(ipatch)
-
-                     landpft%pctshared(npft) = landpatch%pctshared(ipatch)
+                     landpft%settyp(npft) = cropclass(ipatch) + N_PFT - 1
 
                      pft2patch(npft) = npatch
 #endif

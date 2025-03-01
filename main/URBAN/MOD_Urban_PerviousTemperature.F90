@@ -1,23 +1,7 @@
 #include <define.h>
 
 MODULE MOD_Urban_PerviousTemperature
-!-----------------------------------------------------------------------
-!
-! !DESCRIPTION:
-!
-!  The urban's pervious ground is equivalent to soil, and the heat
-!  transfer process of the surface soil is calculated consistently. This
-!  includes considering 10 layers of soil and up to 5 layers of snow,
-!  with a layering scheme consistent with the soil (snow). The phase
-!  change process is considered, and soil thermal parameters are
-!  obtained from global data. The difference lies in the fact that the
-!  shortwave and longwave radiation received at the surface, as well as
-!  the turbulent exchange flux (sensible heat, latent heat), are solved
-!  by the corresponding MODULE for the urban model.
-!
-!  Created by Yongjiu Dai and Hua Yuan, 05/2020
-!
-!-----------------------------------------------------------------------
+
    USE MOD_Precision
    IMPLICIT NONE
    SAVE
@@ -43,27 +27,25 @@ CONTAINS
                                 imelt,sm,xmf,fact)
 
 !=======================================================================
-!  Snow and pervious road temperatures
-!  o The volumetric heat capacity is calculated as a linear combination
-!    in terms of the volumetric fraction of the constituent phases.
-!  o The thermal conductivity of road soil is computed from
-!    the algorithm of Johansen (as reported by Farouki 1981), impervious
-!    and perivious from LOOK-UP table and of snow is from the formulation
-!    used in SNTHERM (Jordan 1991).
-!  o Boundary conditions:
-!    F = Rnet - Hg - LEg (top),  F = 0 (base of the soil column).
-!  o Soil / snow temperature is predicted from heat conduction
-!    in 10 soil layers and up to 5 snow layers.  The thermal
-!    conductivities at the interfaces between two neighbor layers
-!    (j,j+1) are derived from an assumption that the flux across the
-!    interface is equal to that from the node j to the interface and the
-!    flux from the interface to the node j+1. The equation is solved
-!    using the Crank-Nicholson method and resulted in a tridiagonal
-!    system equation.
+! Snow and pervious road temperatures
+! o The volumetric heat capacity is calculated as a linear combination
+!   in terms of the volumetric fraction of the constituent phases.
+! o The thermal conductivity of road soil is computed from
+!   the algorithm of Johansen (as reported by Farouki 1981), impervious and perivious from
+!   LOOK-UP table and of snow is from the formulation used in SNTHERM (Jordan 1991).
+! o Boundary conditions:
+!   F = Rnet - Hg - LEg (top),  F = 0 (base of the soil column).
+! o Soil / snow temperature is predicted from heat conduction
+!   in 10 soil layers and up to 5 snow layers.
+!   The thermal conductivities at the interfaces between two neighbor layers
+!   (j, j+1) are derived from an assumption that the flux across the interface
+!   is equal to that from the node j to the interface and the flux from the
+!   interface to the node j+1. The equation is solved using the Crank-Nicholson
+!   method and resulted in a tridiagonal system equation.
 !
-!  Phase change (see MOD_PhaseChange.F90)
+! Phase change (see MOD_PhaseChange.F90)
 !
-!  Original author: Yongjiu Dai, 09/15/1999; 08/30/2002; 05/2020
+! Original author : Yongjiu Dai, 09/15/1999; 08/30/2002; 05/2020
 !=======================================================================
 
    USE MOD_Precision
@@ -75,7 +57,6 @@ CONTAINS
 
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
    integer, intent(in)  :: lb                          !lower bound of array
    integer, intent(in)  :: patchtype                   !land patch type (0=soil,1=urban or built-up,2=wetland,
                                                        !3=land ice, 4=deep lake, 5=shallow lake)
@@ -103,7 +84,7 @@ CONTAINS
    real(r8), intent(in) :: BA_beta   (1:nl_soil)       !beta in Balland and Arp(2005) thermal conductivity scheme
 
 #ifdef Campbell_SOIL_MODEL
-   real(r8), intent(in) :: bsw       (1:nl_soil)       !clapp and hornberger "b" parameter [-]
+   real(r8), intent(in) :: bsw       (1:nl_soil)       !clapp and hornbereger "b" parameter [-]
 #endif
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
    real(r8), intent(in) :: theta_r   (1:nl_soil),&     !soil parameter for vanGenuchten scheme
@@ -114,7 +95,7 @@ CONTAINS
                            fc_vgm    (1:nl_soil)       !soil parameter for vanGenuchten scheme
 #endif
 
-   real(r8), intent(in) :: dz_gpersno(lb  :nl_soil)    !layer thickness [m]
+   real(r8), intent(in) :: dz_gpersno(lb  :nl_soil)    !layer thickiness [m]
    real(r8), intent(in) :: z_gpersno (lb  :nl_soil)    !node depth [m]
    real(r8), intent(in) :: zi_gpersno(lb-1:nl_soil)    !interface depth [m]
 
@@ -128,7 +109,7 @@ CONTAINS
 
    real(r8), intent(inout) :: t_gpersno   (lb:nl_soil) !soil temperature [K]
    real(r8), intent(inout) :: wice_gpersno(lb:nl_soil) !ice lens [kg/m2]
-   real(r8), intent(inout) :: wliq_gpersno(lb:nl_soil) !liquid water [kg/m2]
+   real(r8), intent(inout) :: wliq_gpersno(lb:nl_soil) !liqui water [kg/m2]
    real(r8), intent(inout) :: scv_gper                 !snow cover, water equivalent [mm, kg/m2]
    real(r8), intent(inout) :: snowdp_gper              !snow depth [m]
 
@@ -137,13 +118,13 @@ CONTAINS
    real(r8), intent(out) :: fact (lb:nl_soil)          !used in computing tridiagonal matrix
    integer,  intent(out) :: imelt(lb:nl_soil)          !flag for melting or freezing [-]
 
-!-------------------------- Local Variables ----------------------------
+!------------------------ local variables ------------------------------
    real(r8) cv(lb:nl_soil)            !heat capacity [J/(m2 K)]
    real(r8) tk(lb:nl_soil)            !thermal conductivity [W/(m K)]
 
    real(r8) hcap(1:nl_soil)           !J/(m3 K)
    real(r8) thk(lb:nl_soil)           !W/(m K)
-   real(r8) rhosnow                   !partial density of water (ice + liquid)
+   real(r8) rhosnow                   !partitial density of water (ice + liquid)
 
    real(r8) at(lb:nl_soil)            !"a" vector for tridiagonal matrix
    real(r8) bt(lb:nl_soil)            !"b" vector for tridiagonal matrix
@@ -158,7 +139,7 @@ CONTAINS
    real(r8) t_gpersno_bef(lb:nl_soil) !soil/snow temperature before update
    real(r8) hs                        !net energy flux into the surface (w/m2)
    real(r8) dhsdt                     !d(hs)/dT
-   real(r8) brr(lb:nl_soil)           !temporary set
+   real(r8) brr(lb:nl_soil)           !temporay set
 
    real(r8) vf_water(1:nl_soil)       !volumetric fraction liquid water within soil
    real(r8) vf_ice(1:nl_soil)         !volumetric fraction ice len within soil
@@ -212,10 +193,10 @@ CONTAINS
 
 ! the following consideration is try to avoid the snow conductivity
 ! to be dominant in the thermal conductivity of the interface.
-! Because when the distance of bottom snow node to the interface
+! Because when the distance of bottom snow node to the interfacee
 ! is larger than that of interface to top soil node,
 ! the snow thermal conductivity will be dominant, and the result is that
-! lees heat transfer between snow and soil
+! lees heat tranfer between snow and soil
          IF((i==0) .and. (z_gpersno(i+1)-zi_gpersno(i)<zi_gpersno(i)-z_gpersno(i)))THEN
             tk(i) = 2.*thk(i)*thk(i+1)/(thk(i)+thk(i+1))
             tk(i) = max(0.5*thk(i+1),tk(i))
@@ -290,8 +271,8 @@ CONTAINS
          brr(j) = cnfac*(fn(j)-fn(j-1)) + (1.-cnfac)*(fn1(j)-fn1(j-1))
       ENDDO
 
-      CALL meltf (patchtype,.false.,lb,nl_soil,deltim, &
-                  !NOTE: compatibility settings for splitting soil&snow
+      CALL meltf (patchtype,lb,nl_soil,deltim, &
+                  !NOTE: compatibility settings for spliting soil&snow
                   ! temporal input, as urban mode doesn't support split soil&snow
                   ! hs_soil=hs, hs_snow=hs, fsno=0.
                   fact(lb:),brr(lb:),hs,hs,hs,0.,dhsdT, &

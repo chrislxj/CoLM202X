@@ -13,14 +13,14 @@ CONTAINS
    SUBROUTINE initialize (casename, dir_landdata, dir_restart, &
          idate, lc_year, greenwich, lulcc_call)
 
-!=======================================================================
-!  initialization routine for land surface model.
+! ======================================================================
+! initialization routine for land surface model.
 !
-!  Created by Yongjiu Dai, 09/15/1999
-!  Revised by Yongjiu Dai, 08/30/2002
-!  Revised by Yongjiu Dai, 03/2014
+! Created by Yongjiu Dai, 09/15/1999
+! Revised by Yongjiu Dai, 08/30/2002
+! Revised by Yongjiu Dai, 03/2014
 !
-!=======================================================================
+! ======================================================================
    USE MOD_Precision
    USE MOD_Vars_Global
    USE MOD_Namelist
@@ -57,11 +57,15 @@ CONTAINS
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
    USE MOD_Hydro_SoilFunction
 #endif
-   USE MOD_SpatialMapping
+   USE MOD_Mapping_Grid2Pset
 #ifdef CatchLateralFlow
+   USE MOD_Mesh
    USE MOD_LandHRU
-   USE MOD_Catch_BasinNetwork
+   USE MOD_LandPatch
+   USE MOD_ElmVector
+   USE MOD_HRUVector
    USE MOD_ElementNeighbour
+   USE MOD_Catch_HillslopeNetwork
    USE MOD_Catch_RiverLakeNetwork
 #endif
 #ifdef CROP
@@ -76,7 +80,6 @@ CONTAINS
    USE MOD_LakeDepthReadin
    USE MOD_PercentagesPFTReadin
    USE MOD_SoilParametersReadin
-   USE MOD_SoilTextureReadin
 
    IMPLICIT NONE
 
@@ -100,14 +103,14 @@ CONTAINS
    character(len=256) :: fsoildat
    character(len=256) :: fsnowdat
    character(len=256) :: fcndat
-   character(len=256) :: ftopo, lndname
+   character(len=256) :: ftopo
    type(grid_type) :: gsoil
    type(grid_type) :: gsnow
    type(grid_type) :: gcn
-   type(spatial_mapping_type) :: ms2p
-   type(spatial_mapping_type) :: mc2p
-   type(spatial_mapping_type) :: mc2f
-   type(spatial_mapping_type) :: msoil2p, msnow2p
+   type(mapping_grid2pset_type) :: ms2p
+   type(mapping_grid2pset_type) :: mc2p
+   type(mapping_grid2pset_type) :: mc2f
+   type(mapping_grid2pset_type) :: msoil2p, msnow2p
 
    integer  :: nl_soil_ini
    real(r8) :: missing_value
@@ -179,8 +182,8 @@ CONTAINS
 
    character(len=256) :: fwtd
    type(grid_type)    :: gwtd
-   type(block_data_real8_2d)  :: wtd_xy  ! [m]
-   type(spatial_mapping_type) :: m_wtd2p
+   type(block_data_real8_2d)    :: wtd_xy  ! [m]
+   type(mapping_grid2pset_type) :: m_wtd2p
 
    real(r8) :: zwtmm
    real(r8) :: zc_soimm(1:nl_soil)
@@ -194,10 +197,7 @@ CONTAINS
 #endif
    real(r8) :: prms(nprms, 1:nl_soil)
 
-   real(r8) :: wdsrfm, depthratio
-   real(r8), dimension(10) :: dzlak = (/0.1, 1., 2., 3., 4., 5., 7., 7., 10.45, 10.45/)  ! m
-
-   ! CoLM soil layer thickness and depths
+   ! CoLM soil layer thickiness and depths
    real(r8), allocatable :: z_soisno (:,:)
    real(r8), allocatable :: dz_soisno(:,:)
 
@@ -224,33 +224,6 @@ CONTAINS
 
    integer  :: txt_id
    real(r8) :: vic_b_infilt_, vic_Dsmax_, vic_Ds_, vic_Ws_, vic_c_
-
-   ! for SimTop model parameters
-   character(len=256) :: file_simtop_para
-   logical            :: fexist
-   type(grid_type)    :: g_simtop_para
-   real(r8)           :: filval
-   type(block_data_real8_2d)  :: fsatmax_grid, fsatdcf_grid
-   type(spatial_mapping_type) :: map_simtop_para
-
-   logical :: use_soiltext
-   ! for USDA soil texture class:
-   ! 0: undefined
-   ! 1: clay;  2: silty clay;  3: sandy clay;   4: clay loam;   5: silty clay loam;   6: sandy clay loam; &
-   ! 7: loam;  8: silty loam;  9: sandy loam;  10: silt;       11: loamy sand;       12: sand
-
-   ! original VIC soil texture class in noahmp:
-   !  1: SAND 2: LOAMY SAND 3: SANDY LOAM 4: SILT LOAM 5: SILT 6: LOAM 7: SANDY CLAY LOAM 8: SILTY CLAY LOAM 9: CLAY LOAM 10: SANDY CLAY 11: SILTY CLAY 12: CLAY 13: ORGANIC MATERIAL 14: WATER 15: BEDROCK 16: OTHER(land-ice) 17: PLAYA 18: LAVA 19: WHITE SAND
-   !  9: CLAY LOAM 10: SANDY CLAY 11: SILTY CLAY 12: CLAY
-   !soil type          0    1        2       3           4          5         6        7          8        9         10        11        12
-   !BVIC          =   1.0  0.050,    0.080,    0.090,    0.250,    0.150,    0.180,    0.200,    0.220,    0.230,    0.250,    0.280,    0.300
-   !re-arranged BVIC for USDA soil texture class:
-   real(r8), parameter :: BVIC_USDA(0:12) = (/ 1., 0.300,  0.280, 0.250, 0.230,  0.220, 0.200,  0.180, 0.100,  0.090, 0.150, 0.080,  0.050/)
-
-
-#ifdef CatchLateralFlow
-      CALL build_basin_network ()
-#endif
 
 ! --------------------------------------------------------------------
 ! Allocates memory for CoLM 1d [numpatch] variables
@@ -317,15 +290,58 @@ CONTAINS
 ! ------------------------------------------
       CALL lakedepth_readin (dir_landdata, lc_year)
 
-      IF (p_is_worker .and. (numpatch > 0)) THEN
-         WHERE (patchtype == 4) wdsrf = lakedepth * 1.e3
-      ENDIF
-
 ! ...............................................................
 ! 1.3 Read in the soil parameters of the patches of the gridcells
 ! ...............................................................
 
       CALL soil_parameters_readin (dir_landdata, lc_year)
+      IF (p_is_worker) THEN
+         IF (numpatch > 0) THEN
+
+            BVIC(:,:) = -1.0
+
+            DO ipatch = 1, numpatch
+               DO i = 1, nl_soil
+                  !soil_solids_fractions.F90; 
+                  !BVIC is the b parameter in Fraction of saturated soil in a grid calculated by VIC
+                  !Modified from NoahmpTable.TBL in NoahMP
+                  !SEE: a near-global, high resolution land surface parameter dataset for the variable infiltration capacity model
+                  !soil type (USDA)      1        2       3           4          5         6        7          8        9         10        11        12     |   13        14        15        16        17        18      19
+                  !BVIC          =    0.050,    0.080,    0.090,    0.250,    0.150,    0.180,    0.200,    0.220,    0.230,    0.250,    0.280,    0.300,   | 0.260,    0.000,    1.000,    1.000,    1.000,    0.350,    0.150
+                  ! this should be revised using usda soil type
+                  IF (vf_quartz(i,ipatch) >= 0.95) THEN! sand 
+                     BVIC(i,ipatch)=0.050
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.85 .and. vf_quartz(i,ipatch) < 0.95) THEN ! loamy sand; soil types 1 
+                     BVIC(i,ipatch)=0.080
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.69 .and. vf_quartz(i,ipatch) <  0.85) THEN  !Sandy loam; soil types 3
+                     BVIC(i,ipatch)=0.09
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.61 .and. vf_quartz(i,ipatch) <  0.69) THEN  !Sandy clay loam; soil types 7
+                     BVIC(i,ipatch)=0.20
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.50 .and. vf_quartz(i,ipatch) <  0.61) THEN  !Sandy clay; soil types 10
+                     BVIC(i,ipatch)=0.25
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.41 .and. vf_quartz(i,ipatch) <  0.50) THEN  !Silt; soil types 5
+                     BVIC(i,ipatch)=0.150
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.25 .and. vf_quartz(i,ipatch) <  0.41 .and. wf_sand(i,ipatch)<=0.20) THEN  !Silty clay loam ; soil types 8
+                     BVIC(i,ipatch)=0.220
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.25 .and. vf_quartz(i,ipatch) <  0.41 .and. wf_sand(i,ipatch)>0.20) THEN    !Clay; soil types 12 
+                     BVIC(i,ipatch)=0.30          
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.19 .and. vf_quartz(i,ipatch) <  0.25) THEN  !Loam; soil types 6
+                     BVIC(i,ipatch)=0.180 
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.09 .and. vf_quartz(i,ipatch) <  0.19) THEN  !Clay loam; soil types 9
+                     BVIC(i,ipatch)=0.230
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.08 .and. vf_quartz(i,ipatch) <  0.09) THEN  !Silty clay; soil types 11 
+                     BVIC(i,ipatch)=0.280
+                  ELSEIF (vf_quartz(i,ipatch) >= 0.0 .and. vf_quartz(i,ipatch) <  0.08) THEN  !Silt loam; soil types 4
+                     BVIC(i,ipatch)=0.100
+                  ELSE
+                     BVIC(i,ipatch)=1.0
+                  ENDIF
+               ENDDO
+            ENDDO
+         ENDIF
+      ENDIF
+
+
 
 
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
@@ -344,22 +360,6 @@ CONTAINS
          ENDIF
       ENDIF
 #endif
-
-#ifdef CatchLateralFlow
-      use_soiltext = .true.
-#else
-      use_soiltext = (DEF_Runoff_SCHEME == 3) ! only for Simple VIC
-#endif
-      IF (use_soiltext) THEN
-         CALL soiltext_readin (dir_landdata, lc_year)
-         IF (p_is_worker) THEN
-            IF (numpatch > 0) THEN
-               DO ipatch = 1, numpatch
-                  BVIC(ipatch)=BVIC_USDA(soiltext(ipatch))
-               ENDDO
-            ENDIF
-         ENDIF
-      ENDIF
 
 ! ...............................................................
 ! 1.4 Plant time-invariant variables
@@ -383,117 +383,25 @@ CONTAINS
       ftopo = trim(dir_landdata)//'/topography/'//trim(cyear)//'/topostd_patches.nc'
       CALL ncio_read_vector (ftopo, 'topostd_patches', landpatch, topostd)
 #endif
-! ......................................
-! 1.5 Initialize topography factor data
-! ......................................
-      IF (DEF_USE_Forcing_Downscaling) THEN
-#ifdef SinglePoint
-         slp_type_patches(:,1)  = SITE_slp_type
-         asp_type_patches(:,1)  = SITE_asp_type
-         area_type_patches(:,1) = SITE_area_type
-         svf_patches(:)         = SITE_svf
-         cur_patches(:)         = SITE_cur
-         sf_lut_patches(:,:,1)  = SITE_sf_lut
-#else
-         lndname = trim(DEF_dir_landdata) // '/topography/'//trim(cyear)//'/slp_type_patches.nc'      ! slope
-         CALL ncio_read_vector (lndname, 'slp_type_patches', num_slope_type, landpatch, slp_type_patches)
-         lndname = trim(DEF_dir_landdata) // '/topography/'//trim(cyear)//'/svf_patches.nc'           ! sky view factor
-         CALL ncio_read_vector (lndname, 'svf_patches', landpatch, svf_patches)
-         lndname = trim(DEF_dir_landdata) // '/topography/'//trim(cyear)//'/asp_type_patches.nc'      ! aspect
-         CALL ncio_read_vector (lndname, 'asp_type_patches', num_slope_type, landpatch, asp_type_patches)
-         lndname = trim(DEF_dir_landdata) // '/topography/'//trim(cyear)//'/area_type_patches.nc'     ! area percent
-         CALL ncio_read_vector (lndname, 'area_type_patches', num_slope_type, landpatch, area_type_patches)
-         lndname = trim(DEF_dir_landdata) // '/topography/'//trim(cyear)//'/sf_curve_patches.nc'      ! shadow mask
-         CALL ncio_read_vector (lndname, 'sf_curve_patches', num_azimuth, num_zenith_parameter, landpatch, sf_curve_patches)
-         lndname = trim(DEF_dir_landdata) // '/topography/'//trim(cyear)//'/cur_patches.nc'           ! curvature
-         CALL ncio_read_vector (lndname, 'cur_patches', landpatch, cur_patches)
-#endif
-       ENDIF
+
 ! ................................
 ! 1.6 Initialize TUNABLE constants
 ! ................................
-      zlnd   = 0.01     !Roughness length for soil [m]
-      zsno   = 0.0024   !Roughness length for snow [m]
-      csoilc = 0.004    !Drag coefficient for soil under canopy [-]
-      dewmx  = 0.1      !maximum dew
-
-      ! 'wtfact' is updated to gridded 'fsatmax' data. (by Shupeng Zhang)
-      ! wtfact = 0.38   !Maximum saturated fraction (global mean; see Niu et al., 2005)
-
-      capr   = 0.34     !Tuning factor to turn first layer T into surface T
-      cnfac  = 0.5      !Crank Nicholson factor between 0 and 1
-      ssi    = 0.033    !Irreducible water saturation of snow
-      wimp   = 0.05     !Water impremeable if porosity less than wimp
-      pondmx = 10.0     !Ponding depth (mm)
-      smpmax = -1.5e5   !Wilting point potential in mm
-      smpmin = -1.e8    !Restriction for min of soil poten. (mm)
-      smpmax_hr = -2.e2 !Wilting point potential in mm
-      smpmin_hr = -2.e5 !Restriction for min of soil poten. (mm)
-      trsmx0 = 2.e-4    !Max transpiration for moist soil+100% veg. [mm/s]
-      tcrit  = 2.5      !critical temp. to determine rain or snow
+      zlnd   = 0.01    !Roughness length for soil [m]
+      zsno   = 0.0024  !Roughness length for snow [m]
+      csoilc = 0.004   !Drag coefficient for soil under canopy [-]
+      dewmx  = 0.1     !maximum dew
+      wtfact = 0.38    !Maximum saturated fraction (global mean; see Niu et al., 2005)
+      capr   = 0.34    !Tuning factor to turn first layer T into surface T
+      cnfac  = 0.5     !Crank Nicholson factor between 0 and 1
+      ssi    = 0.033   !Irreducible water saturation of snow
+      wimp   = 0.05    !Water impremeable if porosity less than wimp
+      pondmx = 10.0    !Ponding depth (mm)
+      smpmax = -1.5e5  !Wilting point potential in mm
+      smpmin = -1.e8   !Restriction for min of soil poten. (mm)
+      trsmx0 = 2.e-4   !Max transpiration for moist soil+100% veg. [mm/s]
+      tcrit  = 2.5     !critical temp. to determine rain or snow
       wetwatmax = 200.0 !maximum wetland water (mm)
-
-      ! for SIMTOP model: read saturated fraction parameter data from files.
-      ! (see Niu et al., 2005)
-      IF (DEF_Runoff_SCHEME == 0) THEN
-
-         file_simtop_para = trim(DEF_dir_runtime) // '/SimTop_Parameters.nc'
-
-         IF (p_is_master) THEN
-            inquire (file=trim(file_simtop_para), exist=fexist)
-         ENDIF
-#ifdef USEMPI
-         CALL mpi_bcast (fexist, 1, MPI_LOGICAL, p_address_master, p_comm_glb, p_err)
-#endif
-
-         IF (fexist) THEN
-
-            CALL g_simtop_para%define_from_file (file_simtop_para, &
-               latname = 'latitude', lonname = 'longitude')
-
-            IF (p_is_io) THEN
-               CALL allocate_block_data (g_simtop_para, fsatmax_grid)
-               CALL allocate_block_data (g_simtop_para, fsatdcf_grid)
-               CALL ncio_read_block (file_simtop_para, 'fsatmax', g_simtop_para, fsatmax_grid)
-               CALL ncio_read_block (file_simtop_para, 'fsatdcf', g_simtop_para, fsatdcf_grid)
-            ENDIF
-
-            IF (p_is_master) THEN
-               CALL ncio_get_attr (file_simtop_para, 'fsatmax', '_FillValue', filval)
-            ENDIF
-#ifdef USEMPI
-            CALL mpi_bcast (filval, 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
-#endif
-
-            CALL map_simtop_para%build_arealweighted (g_simtop_para, landpatch)
-            CALL map_simtop_para%set_missing_value   (fsatmax_grid, filval)
-
-            CALL map_simtop_para%grid2pset (fsatmax_grid, fsatmax)
-            CALL map_simtop_para%grid2pset (fsatdcf_grid, fsatdcf)
-
-            IF (p_is_worker) THEN
-               IF (numpatch > 0) THEN
-                  WHERE (fsatmax <= 0) fsatmax = 0.4
-                  WHERE (fsatmax >= 1) fsatmax = 0.4
-                  WHERE (fsatdcf <= 0) fsatdcf = 0.53
-                  WHERE (fsatdcf >= 1) fsatdcf = 0.53
-               ENDIF
-            ENDIF
-
-#ifdef RangeCheck
-            CALL check_vector_data ('maximum saturated fraction', fsatmax)
-            CALL check_vector_data ('fsat decay factor         ', fsatdcf)
-#endif
-         ELSE
-            IF (p_is_worker) THEN
-               IF (numpatch > 0) THEN
-                  ! equal to 'wtfact = 0.38' and 'fff = 0.5'
-                  fsatmax(:) = 0.38
-                  fsatdcf(:) = 0.125
-               ENDIF
-            ENDIF
-         ENDIF
-      ENDIF
 
       IF (DEF_Runoff_SCHEME == 1) THEN
          IF (p_is_master) THEN
@@ -505,11 +413,11 @@ CONTAINS
          ENDIF
 
 #ifdef USEMPI
-         CALL mpi_bcast (vic_b_infilt_, 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
-         CALL mpi_bcast (vic_Dsmax_   , 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
-         CALL mpi_bcast (vic_Ds_      , 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
-         CALL mpi_bcast (vic_Ws_      , 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
-         CALL mpi_bcast (vic_c_       , 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
+         CALL mpi_bcast (vic_b_infilt_, 1, MPI_REAL8, p_root, p_comm_glb, p_err)
+         CALL mpi_bcast (vic_Dsmax_   , 1, MPI_REAL8, p_root, p_comm_glb, p_err)
+         CALL mpi_bcast (vic_Ds_      , 1, MPI_REAL8, p_root, p_comm_glb, p_err)
+         CALL mpi_bcast (vic_Ws_      , 1, MPI_REAL8, p_root, p_comm_glb, p_err)
+         CALL mpi_bcast (vic_c_       , 1, MPI_REAL8, p_root, p_comm_glb, p_err)
 #endif
 
          IF (p_is_worker) THEN
@@ -661,9 +569,7 @@ CONTAINS
 #ifdef RangeCheck
       CALL check_TimeInvariants ()
 #endif
-
       CALL WRITE_TimeInvariants (lc_year, casename, dir_restart)
-
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
@@ -682,9 +588,7 @@ CONTAINS
 
 ! 2.1 current time of model run
 ! ............................
-
       CALL initimetype(greenwich)
-
       IF (p_is_master) THEN
          IF(.not. greenwich)THEN
             write(*,*) char(27)//"[1;31m"//"Notice: greenwich false, local time is used."//char(27)//"[0m"
@@ -705,41 +609,33 @@ CONTAINS
 ! ...........................................
 !2.3 READ in or GUSSES land state information
 ! ...........................................
-
       ! for SOIL INIT of water, temperature
       IF (DEF_USE_SoilInit) THEN
 
          fsoildat = DEF_file_SoilInit
-
          IF (p_is_master) THEN
             inquire (file=trim(fsoildat), exist=use_soilini)
-            IF (use_soilini) THEN
-               write(*,'(/,2A)') 'Use soil water content, soil temperature and water table depth ' &
-                  // 'to initialize soil state from file ', trim(fsoildat)
-            ELSE
-               write(*,*) 'No initial data for soil state from ', trim(fsoildat)
-            ENDIF
          ENDIF
 #ifdef USEMPI
-         CALL mpi_bcast (use_soilini, 1, MPI_LOGICAL, p_address_master, p_comm_glb, p_err)
+         CALL mpi_bcast (use_soilini, 1, MPI_LOGICAL, p_root, p_comm_glb, p_err)
 #endif
 
          IF (use_soilini) THEN
 
             ! soil layer depth (m)
             CALL ncio_read_bcast_serial (fsoildat, 'soildepth', soil_z)
-
+           
             nl_soil_ini = size(soil_z)
-
+            
             CALL gsoil%define_from_file (fsoildat, latname = 'lat', lonname = 'lon')
-
+         
             CALL julian2monthday (idate(1), idate(2), month, mday)
-
+         
             IF (p_is_master) THEN
                CALL ncio_get_attr (fsoildat, 'zwt', 'missing_value', missing_value)
             ENDIF
 #ifdef USEMPI
-            CALL mpi_bcast (missing_value, 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
+            CALL mpi_bcast (missing_value, 1, MPI_REAL8, p_root, p_comm_glb, p_err)
 #endif
 
             IF (p_is_io) THEN
@@ -764,12 +660,10 @@ CONTAINS
                ENDIF
             ENDIF
 
-            CALL msoil2p%build_arealweighted (gsoil, landpatch)
-            CALL msoil2p%set_missing_value   (zwt_grid, missing_value, validval)
-
-            CALL msoil2p%grid2pset (soil_t_grid, nl_soil_ini, soil_t)
-            CALL msoil2p%grid2pset (soil_w_grid, nl_soil_ini, soil_w)
-            CALL msoil2p%grid2pset (zwt_grid, zwt)
+            CALL msoil2p%build (gsoil, landpatch, zwt_grid, missing_value, validval)
+            CALL msoil2p%map_aweighted (soil_t_grid, nl_soil_ini, soil_t)
+            CALL msoil2p%map_aweighted (soil_w_grid, nl_soil_ini, soil_w)
+            CALL msoil2p%map_aweighted (zwt_grid, zwt)
 
             IF (p_is_worker) THEN
                DO i = 1, numpatch
@@ -807,6 +701,7 @@ CONTAINS
 #ifdef BGC
       IF (DEF_USE_CN_INIT) THEN
          fcndat = DEF_file_cn_init
+         
          IF (p_is_master) THEN
             inquire (file=trim(fcndat), exist=use_cnini)
             IF (use_cnini) THEN
@@ -817,14 +712,14 @@ CONTAINS
             ENDIF
          ENDIF
 #ifdef USEMPI
-         CALL mpi_bcast (use_cnini, 1, MPI_LOGICAL, p_address_master, p_comm_glb, p_err)
+         CALL mpi_bcast (use_cnini, 1, MPI_LOGICAL, p_root, p_comm_glb, p_err)
 #endif
 
          IF (use_cnini) THEN
 
             CALL gcn%define_from_file (fcndat,"lat","lon")
-            CALL mc2p%build_arealweighted (gcn, landpatch)
-            CALL mc2f%build_arealweighted (gcn, landpft)
+            CALL mc2p%build (gcn, landpatch)
+            CALL mc2f%build (gcn, landpft)
 
             IF (p_is_io) THEN
                ! soil layer litter & carbon (gC m-3)
@@ -935,30 +830,30 @@ CONTAINS
 
             ENDIF
 
-            CALL mc2p%grid2pset (litr1c_grid, nl_soil, litr1c_vr)
-            CALL mc2p%grid2pset (litr2c_grid, nl_soil, litr2c_vr)
-            CALL mc2p%grid2pset (litr3c_grid, nl_soil, litr3c_vr)
-            CALL mc2p%grid2pset (cwdc_grid  , nl_soil, cwdc_vr  )
-            CALL mc2p%grid2pset (soil1c_grid, nl_soil, soil1c_vr)
-            CALL mc2p%grid2pset (soil2c_grid, nl_soil, soil2c_vr)
-            CALL mc2p%grid2pset (soil3c_grid, nl_soil, soil3c_vr)
-            CALL mc2p%grid2pset (litr1n_grid, nl_soil, litr1n_vr)
-            CALL mc2p%grid2pset (litr2n_grid, nl_soil, litr2n_vr)
-            CALL mc2p%grid2pset (litr3n_grid, nl_soil, litr3n_vr)
-            CALL mc2p%grid2pset (cwdn_grid  , nl_soil, cwdn_vr  )
-            CALL mc2p%grid2pset (soil1n_grid, nl_soil, soil1n_vr)
-            CALL mc2p%grid2pset (soil2n_grid, nl_soil, soil2n_vr)
-            CALL mc2p%grid2pset (soil3n_grid, nl_soil, soil3n_vr)
-            CALL mc2p%grid2pset (smin_nh4_grid , nl_soil, min_nh4_vr )
-            CALL mc2p%grid2pset (smin_no3_grid , nl_soil, min_no3_vr )
-            CALL mc2f%grid2pset (leafc_grid, leafcin_p )
-            CALL mc2f%grid2pset (leafc_storage_grid, leafc_storagein_p )
-            CALL mc2f%grid2pset (frootc_grid, frootcin_p )
-            CALL mc2f%grid2pset (frootc_storage_grid, frootc_storagein_p )
-            CALL mc2f%grid2pset (livestemc_grid, livestemcin_p )
-            CALL mc2f%grid2pset (deadstemc_grid, deadstemcin_p )
-            CALL mc2f%grid2pset (livecrootc_grid, livecrootcin_p )
-            CALL mc2f%grid2pset (deadcrootc_grid, deadcrootcin_p )
+            CALL mc2p%map_aweighted (litr1c_grid, nl_soil, litr1c_vr)
+            CALL mc2p%map_aweighted (litr2c_grid, nl_soil, litr2c_vr)
+            CALL mc2p%map_aweighted (litr3c_grid, nl_soil, litr3c_vr)
+            CALL mc2p%map_aweighted (cwdc_grid  , nl_soil, cwdc_vr  )
+            CALL mc2p%map_aweighted (soil1c_grid, nl_soil, soil1c_vr)
+            CALL mc2p%map_aweighted (soil2c_grid, nl_soil, soil2c_vr)
+            CALL mc2p%map_aweighted (soil3c_grid, nl_soil, soil3c_vr)
+            CALL mc2p%map_aweighted (litr1n_grid, nl_soil, litr1n_vr)
+            CALL mc2p%map_aweighted (litr2n_grid, nl_soil, litr2n_vr)
+            CALL mc2p%map_aweighted (litr3n_grid, nl_soil, litr3n_vr)
+            CALL mc2p%map_aweighted (cwdn_grid  , nl_soil, cwdn_vr  )
+            CALL mc2p%map_aweighted (soil1n_grid, nl_soil, soil1n_vr)
+            CALL mc2p%map_aweighted (soil2n_grid, nl_soil, soil2n_vr)
+            CALL mc2p%map_aweighted (soil3n_grid, nl_soil, soil3n_vr)
+            CALL mc2p%map_aweighted (smin_nh4_grid , nl_soil, min_nh4_vr )
+            CALL mc2p%map_aweighted (smin_no3_grid , nl_soil, min_no3_vr )
+            CALL mc2f%map_aweighted (leafc_grid, leafcin_p )
+            CALL mc2f%map_aweighted (leafc_storage_grid, leafc_storagein_p )
+            CALL mc2f%map_aweighted (frootc_grid, frootcin_p )
+            CALL mc2f%map_aweighted (frootc_storage_grid, frootc_storagein_p )
+            CALL mc2f%map_aweighted (livestemc_grid, livestemcin_p )
+            CALL mc2f%map_aweighted (deadstemc_grid, deadstemcin_p )
+            CALL mc2f%map_aweighted (livecrootc_grid, livecrootcin_p )
+            CALL mc2f%map_aweighted (deadcrootc_grid, deadcrootcin_p )
 
             IF (p_is_worker) THEN
                DO i = 1, numpatch
@@ -1012,7 +907,6 @@ CONTAINS
          use_cnini = .false.
       ENDIF
 #endif
-
       IF (p_is_worker) THEN
          IF (numpatch > 0) THEN
             allocate (snow_d (numpatch))
@@ -1026,20 +920,20 @@ CONTAINS
             inquire (file=trim(fsnowdat), exist=use_snowini)
          ENDIF
 #ifdef USEMPI
-         CALL mpi_bcast (use_snowini, 1, MPI_LOGICAL, p_address_master, p_comm_glb, p_err)
+         CALL mpi_bcast (use_snowini, 1, MPI_LOGICAL, p_root, p_comm_glb, p_err)
 #endif
 
          IF (use_snowini) THEN
 
             CALL gsnow%define_from_file (fsnowdat, latname = 'lat', lonname = 'lon')
-
+         
             CALL julian2monthday (idate(1), idate(2), month, mday)
 
             IF (p_is_master) THEN
                CALL ncio_get_attr (fsnowdat, 'snowdepth', 'missing_value', missing_value)
             ENDIF
 #ifdef USEMPI
-            CALL mpi_bcast (missing_value, 1, MPI_REAL8, p_address_master, p_comm_glb, p_err)
+            CALL mpi_bcast (missing_value, 1, MPI_REAL8, p_root, p_comm_glb, p_err)
 #endif
 
             IF (p_is_io) THEN
@@ -1047,22 +941,20 @@ CONTAINS
                CALL allocate_block_data (gsnow, snow_d_grid)
                CALL ncio_read_block_time (fsnowdat, 'snowdepth', gsnow, month, snow_d_grid)
             ENDIF
-
+            
             IF (p_is_worker) THEN
                IF (numpatch > 0) THEN
                   allocate (validval (numpatch))
                ENDIF
             ENDIF
 
-            CALL msnow2p%build_arealweighted (gsnow, landpatch)
-            CALL msnow2p%set_missing_value   (snow_d_grid, missing_value, validval)
-
-            CALL msnow2p%grid2pset (snow_d_grid, snow_d)
-
+            CALL msnow2p%build (gsnow, landpatch, snow_d_grid, missing_value, validval)
+            CALL msnow2p%map_aweighted (snow_d_grid, snow_d)
+            
             IF (p_is_worker) THEN
                WHERE (.not. validval)
                   snow_d = 0.
-               END WHERE
+               END WHERE 
             ENDIF
 
             IF (allocated(validval)) deallocate(validval)
@@ -1073,27 +965,20 @@ CONTAINS
          use_snowini = .false.
       ENDIF
 
-
       ! for SOIL Water INIT by using water table depth
-      use_wtd = (.not. use_soilini) .and. DEF_USE_WaterTableInit
-
-      IF (use_wtd) THEN
-
-         fwtd = DEF_file_WaterTable
-
-         IF (p_is_master) THEN
-            inquire (file=trim(fwtd), exist=use_wtd)
-            IF (use_wtd) THEN
-               write(*,'(/, 2A)') 'Use water table depth and derived equilibrium state ' &
-                  // ' to initialize soil water content from file ', trim(fwtd)
-            ELSE
-               write(*,*) 'No initial data for water table depth from ', trim(fwtd)
-            ENDIF
+      fwtd = trim(DEF_dir_runtime) // '/wtd.nc'
+      IF (p_is_master) THEN
+         inquire (file=trim(fwtd), exist=use_wtd)
+         IF (use_soilini) use_wtd = .false.
+         IF (use_wtd) THEN
+            write(*,'(/, 2A)') 'Use water table depth and derived equilibrium state ' &
+               // ' to initialize soil water content: ', trim(fwtd)
          ENDIF
-#ifdef USEMPI
-         CALL mpi_bcast (use_wtd, 1, MPI_LOGICAL, p_address_master, p_comm_glb, p_err)
-#endif
       ENDIF
+      
+#ifdef USEMPI
+      CALL mpi_bcast (use_wtd, 1, MPI_LOGICAL, p_root, p_comm_glb, p_err)
+#endif
 
       IF (use_wtd) THEN
 
@@ -1105,16 +990,15 @@ CONTAINS
             CALL ncio_read_block_time (fwtd, 'wtd', gwtd, month, wtd_xy)
          ENDIF
 
-         CALL m_wtd2p%build_arealweighted (gwtd, landpatch)
-         CALL m_wtd2p%grid2pset (wtd_xy, zwt)
+         CALL m_wtd2p%build (gwtd, landpatch)
+         CALL m_wtd2p%map_aweighted (wtd_xy, zwt)
 
       ENDIF
-
 ! ...................
 ! 2.4 LEAF area index
 ! ...................
 #if(defined DYN_PHENOLOGY)
-      ! CREATE fraction of vegetation cover, greenness, leaf area index, stem index
+      ! CREAT fraction of vegetation cover, greenness, leaf area index, stem index
       IF (p_is_worker) THEN
 
          DO i = 1, numpatch
@@ -1186,16 +1070,27 @@ CONTAINS
                ENDIF
             ENDDO
          ENDIF
-      IF(DEF_USE_IRRIGATION)THEN
-         irrig_rate(:) = 0._r8
-         deficit_irrig(:) = 0._r8
-         sum_irrig(:) = 0._r8
-         sum_irrig_count(:) = 0._r8
-         n_irrig_steps_left(:) = 0
-      ENDIF
+         IF (p_is_worker) THEN
+            irrig_rate(:) = 0._r8
+            deficit_irrig(:) = 0._r8
+            actual_irrig(:) = 0._r8
+            sum_irrig(:) = 0._r8  
+            sum_deficit_irrig(:) = 0._r8      
+            sum_irrig_count(:) = 0._r8
+            n_irrig_steps_left(:) = 0
+            waterstorage(:) = 0._r8
+            waterstorage_supply(:) = 0._r8
+            groundwater_demand(:) = 0._r8
+            groundwater_supply(:) = 0._r8
+            groundwater_supply_rn(:) = 0._r8
+            groundwater_supply_nrn(:) = 0._r8
+#ifdef CaMa_Flood
+            reservoirriver_demand(:) = 0._r8
+            reservoirriver_supply(:) = 0._r8
+#endif
+         ENDIF
 #endif
 #endif
-
 ! ..............................................................................
 ! 2.5 initialize time-varying variables, as subgrid vectors of length [numpatch]
 ! ..............................................................................
@@ -1232,6 +1127,8 @@ CONTAINS
 
             IF (use_wtd) THEN
                zwtmm = zwt(i) * 1000.
+               zwt_init(i) = zwt(i)
+               zwt_stand(i) = zwt(i) + 1.0
             ENDIF
 
 #ifdef Campbell_SOIL_MODEL
@@ -1246,7 +1143,6 @@ CONTAINS
             prms(4,1:nl_soil) = sc_vgm   (1:nl_soil,i)
             prms(5,1:nl_soil) = fc_vgm   (1:nl_soil,i)
 #endif
-
             CALL iniTimeVar(i, patchtype(i)&
                ,porsl(1:,i),psi0(1:,i),hksati(1:,i)&
                ,soil_s_v_alb(i),soil_d_v_alb(i),soil_s_n_alb(i),soil_d_n_alb(i)&
@@ -1257,7 +1153,7 @@ CONTAINS
 !Plant hydraulic variables
                ,vegwp(1:,i),gs0sun(i),gs0sha(i)&
 !END plant hydraulic variables
-               ,t_grnd(i),tleaf(i),ldew(i),ldew_rain(i),ldew_snow(i),fwet_snow(i),sag(i),scv(i)&
+               ,t_grnd(i),tleaf(i),ldew(i),ldew_rain(i),ldew_snow(i),sag(i),scv(i)&
                ,snowdp(i),fveg(i),fsno(i),sigf(i),green(i),lai(i),sai(i),coszen(i)&
                ,snw_rds(:,i),mss_bcpho(:,i),mss_bcphi(:,i),mss_ocpho(:,i),mss_ocphi(:,i)&
                ,mss_dst1(:,i),mss_dst2(:,i),mss_dst3(:,i),mss_dst4(:,i)&
@@ -1300,7 +1196,6 @@ CONTAINS
                ,use_soilini, nl_soil_ini, soil_z, soil_t(1:,i), soil_w(1:,i), use_snowini, snow_d(i) &
                ! for SOIL Water INIT by using water table depth
                ,use_wtd, zwtmm, zc_soimm, zi_soimm, vliq_r, nprms, prms)
-
 #ifdef URBAN_MODEL
             IF (m == URBAN) THEN
 
@@ -1322,10 +1217,10 @@ CONTAINS
                wice_gimpsno(:,u) = 0.   !ice lens [kg/m2]
                wice_gpersno(:,u) = 0.   !ice lens [kg/m2]
                wice_lakesno(:,u) = 0.   !ice lens [kg/m2]
-               wliq_roofsno(:,u) = 0.   !liquid water [kg/m2]
-               wliq_gimpsno(:,u) = 0.   !liquid water [kg/m2]
-               wliq_gpersno(:,u) = wliq_soisno(:,i) !liquid water [kg/m2]
-               wliq_lakesno(:,u) = wliq_soisno(:,i) !liquid water [kg/m2]
+               wliq_roofsno(:,u) = 0.   !liqui water [kg/m2]
+               wliq_gimpsno(:,u) = 0.   !liqui water [kg/m2]
+               wliq_gpersno(:,u) = wliq_soisno(:,i) !liqui water [kg/m2]
+               wliq_lakesno(:,u) = wliq_soisno(:,i) !liqui water [kg/m2]
 
                wliq_soisno(: ,i) = 0.
                wliq_soisno(:1,i) = wliq_roofsno(:1,u)*froof(u)
@@ -1353,15 +1248,13 @@ CONTAINS
                twsha_inner   (u) = 283. !temperature of inner shaded wall [K]
                Fhac          (u) = 0.   !sensible flux from heat or cool AC [W/m2]
                Fwst          (u) = 0.   !waste heat flux from heat or cool AC [W/m2]
-               Fach          (u) = 0.   !flux from inner and outer air exchange [W/m2]
-               meta          (u) = 0.   !flux from metabolic [W/m2]
-               vehc          (u) = 0.   !flux from vehicle [W/m2]
+               Fach          (u) = 0.   !flux from inner and outter air exchange [W/m2]
 
-               CALL UrbanIniTimeVar(i,froof(u),fgper(u),flake(u),hlr(u),hroof(u),&
+               CALL UrbanIniTimeVar(i,froof(u),fgper(u),flake(u),hwr(u),hroof(u),&
                   alb_roof(:,:,u),alb_wall(:,:,u),alb_gimp(:,:,u),alb_gper(:,:,u),&
                   rho(:,:,m),tau(:,:,m),fveg(i),htop(i),hbot(i),lai(i),sai(i),coszen(i),&
                   fsno_roof(u),fsno_gimp(u),fsno_gper(u),fsno_lake(u),&
-                  scv_roof(u),scv_gimp(u),scv_gper(u),scv_lake(u),fwet_snow(u),&
+                  scv_roof(u),scv_gimp(u),scv_gper(u),scv_lake(u),&
                   sag_roof(u),sag_gimp(u),sag_gper(u),sag_lake(u),t_lake(1,i),&
                   fwsun(u),dfwsun(u),extkd(i),alb(:,:,i),ssun(:,:,i),ssha(:,:,i),sroof(:,:,u),&
                   swsun(:,:,u),swsha(:,:,u),sgimp(:,:,u),sgper(:,:,u),slake(:,:,u))
@@ -1382,69 +1275,56 @@ CONTAINS
 #ifdef CatchLateralFlow
 
       CALL element_neighbour_init  (lc_year)
+      CALL hillslope_network_init  ()
       CALL river_lake_network_init ()
 
       IF (p_is_worker) THEN
 
-         ! set variables "veloc_bsnhru", "wdsrf_bsnhru_prev"
-         DO i = 1, numbasin
-            hs = basin_hru%substt(i)
-            he = basin_hru%subend(i)
+         IF (numpatch > 0) THEN
+            wdsrf(:) = 0.
+         ENDIF
 
-            wdsrf_bsnhru(hs:he) = 0.
-            IF (lake_id(i) == 0) THEN
-               wdsrf_bsnhru(hs) = riverdpth(i)
-            ELSEIF (lake_id(i) > 0) THEN
-               wdsrf_bsnhru(hs:he) = lakeinfo(i)%depth0
-            ENDIF
-
-            veloc_bsnhru(hs:he) = 0.
-            wdsrf_bsnhru_prev(hs:he) = wdsrf_bsnhru(hs:he)
-         ENDDO
-
-         ! set variables "veloc_riv", "wdsrf_bsn_prev"
-         DO i = 1, numbasin
-            hs = basin_hru%substt(i)
-            he = basin_hru%subend(i)
-            IF (lake_id(i) <= 0) THEN
-               wdsrf_bsn(i) = minval(hillslope_basin(i)%hand + wdsrf_bsnhru(hs:he)) - handmin(i)
+         DO i = 1, numelm
+            IF (lake_id(i) > 0) THEN
+               ps = elm_patch%substt(i)
+               pe = elm_patch%subend(i)
+               wdsrf(ps:pe) = lakedepth(ps:pe) * 1.0e3 ! m to mm
             ELSE
-               ! lake
-               totalvolume  = sum(wdsrf_bsnhru(hs:he) * lakeinfo(i)%area0)
-               wdsrf_bsn(i) = lakeinfo(i)%surface(totalvolume)
-            ENDIF
-            veloc_riv(i) = 0
-            wdsrf_bsn_prev(i) = wdsrf_bsn(i)
-         ENDDO
-
-         CALL worker_push_subset_data (iam_bsn, iam_elm, basin_hru, elm_hru, wdsrf_bsnhru, wdsrf_hru)
-
-         ! adjust "wdsrf" according to river and lake water depth
-         DO i = 1, numhru
-            ps = hru_patch%substt(i)
-            pe = hru_patch%subend(i)
-            wdsrf(ps:pe) = wdsrf_hru(i) * 1.0e3 ! m to mm
-         ENDDO
-
-         ! adjust lake levels "dz_lake" according to lake depth
-         DO i = 1, numpatch
-            IF (wdsrf(i) > 0.) THEN
-               wdsrfm = wdsrf(i)*1.e-3
-               IF(wdsrfm > 1. .and. wdsrfm < 2000.)THEN
-                  depthratio = wdsrfm / sum(dzlak(1:nl_lake))
-                  dz_lake(1,i) = dzlak(1)
-                  dz_lake(2:nl_lake-1,i) = dzlak(2:nl_lake-1)*depthratio
-                  dz_lake(nl_lake,i) = dzlak(nl_lake)*depthratio - (dz_lake(1,i) - dzlak(1)*depthratio)
-               ELSEIF(wdsrfm > 0. .and. wdsrfm <= 1.)THEN
-                  dz_lake(:,i) = wdsrfm / nl_lake
+               IF (hillslope_network(i)%indx(1) == 0) THEN
+                  hs = basin_hru%substt(i)
+                  ps = hru_patch%substt(hs)
+                  pe = hru_patch%subend(hs)
+                  wdsrf(ps:pe) = riverdpth(i) * 1.0e3 ! m to mm
                ENDIF
-            ELSE
-               dz_lake(:,i) = 0.
             ENDIF
          ENDDO
 
-         CALL check_vector_data ('Basin Water Depth   [m]  ', wdsrf_bsn)
-         CALL check_vector_data ('HRU Water Depth     [m]  ', wdsrf_bsnhru)
+         IF (numhru > 0) THEN
+            DO i = 1, numhru
+               ps = hru_patch%substt(i)
+               pe = hru_patch%subend(i)
+               wdsrf_hru(i) = sum(wdsrf(ps:pe) * hru_patch%subfrc(ps:pe))
+               wdsrf_hru(i) = wdsrf_hru(i) / 1.0e3 ! mm to m
+            ENDDO
+            veloc_hru(:) = 0
+            wdsrf_hru_prev(:) = wdsrf_hru(:)
+         ENDIF
+
+         IF (numelm > 0) THEN
+            DO i = 1, numelm
+               hs = basin_hru%substt(i)
+               he = basin_hru%subend(i)
+               IF (lake_id(i) <= 0) THEN
+                  wdsrf_bsn(i) = minval(hillslope_network(i)%hand + wdsrf_hru(hs:he))
+               ELSE
+                  ! lake
+                  totalvolume  = sum(wdsrf_hru(hs:he) * lakes(i)%area0)
+                  wdsrf_bsn(i) = lakes(i)%surface(totalvolume)
+               ENDIF
+            ENDDO
+            veloc_riv(:) = 0
+            wdsrf_bsn_prev(:) = wdsrf_bsn(:)
+         ENDIF
 
       ENDIF
 #endif
@@ -1458,7 +1338,7 @@ CONTAINS
 #endif
 
       IF ( .not. present(lulcc_call) ) THEN
-         ! only be called in running MKINI, LULCC will be executed later
+         ! only be called in runing MKINI, LULCC will be executed later
          CALL WRITE_TimeVariables (idate, lc_year, casename, dir_restart)
       ENDIF
 
@@ -1473,7 +1353,7 @@ CONTAINS
 ! Deallocates memory for CoLM 1d [numpatch] variables
 ! --------------------------------------------------
       IF ( .not. present(lulcc_call) ) THEN
-         ! only be called in running MKINI, LULCC will be executed later
+         ! only be called in runing MKINI, LULCC will be executed later
          CALL deallocate_TimeInvariants
          CALL deallocate_TimeVariables
       ENDIF

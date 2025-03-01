@@ -1,16 +1,15 @@
 #include <define.h>
 
 MODULE MOD_Lulcc_Vars_TimeInvariants
-
-!-----------------------------------------------------------------------
-!  Created by Hua Yuan, 04/2022
+! ======================================================================
+! Created by Hua Yuan, 04/2022
 !
 ! !REVISIONS:
 !
-!  07/2023, Wenzong Dong: porting to MPI version
-!  08/2023, Hua Yuan: unified PFT and PC process
+! 07/2023, Wenzong Dong: porting to MPI version
+! 08/2023, Hua Yuan: unified PFT and PC process
 !
-!-----------------------------------------------------------------------
+! ======================================================================
 
    USE MOD_Precision
    USE MOD_Vars_Global
@@ -132,8 +131,8 @@ CONTAINS
 
       IF (p_is_worker) THEN
          IF (numpatch > 0) THEN
-            CALL copy_pixelset (landpatch, landpatch_ )
-            CALL copy_pixelset (landelm  , landelm_   )
+            CALL copy_pixelset(landpatch, landpatch_)
+            CALL copy_pixelset(landelm  , landelm_  )
             numpatch_             = numpatch
             numelm_               = numelm
             patchclass_       (:) = patchclass       (:)
@@ -158,9 +157,6 @@ CONTAINS
 #endif
          ENDIF
       ENDIF
-
-      CALL landpatch_%set_vecgs
-
    END SUBROUTINE SAVE_LulccTimeInvariants
 
 

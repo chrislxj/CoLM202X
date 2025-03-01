@@ -1,13 +1,13 @@
 #include <define.h>
 
 MODULE MOD_SrfdataRestart
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
+!------------------------------------------------------------------------------------
+! DESCRIPTION:
 !
 !    This module includes subroutines to read/write data of mesh and pixelsets.
-!
-!  Created by Shupeng Zhang, May 2023
-!-----------------------------------------------------------------------
+! 
+! Created by Shupeng Zhang, May 2023
+!------------------------------------------------------------------------------------
 
    IMPLICIT NONE
 
@@ -41,7 +41,7 @@ CONTAINS
    integer,   allocatable :: npxlall(:)
    integer,   allocatable :: elmpixels(:,:)
    real(r8),  allocatable :: lon(:), lat(:)
-
+   
    integer :: nsend, nrecv, ndone, ndsp
 
       ! add parameter input for time year
@@ -117,7 +117,7 @@ CONTAINS
                      CALL mpi_send (elmpixels(:,ndone+1:ndone+nsend), 2*nsend, &
                         MPI_INTEGER, p_root, mpi_tag_data, p_comm_group, p_err)
                      ndone = ndone + nsend
-                  ENDDO
+                  ENDDO 
                ENDIF
             ENDIF
 #endif
@@ -159,7 +159,7 @@ CONTAINS
                      tothis = ndone + sum(npxlall(ndsp+1:ndsp+nelm_worker(iworker)))
 
                      DO WHILE (ndone < tothis)
-
+                     
                         CALL mpi_recv (nrecv, 1, &
                            MPI_INTEGER, iworker, mpi_tag_size, p_comm_group, p_stat, p_err)
                         CALL mpi_recv (elmpixels(:,ndone+1:ndone+nrecv), 2*nrecv, &
@@ -393,10 +393,6 @@ CONTAINS
       CALL ncio_write_vector (filename, 'ipxend', trim(psetname), pixelset, pixelset%ipxend, DEF_Srfdata_CompressLevel)
       CALL ncio_write_vector (filename, 'settyp', trim(psetname), pixelset, pixelset%settyp, DEF_Srfdata_CompressLevel)
 
-      IF (pixelset%has_shared) THEN
-         CALL ncio_write_vector (filename, 'pctshared', trim(psetname), pixelset, pixelset%pctshared, DEF_Srfdata_CompressLevel)
-      ENDIF
-
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
@@ -615,26 +611,6 @@ CONTAINS
       ENDIF
 
       numset = pixelset%nset
-
-      pixelset%has_shared = .false.
-      IF (p_is_worker) THEN
-         DO iset = 1, pixelset%nset-1
-            IF ((pixelset%ielm(iset) == pixelset%ielm(iset+1)) &
-               .and. (pixelset%ipxstt(iset) == pixelset%ipxstt(iset+1))) THEN
-               pixelset%has_shared = .true.
-               exit
-            ENDIF
-         ENDDO
-      ENDIF
-
-#ifdef USEMPI
-      CALL mpi_allreduce (MPI_IN_PLACE, pixelset%has_shared, 1, MPI_LOGICAL, &
-         MPI_LOR, p_comm_glb, p_err)
-#endif
-
-      IF (pixelset%has_shared) THEN
-         CALL ncio_read_vector (filename, 'pctshared', pixelset, pixelset%pctshared)
-      ENDIF
 
 #ifdef CoLMDEBUG
       IF (p_is_io)  write(*,*) numset, trim(psetname), ' on group', p_iam_io

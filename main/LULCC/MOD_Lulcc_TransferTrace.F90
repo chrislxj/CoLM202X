@@ -1,23 +1,23 @@
 #include <define.h>
 
 MODULE MOD_Lulcc_TransferTrace
-
-!------------------------------------------------------------------------
+! =======================================================================
+! Created by Wanyi Lin, Shupeng Zhang and Hua Yuan, 07/2023
 !
 ! !DESCRIPTION:
-!  The transfer matrix and patch tracing vector were created using the
-!  land cover type data of the adjacent two years. Based on next year's
-!  patch, the pixels within the patch and last years' land cover type of
-!  these pixels were obtained. Then the percent of source land cover
-!  type of each patch was derived.
+! The transfer matrix and patch tracing vector were created using the land
+! cover type data of the adjacent two years. Based on next year's patch,
+! the pixels within the patch and last years' land cover type of these
+! pixels were obtained. Then the percent of source land cover type of each
+! patch was derived.
 !
-!  Created by Wanyi Lin, Shupeng Zhang and Hua Yuan, 07/2023
-!------------------------------------------------------------------------
+! =======================================================================
 
    USE MOD_Precision
    USE MOD_Vars_Global
    IMPLICIT NONE
    SAVE
+!------------------------------------------------------------------------
 
    real(r8), allocatable, dimension(:,:) :: lccpct_patches(:,:) !Percent area of source patches in a patch
    real(r8), allocatable, dimension(:,:) :: lccpct_matrix (:,:) !Percent area of source patches in a grid
@@ -29,8 +29,11 @@ MODULE MOD_Lulcc_TransferTrace
 
    ! PRIVATE MEMBER FUNCTIONS:
 
+!------------------------------------------------------------------------
 
 CONTAINS
+
+!------------------------------------------------------------------------
 
 
    SUBROUTINE allocate_LulccTransferTrace
@@ -87,7 +90,8 @@ CONTAINS
 
    integer, intent(in) :: lc_year
 
-!-------------------------- Local Variables ----------------------------
+   ! local variables:
+   ! ---------------------------------------------------------------
    character(len=256) :: dir_5x5, suffix, lastyr, thisyr, dir_landdata, lndname
    integer :: i,ipatch,ipxl,ipxstt,ipxend,numpxl,ilc
    integer, allocatable, dimension(:) :: locpxl
@@ -100,7 +104,6 @@ CONTAINS
 #ifdef SrfdataDiag
    integer  :: ityp
    integer, allocatable, dimension(:) :: typindex
-!-----------------------------------------------------------------------
 
       allocate( typindex(N_land_classification+1) )
 #endif

@@ -14,7 +14,7 @@ MODULE MOD_Catch_HillslopeNetwork
    IMPLICIT NONE
    
    ! -- data type --
-   type :: hillslope_network_type
+   type :: hillslope_network_info_type
       integer :: nhru
       integer , pointer :: ihru (:) ! location of HRU in global vector "landhru"
       integer , pointer :: indx (:) ! index of HRU
@@ -25,34 +25,32 @@ MODULE MOD_Catch_HillslopeNetwork
       real(r8), pointer :: plen (:) ! average drainage path length to downstream HRU [m]
       real(r8), pointer :: flen (:) ! interface length between this and downstream HRU [m]
       integer , pointer :: inext(:) ! location of next HRU in this basin
-   CONTAINS 
-      final :: hillslope_network_free_mem
-   END type hillslope_network_type
+   END type hillslope_network_info_type
 
+   ! -- Instance --
+   type(hillslope_network_info_type), pointer :: hillslope_network (:)
+      
 CONTAINS
    
    ! ----------
-   SUBROUTINE hillslope_network_init (ne, elmindex, hillslope_network)
+   SUBROUTINE hillslope_network_init ()
 
    USE MOD_SPMD_Task
    USE MOD_Namelist
    USE MOD_NetCDFSerial
-   USE MOD_UserDefFun
+   USE MOD_Mesh
+   USE MOD_Pixel
+   USE MOD_LandHRU
+   USE MOD_LandPatch
+   USE MOD_Vars_TimeInvariants, only : patchtype
+   USE MOD_Utils
    IMPLICIT NONE
-
-   integer, intent(in) :: ne
-   integer, intent(in) :: elmindex (:)
-   type(hillslope_network_type), pointer :: hillslope_network(:)
 
    ! Local Variables
    character(len=256) :: hillslope_network_file
 
-   integer :: maxnumhru, ie, nhru, hs, i, j
+   integer :: numbasin, maxnumhru, ibasin, nhru, hs, he, ihru, ipatch, ps, pe, i, j, ipxl
    integer :: iworker, mesg(2), nrecv, irecv, isrc, idest
-
-   integer , allocatable :: eid (:)
-
-   integer , allocatable :: nhru_all(:), nhru_in_bsn(:)
    
    integer , allocatable :: indxhru (:,:)
    real(r8), allocatable :: areahru (:,:)
@@ -62,6 +60,7 @@ CONTAINS
    real(r8), allocatable :: lfachru (:,:)
    integer , allocatable :: nexthru (:,:)
    
+   integer , allocatable :: basinindex (:)
    integer , allocatable :: icache (:,:)
    real(r8), allocatable :: rcache (:,:)
 
@@ -69,11 +68,13 @@ CONTAINS
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
 
+      numbasin = numelm
+
+      hillslope_network => null()
+
       hillslope_network_file = DEF_CatchmentMesh_data 
 
       IF (p_is_master) THEN
-
-         CALL ncio_read_serial (hillslope_network_file, 'basin_numhru',        nhru_all)
          CALL ncio_read_serial (hillslope_network_file, 'hydrounit_index',      indxhru)
          CALL ncio_read_serial (hillslope_network_file, 'hydrounit_area',       areahru)
          CALL ncio_read_serial (hillslope_network_file, 'hydrounit_hand',       handhru)
@@ -81,15 +82,12 @@ CONTAINS
          CALL ncio_read_serial (hillslope_network_file, 'hydrounit_pathlen',    plenhru)
          CALL ncio_read_serial (hillslope_network_file, 'hydrounit_facelen',    lfachru)
          CALL ncio_read_serial (hillslope_network_file, 'hydrounit_downstream', nexthru)
-
       ENDIF
 
       IF (p_is_master) maxnumhru = size(indxhru,1) 
 #ifdef USEMPI
-      CALL mpi_bcast (maxnumhru, 1, MPI_INTEGER, p_address_master, p_comm_glb, p_err)
+      CALL mpi_bcast (maxnumhru, 1, MPI_INTEGER, p_root, p_comm_glb, p_err)
 #endif
-
-      hillslope_network => null()
 
       IF (p_is_master) THEN
 #ifdef USEMPI
@@ -101,104 +99,110 @@ CONTAINS
 
             IF (nrecv > 0) THEN
                
-               allocate (eid (nrecv))
-               allocate (nhru_in_bsn (nrecv))
+               allocate (basinindex (nrecv))
                allocate (icache (maxnumhru,nrecv))
                allocate (rcache (maxnumhru,nrecv))
 
-               CALL mpi_recv (eid, nrecv, MPI_INTEGER, isrc, mpi_tag_data, p_comm_glb, p_stat, p_err)
+               CALL mpi_recv (basinindex, nrecv, MPI_INTEGER, &
+                  isrc, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
                idest = isrc
 
-               nhru_in_bsn = nhru_all(eid)
-               CALL mpi_send (nhru_in_bsn, nrecv, MPI_INTEGER, idest, mpi_tag_data, p_comm_glb, p_err) 
+               DO irecv = 1, nrecv
+                  icache(:,irecv) = indxhru(:,basinindex(irecv))
+               ENDDO
+               CALL mpi_send (icache, maxnumhru*nrecv, MPI_INTEGER, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
                DO irecv = 1, nrecv
-                  icache(:,irecv) = indxhru(:,eid(irecv))
+                  rcache(:,irecv) = areahru(:,basinindex(irecv))
                ENDDO
-               CALL mpi_send (icache, maxnumhru*nrecv, MPI_INTEGER, idest, mpi_tag_data, p_comm_glb, p_err) 
+               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
                DO irecv = 1, nrecv
-                  rcache(:,irecv) = areahru(:,eid(irecv))
+                  rcache(:,irecv) = handhru(:,basinindex(irecv))
                ENDDO
-               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, idest, mpi_tag_data, p_comm_glb, p_err) 
+               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
                DO irecv = 1, nrecv
-                  rcache(:,irecv) = handhru(:,eid(irecv))
+                  rcache(:,irecv) = elvahru(:,basinindex(irecv))
                ENDDO
-               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, idest, mpi_tag_data, p_comm_glb, p_err) 
+               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
                DO irecv = 1, nrecv
-                  rcache(:,irecv) = elvahru(:,eid(irecv))
+                  rcache(:,irecv) = plenhru(:,basinindex(irecv))
                ENDDO
-               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, idest, mpi_tag_data, p_comm_glb, p_err) 
+               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
                DO irecv = 1, nrecv
-                  rcache(:,irecv) = plenhru(:,eid(irecv))
+                  rcache(:,irecv) = lfachru(:,basinindex(irecv))
                ENDDO
-               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, idest, mpi_tag_data, p_comm_glb, p_err) 
+               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
                DO irecv = 1, nrecv
-                  rcache(:,irecv) = lfachru(:,eid(irecv))
+                  icache(:,irecv) = nexthru(:,basinindex(irecv))
                ENDDO
-               CALL mpi_send (rcache, maxnumhru*nrecv, MPI_REAL8, idest, mpi_tag_data, p_comm_glb, p_err) 
+               CALL mpi_send (icache, maxnumhru*nrecv, MPI_INTEGER, &
+                  idest, mpi_tag_data, p_comm_glb, p_err) 
 
-               DO irecv = 1, nrecv
-                  icache(:,irecv) = nexthru(:,eid(irecv))
-               ENDDO
-               CALL mpi_send (icache, maxnumhru*nrecv, MPI_INTEGER, idest, mpi_tag_data, p_comm_glb, p_err) 
-
-               deallocate (eid)
-               deallocate (nhru_in_bsn)
+               deallocate (basinindex)
                deallocate (icache)
                deallocate (rcache)
 
             ENDIF
          ENDDO
 #else
-         IF (ne > 0) THEN
+         IF (numbasin > 0) THEN
 
-            allocate (nhru_in_bsn      (ne))
-            allocate (icache (maxnumhru,ne))
-            allocate (rcache (maxnumhru,ne))
-
-            nhru_in_bsn = nhru_all(elmindex)
+            allocate (basinindex (numbasin))
+            allocate (icache (maxnumhru,numbasin))
+            allocate (rcache (maxnumhru,numbasin))
             
-            DO ie = 1, ne
-               icache(:,ie) = indxhru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               basinindex(ibasin) = mesh(ibasin)%indx
+            ENDDO
+
+            DO ibasin = 1, numbasin
+               icache(:,ibasin) = indxhru(:,basinindex(ibasin))
             ENDDO
             indxhru = icache
 
-            DO ie = 1, ne
-               rcache(:,ie) = areahru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               rcache(:,ibasin) = areahru(:,basinindex(ibasin))
             ENDDO
             areahru = rcache
 
-            DO ie = 1, ne
-               rcache(:,ie) = handhru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               rcache(:,ibasin) = handhru(:,basinindex(ibasin))
             ENDDO
             handhru = rcache
 
-            DO ie = 1, ne
-               rcache(:,ie) = elvahru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               rcache(:,ibasin) = elvahru(:,basinindex(ibasin))
             ENDDO
             elvahru = rcache
 
-            DO ie = 1, ne
-               rcache(:,ie) = plenhru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               rcache(:,ibasin) = plenhru(:,basinindex(ibasin))
             ENDDO
             plenhru = rcache
 
-            DO ie = 1, ne
-               rcache(:,ie) = lfachru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               rcache(:,ibasin) = lfachru(:,basinindex(ibasin))
             ENDDO
             lfachru = rcache
 
-            DO ie = 1, ne
-               icache(:,ie) = nexthru(:,elmindex(ie))
+            DO ibasin = 1, numbasin
+               icache(:,ibasin) = nexthru(:,basinindex(ibasin))
             ENDDO
             nexthru = icache
                
+            deallocate (basinindex)
             deallocate (icache)
             deallocate (rcache)
 
@@ -207,117 +211,122 @@ CONTAINS
       ENDIF
 
       IF (p_is_worker) THEN
-
+               
 #ifdef USEMPI
-         mesg(1:2) = (/p_iam_glb, ne/)
-         CALL mpi_send (mesg(1:2), 2, MPI_INTEGER, p_address_master, mpi_tag_mesg, p_comm_glb, p_err) 
+         mesg(1:2) = (/p_iam_glb,numbasin/)
+         CALL mpi_send (mesg(1:2), 2, MPI_INTEGER, p_root, mpi_tag_mesg, p_comm_glb, p_err) 
 
-         IF (ne > 0) THEN
+         IF (numbasin > 0) THEN
+            allocate (basinindex (numbasin))
+            DO ibasin = 1, numbasin
+               basinindex(ibasin) = mesh(ibasin)%indx
+            ENDDO
 
-            CALL mpi_send (elmindex, ne, MPI_INTEGER, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_err) 
-            
-            allocate (nhru_in_bsn (ne))
-            CALL mpi_recv (nhru_in_bsn, ne, MPI_INTEGER, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            CALL mpi_send (basinindex, numbasin, MPI_INTEGER, &
+               p_root, mpi_tag_data, p_comm_glb, p_err) 
 
-            allocate (indxhru (maxnumhru,ne))
-            CALL mpi_recv (indxhru, maxnumhru*ne, MPI_INTEGER, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (indxhru (maxnumhru,numbasin))
+            CALL mpi_recv (indxhru, maxnumhru*numbasin, MPI_INTEGER, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
-            allocate (areahru (maxnumhru,ne))
-            CALL mpi_recv (areahru, maxnumhru*ne, MPI_REAL8, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (areahru (maxnumhru,numbasin))
+            CALL mpi_recv (areahru, maxnumhru*numbasin, MPI_REAL8, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
-            allocate (handhru (maxnumhru,ne))
-            CALL mpi_recv (handhru, maxnumhru*ne, MPI_REAL8, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (handhru (maxnumhru,numbasin))
+            CALL mpi_recv (handhru, maxnumhru*numbasin, MPI_REAL8, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
-            allocate (elvahru (maxnumhru,ne))
-            CALL mpi_recv (elvahru, maxnumhru*ne, MPI_REAL8, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (elvahru (maxnumhru,numbasin))
+            CALL mpi_recv (elvahru, maxnumhru*numbasin, MPI_REAL8, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
-            allocate (plenhru (maxnumhru,ne))
-            CALL mpi_recv (plenhru, maxnumhru*ne, MPI_REAL8, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (plenhru (maxnumhru,numbasin))
+            CALL mpi_recv (plenhru, maxnumhru*numbasin, MPI_REAL8, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
-            allocate (lfachru (maxnumhru,ne))
-            CALL mpi_recv (lfachru, maxnumhru*ne, MPI_REAL8, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (lfachru (maxnumhru,numbasin))
+            CALL mpi_recv (lfachru, maxnumhru*numbasin, MPI_REAL8, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
 
-            allocate (nexthru (maxnumhru,ne))
-            CALL mpi_recv (nexthru, maxnumhru*ne, MPI_INTEGER, &
-               p_address_master, mpi_tag_data, p_comm_glb, p_stat, p_err)
+            allocate (nexthru (maxnumhru,numbasin))
+            CALL mpi_recv (nexthru, maxnumhru*numbasin, MPI_INTEGER, &
+               p_root, mpi_tag_data, p_comm_glb, p_stat, p_err)
          ENDIF
 #endif
 
-         IF (ne > 0) THEN
-            allocate( hillslope_network (ne))
+         IF (numbasin > 0) THEN
+            allocate( hillslope_network (numbasin))
          ENDIF
 
-         hs = 0
-
-         DO ie = 1, ne
+         DO ibasin = 1, numbasin
                
-            nhru = count(indxhru(:,ie) >= 0)
+            nhru = count(indxhru(:,ibasin) >= 0)
+            hillslope_network(ibasin)%nhru = nhru
 
             IF (nhru > 0) THEN
-            
-               IF (nhru /= nhru_in_bsn(ie)) THEN
-                  write(*,*) 'Warning : numbers of hydro units from file mismatch!'
-               ENDIF
-            
-               allocate (hillslope_network(ie)%ihru  (nhru))
-               allocate (hillslope_network(ie)%indx  (nhru))
-               allocate (hillslope_network(ie)%area  (nhru))
-               allocate (hillslope_network(ie)%agwt  (nhru))
-               allocate (hillslope_network(ie)%hand  (nhru))
-               allocate (hillslope_network(ie)%elva  (nhru))
-               allocate (hillslope_network(ie)%plen  (nhru))
-               allocate (hillslope_network(ie)%flen  (nhru))
-               allocate (hillslope_network(ie)%inext (nhru))
 
-               hillslope_network(ie)%indx = indxhru(1:nhru,ie) 
-               hillslope_network(ie)%area = areahru(1:nhru,ie) * 1.0e6 ! km^2 to m^2
-               hillslope_network(ie)%hand = handhru(1:nhru,ie)         ! m
-               hillslope_network(ie)%elva = elvahru(1:nhru,ie)         ! m
-               hillslope_network(ie)%plen = plenhru(1:nhru,ie) * 1.0e3 ! km to m      
-               hillslope_network(ie)%flen = lfachru(1:nhru,ie) * 1.0e3 ! km to m
+               allocate (hillslope_network(ibasin)%ihru  (nhru))
+               allocate (hillslope_network(ibasin)%indx  (nhru))
+               allocate (hillslope_network(ibasin)%area  (nhru))
+               allocate (hillslope_network(ibasin)%agwt  (nhru))
+               allocate (hillslope_network(ibasin)%hand  (nhru))
+               allocate (hillslope_network(ibasin)%elva  (nhru))
+               allocate (hillslope_network(ibasin)%plen  (nhru))
+               allocate (hillslope_network(ibasin)%flen  (nhru))
+               allocate (hillslope_network(ibasin)%inext (nhru))
 
-               hillslope_network(ie)%ihru = (/ (i, i = hs+1, hs+nhru) /)
+               hillslope_network(ibasin)%indx = indxhru(1:nhru,ibasin) 
+               hillslope_network(ibasin)%area = areahru(1:nhru,ibasin) * 1.0e6 ! km^2 to m^2
+               hillslope_network(ibasin)%hand = handhru(1:nhru,ibasin)         ! m
+               hillslope_network(ibasin)%elva = elvahru(1:nhru,ibasin)         ! m
+               hillslope_network(ibasin)%plen = plenhru(1:nhru,ibasin) * 1.0e3 ! km to m      
+               hillslope_network(ibasin)%flen = lfachru(1:nhru,ibasin) * 1.0e3 ! km to m
+
+               hs = basin_hru%substt(ibasin)
+               he = basin_hru%subend(ibasin)
+               hillslope_network(ibasin)%ihru = (/ (i, i = hs, he) /)
 
                DO i = 1, nhru
-                  IF (nexthru(i,ie) >= 0) THEN
-                     j = findloc_ud(indxhru(1:nhru,ie) == nexthru(i,ie))
-                     hillslope_network(ie)%inext(i) = j 
+                  IF (nexthru(i,ibasin) >= 0) THEN
+                     j = findloc(indxhru(1:nhru,ibasin), nexthru(i,ibasin), dim=1)
+                     hillslope_network(ibasin)%inext(i) = j 
                   ELSE
-                     hillslope_network(ie)%inext(i) = -1
+                     hillslope_network(ibasin)%inext(i) = -1
                   ENDIF
                ENDDO
 
-            ELSE   
-               ! for lake
-               hillslope_network(ie)%ihru  => null() 
-               hillslope_network(ie)%indx  => null()
-               hillslope_network(ie)%area  => null()
-               hillslope_network(ie)%agwt  => null()
-               hillslope_network(ie)%hand  => null()
-               hillslope_network(ie)%elva  => null()
-               hillslope_network(ie)%plen  => null()
-               hillslope_network(ie)%flen  => null()
-               hillslope_network(ie)%inext => null()
+               DO i = 1, nhru
+                  hillslope_network(ibasin)%agwt(i) = 0
+                  ps = hru_patch%substt(i+hs-1)
+                  pe = hru_patch%subend(i+hs-1)
+                  DO ipatch = ps, pe
+                     IF (patchtype(ipatch) <= 2) THEN
+                        DO ipxl = landpatch%ipxstt(ipatch), landpatch%ipxend(ipatch)
+                           hillslope_network(ibasin)%agwt(i) = hillslope_network(ibasin)%agwt(i) &
+                              + 1.0e6 * areaquad ( &
+                              pixel%lat_s(mesh(ibasin)%ilat(ipxl)), pixel%lat_n(mesh(ibasin)%ilat(ipxl)), &
+                              pixel%lon_w(mesh(ibasin)%ilon(ipxl)), pixel%lon_e(mesh(ibasin)%ilon(ipxl)) )
+                        ENDDO
+                     ENDIF
+                  ENDDO
+               ENDDO
+
+            ELSE
+               hillslope_network(ibasin)%ihru  => null() 
+               hillslope_network(ibasin)%indx  => null()
+               hillslope_network(ibasin)%area  => null()
+               hillslope_network(ibasin)%agwt  => null()
+               hillslope_network(ibasin)%hand  => null()
+               hillslope_network(ibasin)%elva  => null()
+               hillslope_network(ibasin)%plen  => null()
+               hillslope_network(ibasin)%flen  => null()
+               hillslope_network(ibasin)%inext => null()
             ENDIF
-               
-            hillslope_network(ie)%nhru = nhru_in_bsn(ie)
-            hs = hs + nhru_in_bsn(ie)
-               
          ENDDO
 
       ENDIF 
-
-      IF (allocated(nhru_all   )) deallocate(nhru_all   )  
-      IF (allocated(nhru_in_bsn)) deallocate(nhru_in_bsn)  
-
+         
       IF (allocated(indxhru)) deallocate(indxhru)  
       IF (allocated(areahru)) deallocate(areahru)
       IF (allocated(handhru)) deallocate(handhru)
@@ -328,29 +337,37 @@ CONTAINS
 
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
-      IF (p_is_master) write(*,'(A)') 'Read hillslope network information done.'
+      IF (p_is_master) write(*,'(A)') 'Read surface network information done.'
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
       
    END SUBROUTINE hillslope_network_init
    
-   ! ---------
-   SUBROUTINE hillslope_network_free_mem (this)
+   ! ----------
+   SUBROUTINE hillslope_network_final ()
 
    IMPLICIT NONE
-   type(hillslope_network_type) :: this
 
-      IF (associated(this%ihru )) deallocate(this%ihru )
-      IF (associated(this%indx )) deallocate(this%indx )
-      IF (associated(this%area )) deallocate(this%area )
-      IF (associated(this%agwt )) deallocate(this%agwt )
-      IF (associated(this%hand )) deallocate(this%hand )
-      IF (associated(this%elva )) deallocate(this%elva )
-      IF (associated(this%plen )) deallocate(this%plen )
-      IF (associated(this%flen )) deallocate(this%flen )
-      IF (associated(this%inext)) deallocate(this%inext)
+   ! Local Variables
+   integer :: ibasin
 
-   END SUBROUTINE hillslope_network_free_mem
-   
+      IF (associated(hillslope_network)) THEN
+         DO ibasin = 1, size(hillslope_network)
+            IF (associated(hillslope_network(ibasin)%ihru )) deallocate(hillslope_network(ibasin)%ihru )
+            IF (associated(hillslope_network(ibasin)%indx )) deallocate(hillslope_network(ibasin)%indx )
+            IF (associated(hillslope_network(ibasin)%area )) deallocate(hillslope_network(ibasin)%area )
+            IF (associated(hillslope_network(ibasin)%agwt )) deallocate(hillslope_network(ibasin)%agwt )
+            IF (associated(hillslope_network(ibasin)%hand )) deallocate(hillslope_network(ibasin)%hand )
+            IF (associated(hillslope_network(ibasin)%elva )) deallocate(hillslope_network(ibasin)%elva )
+            IF (associated(hillslope_network(ibasin)%plen )) deallocate(hillslope_network(ibasin)%plen )
+            IF (associated(hillslope_network(ibasin)%flen )) deallocate(hillslope_network(ibasin)%flen )
+            IF (associated(hillslope_network(ibasin)%inext)) deallocate(hillslope_network(ibasin)%inext)
+         ENDDO
+
+         deallocate(hillslope_network)
+      ENDIF
+
+   END SUBROUTINE hillslope_network_final
+
 END MODULE MOD_Catch_HillslopeNetwork
 #endif

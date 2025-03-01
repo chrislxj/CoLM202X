@@ -27,7 +27,7 @@ CONTAINS
 #endif
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
    USE MOD_LandPFT
-   USE MOD_Vars_PFTimeInvariants
+   USE MOD_Vars_PFTimeInvariants, only : pftfrac
 #endif
 #ifdef SinglePoint
    USE MOD_SingleSrfdata
@@ -35,7 +35,7 @@ CONTAINS
    IMPLICIT NONE
 
    integer, intent(in) :: lc_year
-   character(len=256), intent(in) :: dir_landdata
+   character(LEN=256), intent(in) :: dir_landdata
    ! Local Variables
    character(len=256) :: lndname, cyear
    real(r8), allocatable :: sumpct (:)
@@ -53,12 +53,14 @@ CONTAINS
 #if (defined CROP)
 #ifndef SinglePoint
       lndname = trim(dir_landdata)//'/pctpft/'//trim(cyear)//'/pct_crops.nc'
-      CALL ncio_read_vector (lndname, 'pct_crops', landpatch, cropfrac)
+      CALL ncio_read_vector (lndname, 'pct_crops', landpatch, pctshrpch)
+      
 #else
+      allocate (pctshrpch (numpatch))
       IF (SITE_landtype == CROPLAND) THEN
-         cropfrac = pack(SITE_pctcrop, SITE_pctcrop > 0.)
+         pctshrpch = pack(SITE_pctcrop, SITE_pctcrop > 0.)
       ELSE
-         cropfrac = 0.
+         pctshrpch = 0.
       ENDIF
 #endif
 #endif
@@ -80,10 +82,10 @@ CONTAINS
 
       CALL check_vector_data ('Sum PFT pct', sumpct)
 #if (defined CROP)
-      CALL check_vector_data ('CROP pct', cropfrac)
-#endif
+      CALL check_vector_data ('CROP pct', pctshrpch)
 #endif
 
+#endif
 #endif
 
       IF (allocated(sumpct)) deallocate(sumpct)

@@ -2,26 +2,25 @@
 
 Module MOD_Ozone
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  This module hold the plant physiological response to the ozone,
-!  including vcmax response and stomata response.  Ozone concentration
-!  can be either readin through Mod_OzoneData module or set to constant.
-!
-!  Original:
-!  The Community Land Model version 5.0 (CLM5.0)
-!
-! !REVISIONS:
-!  2022, Xingjie Lu: revised the CLM5 code to be compatible with CoLM
-!        code structure.
-!-----------------------------------------------------------------------
+ !-----------------------------------------------------------------------
+ ! !DESCRIPTION:
+ ! This module hold the plant physiological response to the ozone, including vcmax response and stomata response.
+ ! Ozone concentration can be either readin through Mod_OzoneData module or set to constant.
+ !
+ ! !ORIGINAL:
+ ! The Community Land Model version 5.0 (CLM5.0)
+ !
+ ! !REVISION:
+ ! Xingjie Lu 2022, revised the CLM5 code to be compatible with CoLM code structure.
+
+
 
    USE MOD_Precision
    USE MOD_Const_Physical, only: rgas
    USE MOD_Const_PFT, only: isevg, leaf_long, woody
    USE MOD_Grid
    USE MOD_DataType
-   USE MOD_SpatialMapping
+   USE MOD_Mapping_Grid2Pset
    USE MOD_Vars_1DForcing, only: forc_ozone
    USE MOD_Namelist, only: DEF_USE_OZONEDATA
    IMPLICIT NONE
@@ -32,7 +31,7 @@ Module MOD_Ozone
 
    type(block_data_real8_2d) :: f_ozone
 
-   type(spatial_mapping_type) :: mg2p_ozone
+   type (mapping_grid2pset_type) :: mg2p_ozone
 
    SAVE
 
@@ -44,12 +43,11 @@ CONTAINS
 
    SUBROUTINE CalcOzoneStress (o3coefv,o3coefg, forc_ozone, forc_psrf, th, ram, &
                               rs, rb, lai, lai_old, ivt, o3uptake, deltim)
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  Calculate Ozone Stress on both vcmax and stomata conductance.
-!
-!  convert o3 from mol/mol to nmol m^-3
-!-----------------------------------------------------------------------
+   !-------------------------------------------------
+   ! DESCRIPTION:
+   ! Calculate Ozone Stress on both vcmax and stomata conductance.
+   !
+   ! convert o3 from mol/mol to nmol m^-3
    real(r8), intent(out)   :: o3coefv
    real(r8), intent(out)   :: o3coefg
    real(r8), intent(inout) :: forc_ozone
@@ -186,11 +184,10 @@ CONTAINS
 
    SUBROUTINE init_ozone_data (idate)
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  open ozone netcdf file from DEF_dir_rawdata, read latitude and
-!  longitude info.  Initialize Ozone data read in.
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! open ozone netcdf file from DEF_dir_rawdata, read latitude and longitude info.
+   ! Initialize Ozone data read in.
 
    USE MOD_SPMD_Task
    USE MOD_Namelist
@@ -208,7 +205,7 @@ CONTAINS
    real(r8), allocatable :: lat(:), lon(:)
    integer :: itime
    integer :: iyear, month, mday
-   character(len=8) :: syear, smonth
+   character(LEN=8) :: syear, smonth
 
       CALL julian2monthday(idate(1),idate(2),month,mday)
       iyear = idate(1)
@@ -225,7 +222,7 @@ CONTAINS
 
       CALL allocate_block_data (grid_ozone, f_ozone)
 
-      CALL mg2p_ozone%build_arealweighted (grid_ozone, landpatch)
+      CALL mg2p_ozone%build (grid_ozone, landpatch)
 
       itime = mday
 
@@ -236,12 +233,12 @@ CONTAINS
 
    END SUBROUTINE init_ozone_data
 
+   ! ----------
    SUBROUTINE update_ozone_data (time, deltim)
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  read ozone data during simulation
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! read ozone data during simulation
 
    USE MOD_TimeManager
    USE MOD_Namelist
@@ -256,7 +253,7 @@ CONTAINS
    type(timestamp) :: time_next
    integer :: month, mday
    integer :: iyear, imonth, imonth_next, iday, iday_next
-   character(len=8) :: syear, smonth
+   character(LEN=8) :: syear, smonth
 
       CALL julian2monthday(time%year,time%day,month,mday)
       imonth = month
@@ -282,7 +279,7 @@ CONTAINS
          CALL check_block_data ('Ozone', f_ozone)
 #endif
 
-         CALL mg2p_ozone%grid2pset (f_ozone, forc_ozone)
+         CALL mg2p_ozone%map_aweighted (f_ozone, forc_ozone)
          forc_ozone = forc_ozone * 1.e-9
 #ifdef RangeCheck
          CALL check_vector_data ('Ozone', forc_ozone)
@@ -292,4 +289,3 @@ CONTAINS
    END SUBROUTINE update_ozone_data
 
 END MODULE MOD_Ozone
-! ---------- EOP ------------

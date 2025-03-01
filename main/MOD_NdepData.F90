@@ -2,35 +2,33 @@
 
 #ifdef BGC
 MODULE MOD_NdepData
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  This module read in ndep data.
-!
-! !ORIGINAL:
-!  Lu Xingjie and Zhang Shupeng, 2023, prepare the original version of
-!  the ndep data module.
-!-----------------------------------------------------------------------
+ !-----------------------------------------------------------------------
+ ! !DESCRIPTION:
+ ! This module read in ndep data.
+ !
+ ! !ORIGINAL:
+ ! Lu Xingjie and Zhang Shupeng, 2023, prepare the original version of the ndep data module.
 
    USE MOD_Grid
-   USE MOD_SpatialMapping
-   USE MOD_BGC_Vars_TimeVariables, only: ndep
+   USE MOD_Mapping_Grid2Pset
+   USE MOD_BGC_Vars_TimeVariables, only : ndep
    USE MOD_BGC_Vars_1DFluxes, only: ndep_to_sminn
    IMPLICIT NONE
 
    character(len=256) :: file_ndep
 
    type(grid_type) :: grid_ndep
-   type(spatial_mapping_type) :: mg2p_ndep
+   type(mapping_grid2pset_type) :: mg2p_ndep
 
 CONTAINS
 
+   ! ----------
    SUBROUTINE init_ndep_data_annually (YY)
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  open ndep netcdf file from DEF_dir_runtime, read latitude and longitude info.
-!  Initialize ndep data read in.
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! open ndep netcdf file from DEF_dir_runtime, read latitude and longitude info.
+   ! Initialize ndep data read in.
 
    USE MOD_TimeManager
    USE MOD_Namelist
@@ -51,7 +49,7 @@ CONTAINS
 
       CALL grid_ndep%define_by_center (lat, lon)
 
-      CALL mg2p_ndep%build_arealweighted (grid_ndep, landpatch)
+      CALL mg2p_ndep%build (grid_ndep, landpatch)
 
       IF (allocated(lon)) deallocate(lon)
       IF (allocated(lat)) deallocate(lat)
@@ -60,13 +58,13 @@ CONTAINS
 
    END SUBROUTINE init_ndep_data_annually
 
+      ! ----------
    SUBROUTINE init_ndep_data_monthly (YY,MM)  !sf_add
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  open ndep netcdf file from DEF_dir_runtime, read latitude and
-!  longitude info.  Initialize ndep data read in.
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! open ndep netcdf file from DEF_dir_runtime, read latitude and longitude info.
+   ! Initialize ndep data read in.
 
    USE MOD_TimeManager
    USE MOD_Namelist
@@ -87,7 +85,7 @@ CONTAINS
 
       CALL grid_ndep%define_by_center (lat, lon)
 
-      CALL mg2p_ndep%build_arealweighted (grid_ndep, landpatch)
+      CALL mg2p_ndep%build (grid_ndep, landpatch)
 
       IF (allocated(lon)) deallocate(lon)
       IF (allocated(lat)) deallocate(lat)
@@ -96,22 +94,22 @@ CONTAINS
 
    END SUBROUTINE init_ndep_data_monthly
 
+   ! ----------
    SUBROUTINE update_ndep_data_annually (YY, iswrite)
-!-----------------------------------------------------------------------
+! ===========================================================
 !
 ! !DESCRIPTION:
-!  Read in the Nitrogen deposition data from CLM5.
+! Read in the Nitrogen deposition data from CLM5.
 !
-! !REFERENCES:
-!  Galloway, J.N., et al. 2004. Nitrogen cycles: past, present, and
-!  future. Biogeochem. 70:153-226.
+! !REFERENCE:
+! Galloway, J.N., et al. 2004. Nitrogen cycles: past, present, and future. Biogeochem. 70:153-226.
 !
 ! !ORIGINAL:
-!  Created by Xingjie Lu and Shupeng Zhang, 2022
-!-----------------------------------------------------------------------
+! Created by Xingjie Lu and Shupeng Zhang, 2022
+! ===========================================================
 
    USE MOD_SPMD_Task
-   USE MOD_Namelist, only: DEF_USE_PN
+   USE MOD_Namelist, only : DEF_USE_PN
    USE MOD_DataType
    USE MOD_NetCDFBlock
    USE MOD_LandPatch
@@ -133,7 +131,7 @@ CONTAINS
          CALL ncio_read_block_time (file_ndep, 'NDEP_year', grid_ndep, itime, f_xy_ndep)
       ENDIF
 
-      CALL mg2p_ndep%grid2pset (f_xy_ndep, ndep)
+      CALL mg2p_ndep%map_aweighted (f_xy_ndep, ndep)
 
       IF (p_is_worker .and. iswrite) THEN
          IF (numpatch > 0) THEN
@@ -159,22 +157,22 @@ CONTAINS
 
    END SUBROUTINE update_ndep_data_annually
 
+   ! ----------
    SUBROUTINE update_ndep_data_monthly (YY, MM, iswrite) !sf_add
-!-----------------------------------------------------------------------
+! ===========================================================
 !
 ! !DESCRIPTION:
-!  Read in the Nitrogen deposition data from CLM5.
+! Read in the Nitrogen deposition data from CLM5.
 !
-! !REFERENCES:
-!  Galloway, J.N., et al. 2004. Nitrogen cycles: past, present, and
-!  future. Biogeochem. 70:153-226.
+! !REFERENCE:
+! Galloway, J.N., et al. 2004. Nitrogen cycles: past, present, and future. Biogeochem. 70:153-226.
 !
 ! !ORIGINAL:
-!  Created by Xingjie Lu and Shupeng Zhang, 2022
-!
-!-----------------------------------------------------------------------
+! Created by Xingjie Lu and Shupeng Zhang, 2022
+! ===========================================================
+
    USE MOD_SPMD_Task
-   USE MOD_Namelist, only: DEF_USE_PN
+   USE MOD_Namelist, only : DEF_USE_PN
    USE MOD_DataType
    USE MOD_NetCDFBlock
    USE MOD_LandPatch
@@ -199,7 +197,7 @@ CONTAINS
          CALL ncio_read_block_time (file_ndep, 'NDEP_month', grid_ndep, itime, f_xy_ndep) ! sf_add
       ENDIF
 
-      CALL mg2p_ndep%grid2pset (f_xy_ndep, ndep)
+      CALL mg2p_ndep%map_aweighted (f_xy_ndep, ndep)
 
       IF (p_is_worker .and. iswrite) THEN
          IF (numpatch > 0) THEN

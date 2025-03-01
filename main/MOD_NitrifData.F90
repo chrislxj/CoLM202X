@@ -2,31 +2,30 @@
 
 #ifdef BGC
 MODULE MOD_NitrifData
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  This module read in nitrif data.
-!
-! !ORIGINAL:
-!  Lu Xingjie and Zhang Shupeng, 2023, prepare the original version of the nitrif data module.
-!-----------------------------------------------------------------------
+ !-----------------------------------------------------------------------
+ ! !DESCRIPTION:
+ ! This module read in nitrif data.
+ !
+ ! !ORIGINAL:
+ ! Lu Xingjie and Zhang Shupeng, 2023, prepare the original version of the nitrif data module.
 
    USE MOD_Grid
-   USE MOD_SpatialMapping
-   USE MOD_BGC_Vars_TimeVariables, only: tCONC_O2_UNSAT, tO2_DECOMP_DEPTH_UNSAT
+   USE MOD_Mapping_Grid2Pset
+   USE MOD_BGC_Vars_TimeVariables, only : tCONC_O2_UNSAT, tO2_DECOMP_DEPTH_UNSAT
    IMPLICIT NONE
 
    type(grid_type) :: grid_nitrif
-   type(spatial_mapping_type) :: mg2p_nitrif
+   type(mapping_grid2pset_type) :: mg2p_nitrif
 
 CONTAINS
 
+   ! ----------
    SUBROUTINE init_nitrif_data (idate)
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  open nitrif netcdf file from DEF_dir_runtime, read latitude and
-!  longitude info.  Initialize nitrif data read in.
-!-----------------------------------------------------------------------
+   !----------------------
+   ! DESCTIPTION:
+   ! open nitrif netcdf file from DEF_dir_runtime, read latitude and longitude info.
+   ! Initialize nitrif data read in.
 
    USE MOD_TimeManager
    USE MOD_Namelist
@@ -49,7 +48,7 @@ CONTAINS
 
       CALL grid_nitrif%define_by_center (lat, lon)
 
-      CALL mg2p_nitrif%build_arealweighted (grid_nitrif, landpatch)
+      CALL mg2p_nitrif%build (grid_nitrif, landpatch)
 
       IF (allocated(lon)) deallocate(lon)
       IF (allocated(lat)) deallocate(lat)
@@ -100,7 +99,7 @@ CONTAINS
             CALL ncio_read_block_time (file_nitrif, 'CONC_O2_UNSAT', grid_nitrif, month, f_xy_nitrif)
          ENDIF
 
-         CALL mg2p_nitrif%grid2pset (f_xy_nitrif, tCONC_O2_UNSAT_tmp)
+         CALL mg2p_nitrif%map_aweighted (f_xy_nitrif, tCONC_O2_UNSAT_tmp)
 
          IF (p_is_worker) THEN
             IF (numpatch > 0) THEN
@@ -132,7 +131,7 @@ CONTAINS
             CALL ncio_read_block_time (file_nitrif, 'O2_DECOMP_DEPTH_UNSAT', grid_nitrif, month, f_xy_nitrif)
          ENDIF
 
-         CALL mg2p_nitrif%grid2pset (f_xy_nitrif, tO2_DECOMP_DEPTH_UNSAT_tmp)
+         CALL mg2p_nitrif%map_aweighted (f_xy_nitrif, tO2_DECOMP_DEPTH_UNSAT_tmp)
 
          IF (p_is_worker) THEN
             IF (numpatch > 0) THEN

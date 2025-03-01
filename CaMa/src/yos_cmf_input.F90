@@ -23,15 +23,19 @@ MODULE YOS_CMF_INPUT
    integer(KIND=JPIM)              :: LOGNAM                  !! default log    file FID
    integer(KIND=JPIM)              :: NSETFILE                !! input namelist file FID
    integer(KIND=JPIM)              :: TMPNAM                  !! temporal I/O   file FIG
-   character(LEN=256)              :: CLOGOUT                 !! default log    file name
+   ! character(LEN=256)              :: CLOGOUT                 !! default log    file name
    character(LEN=256)              :: CSETFILE                !! input namelist file name
 
    DATA LLOGOUT       /.TRUE./
-   DATA CLOGOUT       /'./log_CaMa.txt'/
-   DATA CSETFILE      /'../run/cama_flood.nml'/
+   ! DATA CLOGOUT       /'../run/log_CaMa.txt'/
+   ! DATA CSETFILE      /'../run/cama_flood.nml'/
+   ! DATA CLOGOUT       /'./log_CaMa.txt'/
+   DATA CSETFILE      /'./cama_flood.nml'/
 
    !================================================
    !*** NAMELIST/NRUNVER/
+   character(LEN=256)              :: CLOGOUT                 !! log file name
+
    logical                         :: LADPSTP                 !! true: use adaptive time step
 
    logical                         :: LFPLAIN                 !! true: consider floodplain (false: only river channel)
@@ -39,6 +43,7 @@ MODULE YOS_CMF_INPUT
    logical                         :: LFLDOUT                 !! true: floodplain flow (high-water channel flow) active
    logical                         :: LPTHOUT                 !! true: activate bifurcation scheme
    logical                         :: LDAMOUT                 !! true: activate dam operation (under development)
+   logical                         :: LDAMIRR                 !! true: activate dam irrigation scheme
    logical                         :: LLEVEE                  !! true: activate levee scheme  (under development)
 
    !~~ used in ECMWF
@@ -51,6 +56,7 @@ MODULE YOS_CMF_INPUT
    logical                         :: LSLOPEMOUTH             !! true: prescribe water level slope == elevation slope on river month
    logical                         :: LGDWDLY                 !! true: Activate ground water reservoir and delay
    logical                         :: LSLPMIX                 !! true: activate mixed kinematic and local inertia based on slope
+   
 
    logical                         :: LMEANSL                 !! true : boundary condition for mean sea level
    logical                         :: LSEALEV                 !! true : boundary condition for variable sea level
