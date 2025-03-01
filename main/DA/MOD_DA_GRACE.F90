@@ -4,6 +4,7 @@
 MODULE MOD_DA_GRACE
 
    USE MOD_DataType
+   USE MOD_Mapping_Grid2Pset
    IMPLICIT NONE
 
    PUBLIC :: init_DA_GRACE
@@ -25,7 +26,7 @@ MODULE MOD_DA_GRACE
    integer,  allocatable :: obsyear  (:)
    integer,  allocatable :: obsmonth (:)
 
-   type (spatial_mapping_type) :: mg2p_grace
+   type (mapping_grid2pset_type) :: mg2p_grace
    
    real(r8), allocatable :: lwe_obs_this (:)
    real(r8), allocatable :: err_obs_this (:)
@@ -58,18 +59,19 @@ CONTAINS
    SUBROUTINE init_DA_GRACE ()
       
    USE MOD_Spmd_Task
-   USE MOD_Namelist, only: DEF_DA_obsdir
+   USE MOD_Namelist, only : DEF_DA_obsdir
    USE MOD_Grid
    USE MOD_NetCDFSerial
-   USE MOD_Mesh,     only: numelm
-   USE MOD_LandElm,  only: landelm
+   USE MOD_Mesh,     only : numelm
+   USE MOD_LandElm,  only : landelm
    USE MOD_LandPatch
 #ifdef CROP 
    USE MOD_LandCrop
 #endif
    USE MOD_Pixelset
-   USE MOD_Vars_TimeInvariants, only: patchtype
-   USE MOD_Forcing, only: forcmask_pch
+   USE MOD_Mapping_Grid2pset
+   USE MOD_Vars_TimeInvariants, only : patchtype
+   USE MOD_Forcing, only : forcmask
    USE MOD_RangeCheck
    IMPLICIT NONE
    
@@ -103,7 +105,7 @@ CONTAINS
 
       CALL grid_grace%define_by_center (latgrace,longrace)
 
-      CALL mg2p_grace%build_arealweighted (grid_grace, landelm)
+      CALL mg2p_grace%build (grid_grace, landelm)
 
       IF (p_is_worker) THEN
          IF (numelm > 0) THEN
@@ -131,14 +133,18 @@ CONTAINS
       ENDIF
       
       IF (p_is_worker) THEN
+#ifdef CROP 
+         CALL elm_patch%build (landelm, landpatch, use_frac = .true., sharedfrac = pctshrpch)
+#else
          CALL elm_patch%build (landelm, landpatch, use_frac = .true.)
+#endif
       ENDIF
 
       IF (p_is_worker) THEN
          IF (numpatch > 0) THEN
             rnofmask = patchtype == 0
             IF (DEF_forcing%has_missing_value) THEN
-               rnofmask = rnofmask .and. forcmask_pch
+               rnofmask = rnofmask .and. forcmask
             ENDIF
          ENDIF
       ENDIF
@@ -171,10 +177,9 @@ CONTAINS
    USE MOD_Mesh
    USE MOD_LandElm
    USE MOD_LandPatch
-   USE MOD_Vars_1DFluxes,       only: rnof, rsur
-   USE MOD_Vars_TimeVariables,  only: wat, wa, wdsrf, zwt
+   USE MOD_Vars_1DFluxes,       only : rnof, rsur
+   USE MOD_Vars_TimeVariables,  only : wat, wa, wdsrf, zwt
    USE MOD_RangeCheck 
-   USE MOD_UserDefFun
    IMPLICIT NONE
    
    integer,  intent(in) :: idate(3)
@@ -233,7 +238,7 @@ CONTAINS
 
       IF (is_obs_time .and. (isendofmonth(idate, deltim))) THEN
 
-         itime = findloc_ud((obsyear == idate(1)) .and. (obsmonth == month))
+         itime = findloc((obsyear == idate(1)) .and. (obsmonth == month), .true., dim=1)
       
          IF (p_is_io) THEN
             CALL allocate_block_data (grid_grace, f_grace_lwe)  
@@ -242,8 +247,8 @@ CONTAINS
             CALL ncio_read_block_time (file_grace, 'uncertainty'  , grid_grace, itime, f_grace_err)
          ENDIF
 
-         CALL mg2p_grace%grid2pset (f_grace_lwe, lwe_obs_this)
-         CALL mg2p_grace%grid2pset (f_grace_err, err_obs_this)
+         CALL mg2p_grace%map_aweighted (f_grace_lwe, lwe_obs_this)
+         CALL mg2p_grace%map_aweighted (f_grace_err, err_obs_this)
 
          IF (p_is_worker) THEN
             

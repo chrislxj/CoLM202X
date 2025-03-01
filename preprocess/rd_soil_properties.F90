@@ -2,51 +2,42 @@
 SUBROUTINE rd_soil_properties(dir_rawdata)
 
 !-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  Read in soil characteristic dataset GSDE with 30 arc seconds
-!  resolution, fill the missing data, and estimate soil porosity and
-!  soil hydraulic and thermal parameters at the resolution of 30 arc
-!  seconds.  The data format are binary.
+! DESCRIPTION:
+! Read in soil characteristic dataset GSDE with 30 arc seconds resolution,
+! fill the missing data, and estimate soil porosity and
+! soil hydraulic and thermal parameters at the resolution of 30 arc seconds.
+! The data format are binary.
 !
-!  The Global Soil Characteristics dataset GSDE
-!     (http://globalchange.bnu.edu.cn/research/soilw)
-!  1 percentage of gravel (fine earth and rock fragments) (% volume)
-!  2 percentage of sand   (mineral soil)                  (% weight)
-!  3 percentage of clay   (mineral soil)                  (% weight)
-!  4 organic Carbon (SOC) (fine earth)                    (% weight)
-!  5 bulk density (BD)    (fine earth)                    (g/cm3)
-!  6 ...
+! The Global Soil Characteristics dataset GSDE
+!    (http://globalchange.bnu.edu.cn/research/soilw)
+! 1 percentage of gravel (fine earth and rock fragments) (% volume)
+! 2 percentage of sand   (mineral soil)                  (% weight)
+! 3 percentage of clay   (mineral soil)                  (% weight)
+! 4 organic Carbon (SOC) (fine earth)                    (% weight)
+! 5 bulk density (BD)    (fine earth)                    (g/cm3)
+! 6 ...
+
+! The calling sequence is:
+! -> soil_solids_fractions:     soil porosity and soil fractions which are needed to estimate
+!                               soil hydraulic and thermal parameters
+! -> soil_thermal_parameters:   soil solid heat capacity and (dry and saturated) soil thermal conductivity
+! -> soil_hydraulic_parameters: soil water retension curves and saturated hydraulic conductivity
 !
-!  The calling sequence is:
-!  -> soil_solids_fractions: soil porosity and soil fractions which are
-!     needed to estimate soil hydraulic and thermal parameters
+! Reference:
+! (1) Shangguan et al., 2014: A global soil data set for earth system modeling.
+!     J. of Advances in Modeling Earth Systems, DOI: 10.1002/2013MS000293
+! (2) Dai et al.,2019: A Global High-Resolution Data Set of Soil Hydraulic and Thermal Properties
+!     for Land Surface Modeling. J. of Advances in Modeling Earth Systems, DOI: 10.1029/2019MS001784
 !
-!  -> soil_thermal_parameters: soil solid heat capacity and (dry and
-!     saturated) soil thermal conductivity
+! Original author: Yongjiu Dai, 12/2013/
 !
-!  -> soil_hydraulic_parameters: soil water retension curves and
-!     saturated hydraulic conductivity
-!
-! !REFERENCES:
-!  (1) Shangguan et al., 2014: A global soil data set for earth system
-!  modeling.  J. of Advances in Modeling Earth Systems, DOI:
-!  10.1002/2013MS000293
-!  (2) Dai et al.,2019: A Global High-Resolution Data Set of Soil
-!  Hydraulic and Thermal Properties for Land Surface Modeling. J. of
-!  Advances in Modeling Earth Systems, DOI: 10.1029/2019MS001784
-!
-!  Original author: Yongjiu Dai, 12/2013/
-!
-! !REVISIONS:
-!  06/2016, Hua Yuan: add OPENMP parallel function.
-!
-!  06/2018, Yongjiu Dai and Nan Wei:
-!           update a new version of soil hydraulic and thermal parameters
-!
-!  12/2022, Nan Wei: output more parameters for BGC parts
-!
-!-----------------------------------------------------------------------
-USE MOD_Precision
+! Rivisions:
+! Hua Yuan, 06/2016: add OPENMP parallel function.
+! Yongjiu Dai and Nan Wei,
+!           06/2018: update a new version of soil hydraulic and thermal parameters
+! Nan Wei,  12/2022: output more parameters for BGC parts
+! ----------------------------------------------------------------------
+use MOD_Precision
 IMPLICIT NONE
 
 ! arguments:
@@ -67,7 +58,7 @@ IMPLICIT NONE
       ! ---------------------------------
       integer, allocatable :: landtypes(:,:)  ! GLCC USGS/MODIS IGBP land cover types
 
-      ! (2) global soil characteristics
+      ! (2) global soil characteristcs
       ! --------------------------
 
       integer(kind=1), allocatable :: int_soil_grav_l (:,:) ! Coarse fragments volumetric in %
@@ -117,7 +108,7 @@ IMPLICIT NONE
       real(r8), allocatable :: OM_density_l(:,:) ! OM_density(kg/m3)
       REAL(r8), allocatable :: BD_all_l(:,:)     ! Bulk density of soil (GRAVELS + MINERALS + ORGANIC MATTER)(kg/m3)
 
-! CoLM soil layer thickness and depths
+! CoLM soil layer thickiness and depths
       integer nl_soil
       real(r8), allocatable ::  zsoi(:)  ! soil layer depth [m]
       real(r8), allocatable ::  dzsoi(:) ! soil node thickness [m]
@@ -169,7 +160,7 @@ IMPLICIT NONE
       integer ii, iii, iiii, jj, jjj, jjjj
 
 ! ........................................
-! ... (1) global land cover characteristics
+! ... (1) gloabl land cover characteristics
 ! ........................................
       iunit = 100
       inquire(iolength=length) land_chr1
@@ -204,7 +195,7 @@ IMPLICIT NONE
 #endif
 
 ! .................................
-! ... (2) global soil characteristics
+! ... (2) global soil charateristics
 ! .................................
       nl_soil = 10
       allocate ( zsoi(1:nl_soil), dzsoi(1:nl_soil), zsoih(0:nl_soil) )
@@ -214,13 +205,13 @@ IMPLICIT NONE
       ! ----------------------------------
       do nsl = 1, nl_soil
         zsoi(nsl) = 0.025*(exp(0.5*(nsl-0.5))-1.)  ! node depths
-      enddo
+      end do
 
       dzsoi(1) = 0.5*(zsoi(1)+zsoi(2))         ! =zsoih(1)
       dzsoi(nl_soil) = zsoi(nl_soil)-zsoi(nl_soil-1)
       do nsl = 2, nl_soil-1
          dzsoi(nsl) = 0.5*(zsoi(nsl+1)-zsoi(nsl-1))  ! thickness b/n two interfaces
-      enddo
+      end do
 
       zsoih(0) = 0.
       zsoih(nl_soil) = zsoi(nl_soil) + 0.5*dzsoi(nl_soil)
@@ -276,7 +267,7 @@ IMPLICIT NONE
          write(c,'(i1)') MODEL_SOIL_LAYER
 
          ! ------------------------------------
-         ! (6.1) percentage of gravel (% volume)
+         ! (6.1) precentage of gravel (% volume)
          ! ------------------------------------
          inquire(iolength=length) land_int1
          lndname = trim(dir_rawdata)//'soil/GRAV_L'//trim(c)
@@ -355,7 +346,7 @@ IMPLICIT NONE
          open(iunit,file=trim(lndname),access='direct',recl=length,form='unformatted',status='old')
          do nrow = 1, nlat
             read(iunit,rec=nrow,err=100) VGM_theta_r_Rose(:,nrow)
-         enddo
+         end do
          close(iunit)
 
          inquire(iolength=length) VGM_alpha_Rose(:,1)
@@ -365,7 +356,7 @@ IMPLICIT NONE
          open(iunit,file=trim(lndname),access='direct',recl=length,form='unformatted',status='old')
          do nrow = 1, nlat
             read(iunit,rec=nrow,err=100) VGM_alpha_Rose(:,nrow)
-         enddo
+         end do
          close(iunit)
 
          inquire(iolength=length) VGM_n_Rose(:,1)
@@ -375,7 +366,7 @@ IMPLICIT NONE
          open(iunit,file=trim(lndname),access='direct',recl=length,form='unformatted',status='old')
          do nrow = 1, nlat
             read(iunit,rec=nrow,err=100) VGM_n_Rose(:,nrow)
-         enddo
+         end do
          close(iunit)
 
          inquire(iolength=length) k_s_Rose(:,1)
@@ -385,7 +376,7 @@ IMPLICIT NONE
          open(iunit,file=trim(lndname),access='direct',recl=length,form='unformatted',status='old')
          do nrow = 1, nlat
             read(iunit,rec=nrow,err=100) k_s_Rose(:,nrow)
-         enddo
+         end do
          close(iunit)
 
 
@@ -450,8 +441,8 @@ print *, 'OPENMP enabled, threads num = ', OPENMP, "soil parameters..."
                   ! ------------------------------------
                   if( soil_sand_l < 0.0 ) soil_sand_l = 43.   ! missing value = -100
                   if( soil_clay_l < 0.0 ) soil_clay_l = 18.   ! missing value = -100
-                  if( soil_oc_l   < 0.0   ) soil_oc_l = 1.0   ! missing value = -999
-                  if( soil_bd_l   < 0.0   ) soil_bd_l = 1.2   ! missing value = -999
+                  if( soil_oc_l   < 0.0   ) soil_oc_l = 1.0     ! missing value = -999
+                  if( soil_bd_l   < 0.0   ) soil_bd_l = 1.2     ! missing value = -999
 
                   if( soil_sand_l < 1.0   ) soil_sand_l = 1.
                   if( soil_clay_l < 1.0   ) soil_clay_l = 1.
@@ -469,7 +460,7 @@ print *, 'OPENMP enabled, threads num = ', OPENMP, "soil parameters..."
                   if (soil_bd_l < 0.111 .or. soil_bd_l > 2.0 .or. soil_oc_l > 10.0) then
                      SOM=1.724*soil_oc_l
                      soil_bd_l = 0.111*2.0/(2.0*SOM/100.+0.111*(100.-SOM)/100.)
-                  endif
+                  end if
 
                  ! --------------------------------------------------
                  ! The weight and volumetric fractions of soil solids

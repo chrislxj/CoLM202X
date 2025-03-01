@@ -1,0 +1,93 @@
+&nl_colm
+
+!Author: lianghb
+
+   DEF_CASE_NAME = 'test2'
+
+   SITE_fsrfdata   = '/stu01/lianghb21/colm_crop/model/Case/colmwofostcheck/data/srf/singlepoint_srfdata_cft.nc'
+   
+
+   USE_SITE_pctpfts          = .true.
+   USE_SITE_pctcrop          = .true.
+   USE_SITE_htop             = .false.
+   USE_SITE_LAI              = .false.
+   USE_SITE_lakedepth        = .false.
+   USE_SITE_soilreflectance  = .false.
+   USE_SITE_soilparameters   = .false.
+   USE_SITE_dbedrock         = .false.
+   USE_SITE_topography       = .false.
+   USE_SITE_topostd          = .false.
+   USE_SITE_BVIC             = .false.   
+   USE_SITE_HistWriteBack    = .false.
+   USE_SITE_ForcingReadAhead = .true.
+   USE_SITE_urban_paras      = .false.
+   USE_SITE_thermal_paras    = .false.
+   USE_SITE_urban_LAI        = .false.
+
+   DEF_simulation_time%greenwich    = .TRUE.
+   DEF_simulation_time%start_year   = 2000
+   DEF_simulation_time%start_month  = 4
+   DEF_simulation_time%start_day    = 1
+   DEF_simulation_time%start_sec    = 0
+   DEF_simulation_time%end_year     = 2000
+   DEF_simulation_time%end_month    = 5
+   DEF_simulation_time%end_day      = 31
+   DEF_simulation_time%end_sec      = 86400
+   DEF_simulation_time%spinup_year  = 0
+   DEF_simulation_time%spinup_month = 12
+   DEF_simulation_time%spinup_day   = 31
+   DEF_simulation_time%spinup_sec   = 86400
+   DEF_simulation_time%spinup_repeat = 1
+
+   DEF_simulation_time%timestep     = 1800.
+
+   DEF_dir_rawdata  = '/tera07/CoLMrawdata/'
+   DEF_dir_runtime  = '/tera07/CoLMruntime/'
+   DEF_dir_output   = '/stu01/lianghb21/CoLM202X/Case/Optimization001/'
+
+   ! ----- land units and land sets -----
+   ! LAI setting
+   DEF_LC_YEAR = 2020
+   DEF_LAI_MONTHLY = .true.
+   DEF_LAI_CHANGE_YEARLY = .true.
+
+   !SASU
+   DEF_USE_PN = .false.
+   DEF_USE_SASU = .false.
+
+   !irrigation 
+   DEF_USE_IRRIGATION = .true.
+   DEF_IRRIGATION_ALLOCATION = 1
+   DEF_IRRIGATION_METHOD = 2
+   DEF_USE_PLANTHYDRAULICS = .false.
+   DEF_USE_VariablySaturatedFlow = .false.
+   DEF_USE_LAIFEEDBACK = .true.
+   DEF_optimization_crop = .true.
+   
+   !cn_init
+   DEF_USE_CN_INIT = .true.
+   DEF_file_cn_init = '/tera07/CoLMrawdata/cnsteadystate.nc'
+
+   ! Canopy DEF Interception scheme selection
+   DEF_Interception_scheme=1 !1:CoLM2014；2:CLM4.5; 3:CLM5; 4:Noah-MP; 5:MATSIRO; 6:VIC
+   
+   ! ----- forcing -----
+   ! Options :
+   ! PRINCETON | GSWP3   | QIAN  | CRUNCEPV4 | CRUNCEPV7 | ERA5LAND | ERA5  |  MSWX
+   ! WFDE5     | CRUJRA  | WFDEI | JRA55     | GDAS      | CMFD     | POINT |  JRA3Q
+   DEF_forcing_namelist = '/stu01/lianghb21/CoLM202X/Case/Optimization001/bld/run/forcing/WFDEI.nml'
+
+   ! ----- history -----
+   DEF_hist_lon_res = 1
+   DEF_hist_lat_res = 1
+   DEF_WRST_FREQ = 'YEARLY' ! write restart file frequency: HOURLY/DAILY/MONTHLY/YEARLY
+   DEF_HIST_FREQ = 'YEARLY' ! write history file frequency: HOURLY/DAILY/MONTHLY/YEARLY
+   DEF_HIST_groupby = 'YEAR' ! history in one file: DAY/MONTH/YEAR
+   DEF_HIST_mode = 'one' ! history in one or block
+   DEF_REST_CompressLevel = 1
+   DEF_HIST_CompressLevel = 1
+
+   DEF_hist_vars_out_default = .false.
+   DEF_HIST_vars_namelist = '/stu01/lianghb21/CoLM202X/Case/Optimization001/bld/run/history.nml'
+/
+

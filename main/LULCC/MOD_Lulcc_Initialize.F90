@@ -2,6 +2,7 @@
 #ifdef LULCC
 MODULE MOD_Lulcc_Initialize
 
+!-----------------------------------------------------------------------
    USE MOD_Precision
    IMPLICIT NONE
    SAVE
@@ -9,23 +10,23 @@ MODULE MOD_Lulcc_Initialize
 ! PUBLIC MEMBER FUNCTIONS:
    PUBLIC :: LulccInitialize
 
+!-----------------------------------------------------------------------
 CONTAINS
+!-----------------------------------------------------------------------
 
    SUBROUTINE LulccInitialize (casename,dir_landdata,dir_restart,&
                                idate,greenwich)
 
-!-----------------------------------------------------------------------
+! ======================================================================
 !
-! !DESCRIPTION:
-!  Initialization routine for Land-use-Land-cover-change (Lulcc) case
+! Initialization routine for Land-use-Land-cover-change (Lulcc) case
 !
-!  Created by Hua Yuan, 04/08/2022
+! Created by Hua Yuan, 04/08/2022
 !
-! !REVISIONS:
-!  08/2023, Wenzong Dong: Porting to MPI version and share the same code
-!           with MOD_Initialize:initialize()
-!
-!-----------------------------------------------------------------------
+! !REVISONS:
+! 08/2023, Wenzong Dong: porting to MPI version and share the same code with
+!                        MOD_Initialize:initialize
+! ======================================================================
 
    USE MOD_Precision
    USE MOD_SPMD_Task
@@ -47,12 +48,12 @@ CONTAINS
    USE MOD_Vars_TimeVariables
    USE MOD_Initialize
 #ifdef SrfdataDiag
-   USE MOD_SrfdataDiag, only: gdiag, srfdata_diag_init
+   USE MOD_SrfdataDiag, only : gdiag, srfdata_diag_init
 #endif
 
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
+   ! ----------------------------------------------------------------------
    character(len=*), intent(in) :: casename      ! case name
    character(len=*), intent(in) :: dir_landdata
    character(len=*), intent(in) :: dir_restart
@@ -60,10 +61,9 @@ CONTAINS
    integer, intent(inout) :: idate(3)   ! year, julian day, seconds of the starting time
    logical, intent(in)    :: greenwich  ! true: greenwich time, false: local time
 
-!-------------------------- Local Variables ----------------------------
+   ! local vars
    integer :: year, jday
-
-!-----------------------------------------------------------------------
+   ! ----------------------------------------------------------------------
 
       ! initial time of model run
       ! ............................

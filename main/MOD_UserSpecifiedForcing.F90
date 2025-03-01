@@ -13,7 +13,7 @@ MODULE MOD_UserSpecifiedForcing
    !     10) WFDE5         11) CRUJRA        12) WFDEI
    !     13) JRA55         14) GDAS          15) CLDAS
    !     16) CMFD          17) TPMFD         18) CMIP6
-   !     19) POINT         20) JRA3Q         21) CRA40
+   !     19) POINT         20）JRA3Q
    !
    !     PLEASE modify the following codes when specified forcing used
    ! ------------------------------------------------------------
@@ -44,36 +44,34 @@ MODULE MOD_UserSpecifiedForcing
 
    character(len=256) :: dataset
 
-   logical  :: solarin_all_band      ! whether solar radiation in all bands is available
+   logical  :: solarin_all_band   ! whether solar radiation in all bands is available
+   real(r8) :: HEIGHT_V           ! observation height of wind speed
+   real(r8) :: HEIGHT_T           ! observation height of air temperature
+   real(r8) :: HEIGHT_Q           ! observation height of specific humidity
 
-   character(len=256) :: HEIGHT_mode ! observation height mode
-   real(r8) :: HEIGHT_V              ! observation height of wind speed
-   real(r8) :: HEIGHT_T              ! observation height of air temperature
-   real(r8) :: HEIGHT_Q              ! observation height of specific humidity
+   integer  :: NVAR      ! variable number of forcing data
+   integer  :: startyr   ! start year of forcing data        <MARK #1>
+   integer  :: startmo   ! start month of forcing data
+   integer  :: endyr     ! END year of forcing data
+   integer  :: endmo     ! END month of forcing data
 
-   integer  :: NVAR                  ! variable number of forcing data
-   integer  :: startyr               ! start year of forcing data
-   integer  :: startmo               ! start month of forcing data
-   integer  :: endyr                 ! END year of forcing data
-   integer  :: endmo                 ! END month of forcing data
+   integer, allocatable :: dtime(:)          ! time interval of forcing data
+   integer, allocatable :: offset(:)         ! offset of forcing data
 
-   integer, allocatable :: dtime(:)  ! time interval of forcing data
-   integer, allocatable :: offset(:) ! offset of forcing data
+   logical :: leapyear   ! leapyear calendar
+   logical :: data2d     ! data in 2 dimension (lon, lat)
+   logical :: hightdim   ! have "z" dimension
+   logical :: dim2d      ! lat/lon value in 2 dimension (lon, lat)
 
-   logical :: leapyear               ! leapyear calendar
-   logical :: data2d                 ! data in 2 dimension (lon, lat)
-   logical :: hightdim               ! have "z" dimension
-   logical :: dim2d                  ! lat/lon value in 2 dimension (lon, lat)
+   character(len=256) :: latname                   ! dimension name of latitude
+   character(len=256) :: lonname                   ! dimension name of longitude
 
-   character(len=256) :: latname                  ! dimension name of latitude
-   character(len=256) :: lonname                  ! dimension name of longitude
+   character(len=256) :: groupby                   ! file grouped by year/month
 
-   character(len=256) :: groupby                  ! file grouped by year/month
-
-   character(len=256), allocatable :: fprefix(:)  ! file prefix
-   character(len=256), allocatable :: vname(:)    ! variable name
-   character(len=256), allocatable :: timelog(:)  ! variable time log info
-   character(len=256), allocatable :: tintalgo(:) ! interpolation algorithm
+   character(len=256), allocatable :: fprefix(:)   ! file prefix
+   character(len=256), allocatable :: vname(:)     ! variable name
+   character(len=256), allocatable :: timelog(:)   ! variable time log info
+   character(len=256), allocatable :: tintalgo(:)  ! interpolation algorithm
 
    ! ----- public subroutines -----
    PUBLIC :: init_user_specified_forcing ! initialization of the selected forcing dataset
@@ -112,7 +110,6 @@ CONTAINS
       allocate (tintalgo (NVAR))
 
       solarin_all_band = DEF_forcing%solarin_all_band ! whether solar radiation in all bands is available
-      HEIGHT_mode      = DEF_forcing%HEIGHT_mode      ! observation height mode
       HEIGHT_V         = DEF_forcing%HEIGHT_V         ! observation height of wind speed
       HEIGHT_T         = DEF_forcing%HEIGHT_T         ! observation height of air temperature
       HEIGHT_Q         = DEF_forcing%HEIGHT_Q         ! observation height of specific humidity
@@ -135,17 +132,17 @@ CONTAINS
       groupby          = DEF_forcing%groupby          ! file grouped by year/month
 
       DO ivar = 1, NVAR_default
-         fprefix (ivar) = DEF_forcing%fprefix(ivar)   ! file prefix
-         vname   (ivar) = DEF_forcing%vname(ivar)     ! variable name
+         fprefix (ivar) = DEF_forcing%fprefix(ivar)  ! file prefix
+         vname   (ivar) = DEF_forcing%vname(ivar)    ! variable name
          timelog (ivar) = DEF_forcing%timelog(ivar)   ! variable name
-         tintalgo(ivar) = DEF_forcing%tintalgo(ivar)  ! interpolation algorithm
-      ENDDO
+         tintalgo(ivar) = DEF_forcing%tintalgo(ivar) ! interpolation algorithm
+      END DO
       IF (DEF_USE_CBL_HEIGHT) THEN
          fprefix (NVAR) = DEF_forcing%CBL_fprefix
          vname   (NVAR) = DEF_forcing%CBL_vname
          tintalgo(NVAR) = DEF_forcing%CBL_tintalgo
-         dtime   (NVAR) = DEF_forcing%CBL_dtime
-         offset  (NVAR) = DEF_forcing%CBL_offset
+         dtime(NVAR)    = DEF_forcing%CBL_dtime
+         offset(NVAR)   = DEF_forcing%CBL_offset
       ENDIF
    END SUBROUTINE init_user_specified_forcing
 
@@ -384,7 +381,11 @@ CONTAINS
       !----------------
          !---2021.11.01   Zhongwang Wei @ SYSU: zip file to reduce the size of the data; remove offset and scale_factor
 
-         metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//trim(monthstr)//'_v2.1.nc'
+         metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//trim(monthstr)//'_v2.0.nc'
+      CASE ('ISIMIP')
+      !DESCRIPTION
+      !===========
+         metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//trim(monthstr)//'.nc'
       CASE ('CRUJRA')
       !DESCRIPTION
       !===========
@@ -430,6 +431,10 @@ CONTAINS
          !---2021.11.01   Zhongwang Wei @ SYSU: zip file to reduce the size of the data; remove offset and scale_factor
 
          metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//'-'//trim(monthstr)//'.nc'
+      
+      CASE ('WFDEIGPCC')
+         metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//trim(monthstr)//'.nc'
+      
       CASE ('JRA3Q')
       !DESCRIPTION
       !===========
@@ -442,7 +447,7 @@ CONTAINS
       !References:
       !-------------------
          !---Kosaka Y., S. Kobayashi, Y. Harada, C. Kobayashi, H. Naoe, K. Yoshimoto, M. Harada, N. Goto, J. Chiba, K. Miyaoka, R. Sekiguchi,
-         !   M. Deushi, H. Kamahori, T. Nakaegawa; T. Y.Tanaka, T. Tokuhiro, Y. Sato, Y. Matsushita, and K. Onogi, 2024:
+         !   M. Deushi, H. Kamahori, T. Nakaegawa; T. Y.Tanaka, T. Tokuhiro, Y. Sato, Y. Matsushita, and K. Onogi, 2024: 
          !   The JRA-3Q reanalysis. J. Meteor. Soc. Japan, 102, https://doi.org/10.2151/jmsj.2024-004.
 
 
@@ -455,11 +460,11 @@ CONTAINS
          !DESCRIPTION
          !===========
             !---the Japanese 55-year Reanalysis
-
+   
          !data source:
          !-------------------
             !---https://jra.kishou.go.jp/JRA-55/index_en.html
-
+   
          !References:
          !-------------------
             !---Kobayashi, S., Y. Ota, Y. Harada, A. Ebita, M. Moriya, H. Onoda, K. Onogi,
@@ -470,12 +475,12 @@ CONTAINS
             !   K. Onogi, K. Miyaoka, and K. Takahashi, 2016: The JRA-55 Reanalysis:
             !   Representation of atmospheric circulation and climate variability, J. Meteor. Soc. Japan,
             !   94, 269-302, doi:10.2151/jmsj.2016-015.
-
+   
          !REVISION HISTORY
          !----------------
             !---2021.11.01   Zhongwang Wei @ SYSU: zip file to reduce the size of the data; remove offset and scale_factor
-
-
+   
+   
 
          metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//trim(monthstr)//'.nc'
 
@@ -566,30 +571,6 @@ CONTAINS
 
 
          metfilename = '/'//trim(fprefix(var_i))//'_'//trim(yearstr)//'.nc'
-
-      CASE ('CRA40')
-         !DESCRIPTION
-         !===========
-            !---CMA’s first-generation global atmospheric reanalysis (RA) covering 1979–2018 (CRA-40)
-
-         !data source:
-         !-------------------
-            !---https://data.cma.cn/en
-
-         !References:
-         !-------------------
-            !---Liu, Z., Jiang, L., Shi, C. et al. CRA-40/Atmosphere—The First-Generation Chinese Atmospheric Reanalysis (1979–2018):
-            !   System Description and Performance Evaluation. J Meteorol Res 37, 1–19 (2023). https://doi.org/10.1007/s13351-023-2086-x
-
-
-
-            !REVISION HISTORY
-         !----------------
-            !---2024.04.10   Zhongwang Wei @ SYSU: regroup the data into annual file;
-            !   zip file to reduce the size of the data; remove offset and scale_factor
-
-
-            metfilename = '/'//trim(fprefix(var_i))//'_'//trim(yearstr)//'.nc'
       CASE ('TPMFD')
       !DESCRIPTION
       !===========
@@ -609,7 +590,7 @@ CONTAINS
 
       !REVISION HISTORY
       !----------------
-         !---2023.11.01   Zhongwang Wei @ SYSU: regroup the data into monthly file;
+         !---2021.11.01   Zhongwang Wei @ SYSU: regroup the data into monthly file;
          !   zip file to reduce the size of the data; remove offset and scale_factor
 
          metfilename = '/'//trim(fprefix(var_i))//trim(yearstr)//trim(monthstr)//'.nc'
@@ -777,7 +758,23 @@ CONTAINS
                         forcn(2)%blk(ib,jb)%val(i,j) = qsat_tmp
                      ENDIF
 
+                  CASE ('ISIMIP')
+
+                     CALL qsadv (forcn(1)%blk(ib,jb)%val(i,j), forcn(3)%blk(ib,jb)%val(i,j), &
+                        es,esdT,qsat_tmp,dqsat_tmpdT)
+                     IF (qsat_tmp < forcn(2)%blk(ib,jb)%val(i,j)) THEN
+                        forcn(2)%blk(ib,jb)%val(i,j) = qsat_tmp
+                     ENDIF
+                     
                   CASE ('WFDEI')
+
+                     CALL qsadv (forcn(1)%blk(ib,jb)%val(i,j), forcn(3)%blk(ib,jb)%val(i,j), &
+                        es,esdT,qsat_tmp,dqsat_tmpdT)
+                     IF (qsat_tmp < forcn(2)%blk(ib,jb)%val(i,j)) THEN
+                        forcn(2)%blk(ib,jb)%val(i,j) = qsat_tmp
+                     ENDIF
+
+                  CASE ('WFDEIGPCC')
 
                      CALL qsadv (forcn(1)%blk(ib,jb)%val(i,j), forcn(3)%blk(ib,jb)%val(i,j), &
                         es,esdT,qsat_tmp,dqsat_tmpdT)
@@ -822,7 +819,7 @@ CONTAINS
 
                   CASE ('JRA55') ! JRA55 forcing
 
-                     forcn(4)%blk(ib,jb)%val(i,j)=forcn(4)%blk(ib,jb)%val(i,j)/86400.0 !mm/s
+                     forcn(4)%blk(ib,jb)%val(i,j)=forcn(4)%blk(ib,jb)%val(i,j)/86400.0
                      CALL qsadv (forcn(1)%blk(ib,jb)%val(i,j), forcn(3)%blk(ib,jb)%val(i,j), &
                         es,esdT,qsat_tmp,dqsat_tmpdT)
                      IF (qsat_tmp < forcn(2)%blk(ib,jb)%val(i,j)) THEN
@@ -860,12 +857,12 @@ CONTAINS
                      IF (forcn(4)%blk(ib,jb)%val(i,j) < 0.0)   forcn(4)%blk(ib,jb)%val(i,j) = 0.0
                   END select
 
-               ENDDO
-            ENDDO
-         ENDDO
-      ENDIF
+               END DO
+            END DO
+         END DO
+      END IF
 
    END SUBROUTINE metpreprocess
 
 END MODULE MOD_UserSpecifiedForcing
-! ---------- EOP ------------
+! ----------- EOP ---------------

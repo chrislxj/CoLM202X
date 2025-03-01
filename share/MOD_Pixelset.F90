@@ -3,10 +3,10 @@
 MODULE MOD_Pixelset
 
 !------------------------------------------------------------------------------------
-! !DESCRIPTION:
+! DESCRIPTION:
 !
 !    Pixelset refers to a set of pixels in CoLM.
-!
+! 
 !    In CoLM, the global/regional area is divided into a hierarchical structure:
 !    1. If GRIDBASED or UNSTRUCTURED is defined, it is
 !       ELEMENT >>> PATCH
@@ -15,15 +15,15 @@ MODULE MOD_Pixelset
 !    If Plant FUNCTION Type classification is used, PATCH is further divided into PFT.
 !    If Plant Community classification is used,     PATCH is further divided into PC.
 !
-!    In CoLM, the land surface is first divided into pixels, which are rasterized
-!    points defined by fine-resolution data. Then ELEMENT, PATCH, HRU, PFT, PC
+!    In CoLM, the land surface is first divided into pixels, which are rasterized 
+!    points defined by fine-resolution data. Then ELEMENT, PATCH, HRU, PFT, PC 
 !    are all consists of pixels, and hence they are all pixelsets.
-!
-!    The highest level pixelset in CoLM is ELEMENT, all other pixelsets are subsets
-!    of ELEMENTs.
+! 
+!    The highest level pixelset in CoLM is ELEMENT, all other pixelsets are subsets 
+!    of ELEMENTs. 
 !    In a pixelset, pixels are sorted to make pixels in its subsets consecutive.
 !    Thus a subset can be represented by starting pixel index and ending pixel index
-!    in an ELEMENT.
+!    in an ELEMENT. 
 !
 !                Example of hierarchical pixelsets
 !        ************************************************ <-- pixels in an ELEMENT
@@ -38,7 +38,7 @@ MODULE MOD_Pixelset
 !    To read,  vector is first loaded from files by IO and then scattered from IO to worker.
 !    To write, vector is first gathered from worker to IO and then saved to files by IO.
 !
-!  Created by Shupeng Zhang, May 2023
+! Created by Shupeng Zhang, May 2023
 !------------------------------------------------------------------------------------
 
    USE MOD_Precision
@@ -69,29 +69,25 @@ MODULE MOD_Pixelset
 
       integer :: nset
 
-      integer*8, allocatable :: eindex(:)  ! global index of element to which pixelset belongs
+      integer*8, allocatable :: eindex(:)
 
-      integer, allocatable :: ipxstt(:)    ! start local index of pixel in the element
-      integer, allocatable :: ipxend(:)    ! end   local index of pixel in the element
-      integer, allocatable :: settyp(:)    ! type of pixelset
+      integer, allocatable :: ipxstt(:)
+      integer, allocatable :: ipxend(:)
+      integer, allocatable :: settyp(:)
 
-      integer, allocatable :: ielm(:)      ! local index of element to which pixelset belongs
+      integer, allocatable :: ielm(:)
 
-      integer :: nblkgrp                   ! number of blocks for this process's working group
-      integer, allocatable :: xblkgrp (:)  ! block index in longitude for this process's group
-      integer, allocatable :: yblkgrp (:)  ! block index in latitude  for this process's group
+      integer :: nblkgrp
+      integer, allocatable :: xblkgrp (:)
+      integer, allocatable :: yblkgrp (:)
 
-      integer :: nblkall                   ! only for IO: number of blocks with nonzero pixelsets
-      integer, allocatable :: xblkall (:)  ! only for IO: block index in longitude
-      integer, allocatable :: yblkall (:)  ! only for IO: block index in latitude
+      integer :: nblkall
+      integer, allocatable :: xblkall (:)
+      integer, allocatable :: yblkall (:)
 
-      type(vec_gather_scatter_type) :: vecgs ! for vector gathering and scattering
+      type(vec_gather_scatter_type) :: vecgs
 
       integer, allocatable :: vlenall(:,:)
-
-      logical :: has_shared = .false.
-
-      real(r8), allocatable :: pctshared (:)
 
    CONTAINS
       procedure, PUBLIC :: set_vecgs         => vec_gather_scatter_set
@@ -177,7 +173,7 @@ CONTAINS
    FUNCTION get_pixelset_rlat (npxl, ilat, area) result(rlat)
 
    USE MOD_Precision
-   USE MOD_Vars_Global, only: pi
+   USE MOD_Vars_Global, only : pi
    USE MOD_Pixel
    IMPLICIT NONE
 
@@ -203,7 +199,7 @@ CONTAINS
 
    USE MOD_Precision
    USE MOD_Utils
-   USE MOD_Vars_Global, only: pi
+   USE MOD_Vars_Global, only : pi
    USE MOD_Pixel
    IMPLICIT NONE
 
@@ -269,8 +265,6 @@ CONTAINS
 
       IF (allocated(this%vlenall)) deallocate(this%vlenall)
 
-      IF (allocated(this%pctshared)) deallocate(this%pctshared)
-
    END SUBROUTINE pixelset_free_mem
 
    ! --------------------------------
@@ -289,13 +283,11 @@ CONTAINS
 
       IF (allocated(this%xblkgrp)) deallocate(this%xblkgrp)
       IF (allocated(this%yblkgrp)) deallocate(this%yblkgrp)
-
+      
       IF (allocated(this%xblkall)) deallocate(this%xblkall)
       IF (allocated(this%yblkall)) deallocate(this%yblkall)
-
+      
       IF (allocated(this%vlenall)) deallocate(this%vlenall)
-
-      IF (allocated(this%pctshared)) deallocate(this%pctshared)
 
    END SUBROUTINE pixelset_forc_free_mem
 
@@ -317,17 +309,12 @@ CONTAINS
       pixel_to%nblkgrp = pixel_from%nblkgrp
       pixel_to%xblkgrp = pixel_from%xblkgrp
       pixel_to%yblkgrp = pixel_from%yblkgrp
+      
+      pixel_to%nblkall = pixel_from%nblkall
+      pixel_to%xblkall = pixel_from%xblkall
+      pixel_to%yblkall = pixel_from%yblkall
 
-      ! These arrays will be assigned in the set_vecgs
-      ! pixel_to%nblkall = pixel_from%nblkall
-      ! pixel_to%xblkall = pixel_from%xblkall
-      ! pixel_to%yblkall = pixel_from%yblkall
-
-      ! pixel_to%vlenall = pixel_from%vlenall
-
-      IF (pixel_from%has_shared) THEN
-         pixel_to%pctshared = pixel_from%pctshared
-      ENDIF
+      pixel_to%vlenall = pixel_from%vlenall
 
    END SUBROUTINE
 
@@ -461,7 +448,7 @@ CONTAINS
       ENDIF
 
       IF (p_is_io) THEN
-
+      
          IF (.not. allocated(this%vlenall)) THEN
             allocate (this%vlenall(gblock%nxblk,gblock%nyblk))
          ENDIF
@@ -505,43 +492,34 @@ CONTAINS
    logical, intent(in)  :: mask(:)
    integer, intent(out) :: nset_packed
 
-   integer*8, allocatable :: eindex_(:)
-   integer,   allocatable :: ipxstt_(:)
-   integer,   allocatable :: ipxend_(:)
-   integer,   allocatable :: settyp_(:)
-   integer,   allocatable :: ielm_  (:)
-
-   real(r8),  allocatable :: pctshared_(:)
-   integer :: s, e
+   integer*8, allocatable :: eindex1(:)
+   integer,   allocatable :: ipxstt1(:)
+   integer,   allocatable :: ipxend1(:)
+   integer,   allocatable :: settyp1(:)
+   integer,   allocatable :: ielm1  (:)
 
       IF (p_is_worker) THEN
 
          IF (this%nset > 0) THEN
             IF (count(mask) < this%nset) THEN
 
-               allocate (eindex_(this%nset))
-               allocate (ipxstt_(this%nset))
-               allocate (ipxend_(this%nset))
-               allocate (settyp_(this%nset))
-               allocate (ielm_  (this%nset))
+               allocate (eindex1(this%nset))
+               allocate (ipxstt1(this%nset))
+               allocate (ipxend1(this%nset))
+               allocate (settyp1(this%nset))
+               allocate (ielm1  (this%nset))
 
-               eindex_ = this%eindex
-               ipxstt_ = this%ipxstt
-               ipxend_ = this%ipxend
-               settyp_ = this%settyp
-               ielm_   = this%ielm
+               eindex1 = this%eindex
+               ipxstt1 = this%ipxstt
+               ipxend1 = this%ipxend
+               settyp1 = this%settyp
+               ielm1   = this%ielm
 
                deallocate (this%eindex)
                deallocate (this%ipxstt)
                deallocate (this%ipxend)
                deallocate (this%settyp)
                deallocate (this%ielm  )
-
-               IF (this%has_shared) THEN
-                  allocate   (pctshared_(this%nset))
-                  pctshared_ = this%pctshared
-                  deallocate (this%pctshared)
-               ENDIF
 
                this%nset = count(mask)
 
@@ -553,48 +531,19 @@ CONTAINS
                   allocate (this%settyp(this%nset))
                   allocate (this%ielm  (this%nset))
 
-                  this%eindex = pack(eindex_, mask)
-                  this%ipxstt = pack(ipxstt_, mask)
-                  this%ipxend = pack(ipxend_, mask)
-                  this%settyp = pack(settyp_, mask)
-                  this%ielm   = pack(ielm_  , mask)
-
-                  IF (this%has_shared) THEN
-
-                     this%pctshared = pack(pctshared_, mask)
-
-                     s = 1
-                     DO WHILE (s < this%nset)
-                        e = s
-                        DO WHILE (e < this%nset)
-                           IF ((this%ielm(e+1) == this%ielm(s)) &
-                              .and. (this%ipxstt(e+1) == this%ipxstt(s))) THEN
-                              e = e + 1
-                           ELSE
-                              EXIT
-                           ENDIF
-                        ENDDO
-
-                        IF (e > s) THEN
-                           this%pctshared(s:e) = this%pctshared(s:e)/sum(this%pctshared(s:e))
-                        ENDIF
-
-                        s = e + 1
-                     ENDDO
-
-                  ENDIF
+                  this%eindex = pack(eindex1, mask)
+                  this%ipxstt = pack(ipxstt1, mask)
+                  this%ipxend = pack(ipxend1, mask)
+                  this%settyp = pack(settyp1, mask)
+                  this%ielm   = pack(ielm1  , mask)
 
                ENDIF
 
-               deallocate (eindex_)
-               deallocate (ipxstt_)
-               deallocate (ipxend_)
-               deallocate (settyp_)
-               deallocate (ielm_  )
-
-               IF (this%has_shared) THEN
-                  deallocate (pctshared_)
-               ENDIF
+               deallocate (eindex1)
+               deallocate (ipxstt1)
+               deallocate (ipxend1)
+               deallocate (settyp1)
+               deallocate (ielm1  )
 
             ENDIF
          ENDIF
@@ -622,7 +571,7 @@ CONTAINS
    END SUBROUTINE vec_gather_scatter_free_mem
 
    ! --------------------------------
-   SUBROUTINE subset_build (this, superset, subset, use_frac)
+   SUBROUTINE subset_build (this, superset, subset, use_frac, sharedfrac)
 
    USE MOD_Mesh
    USE MOD_Pixel
@@ -634,15 +583,12 @@ CONTAINS
    type (pixelset_type), intent(in) :: superset
    type (pixelset_type), intent(in) :: subset
    logical, intent(in) :: use_frac
+   real(r8), intent(in), optional :: sharedfrac (:)
 
    ! Local Variables
    integer :: isuperset, isubset, ielm, ipxl, istt, iend
 
       IF (superset%nset <= 0) RETURN
-
-      IF (superset%has_shared) THEN
-         write(*,*) 'Warning: superset has shared area.'
-      ENDIF
 
       IF (allocated(this%substt)) deallocate(this%substt)
       IF (allocated(this%subend)) deallocate(this%subend)
@@ -691,8 +637,8 @@ CONTAINS
                   pixel%lon_w(mesh(ielm)%ilon(ipxl)), &
                   pixel%lon_e(mesh(ielm)%ilon(ipxl)) )
             ENDDO
-            IF (subset%has_shared) THEN
-               this%subfrc(isubset) = this%subfrc(isubset) * subset%pctshared(isubset)
+            IF (present(sharedfrac)) THEN
+               this%subfrc(isubset) = this%subfrc(isubset) * sharedfrac(isubset)
             ENDIF
          ENDDO
 

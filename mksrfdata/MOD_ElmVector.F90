@@ -1,39 +1,38 @@
 #include <define.h>
 
-#if (defined UNSTRUCTURED || defined CATCHMENT)
+#if (defined UNSTRUCTURED || defined CATCHMENT) 
 MODULE MOD_ElmVector
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!
+!------------------------------------------------------------------------------------
+! DESCRIPTION:
+!    
 !    Address of Data associated with land element.
 !
-!    To output a vector, Data is gathered from worker processes directly to
-!    master.  "elm_data_address" stores information on how to reorganize data
-!    gathered.  The output data in vector is sorted by global element index.
+!    To output a vector, Data is gathered from worker processes directly to master.
+!    "elm_data_address" stores information on how to reorganize data gathered.
+!    The output data in vector is sorted by global element index.
 !
-!  Created by Shupeng Zhang, May 2023
-!-----------------------------------------------------------------------
+! Created by Shupeng Zhang, May 2023
+!------------------------------------------------------------------------------------
 
    USE MOD_Precision
    USE MOD_DataType
    IMPLICIT NONE
-
+   
    integer :: totalnumelm
    type(pointer_int32_1d), allocatable :: elm_data_address (:)
 
    integer*8, allocatable :: eindex_glb (:)
-
+   
 CONTAINS
-
+   
    ! --------
-   SUBROUTINE elm_vector_init
+   SUBROUTINE elm_vector_init 
 
    USE MOD_SPMD_Task
    USE MOD_Utils
    USE MOD_Pixelset
    USE MOD_Utils
-   USE MOD_UserDefFun
    USE MOD_Mesh
    USE MOD_LandElm
    USE MOD_LandPatch
@@ -48,39 +47,43 @@ CONTAINS
 
    integer :: i, idsp
    integer, allocatable :: vec_worker_dsp (:)
-
+   
    integer*8, allocatable :: indexelm (:)
    integer,   allocatable :: order    (:)
-
+      
       IF (p_is_worker) THEN
+#if (defined CROP) 
+         CALL elm_patch%build (landelm, landpatch, use_frac = .true., sharedfrac = pctshrpch)
+#else
          CALL elm_patch%build (landelm, landpatch, use_frac = .true.)
+#endif
       ENDIF
 
       IF (p_is_worker) THEN
 #ifdef USEMPI
          IF (numelm > 0) THEN
             allocate (indexelm (numelm))
-            indexelm = landelm%eindex
+            indexelm = landelm%eindex 
          ENDIF
-
-         IF (p_iam_worker == p_root) allocate (numelm_worker (0:p_np_worker-1))
+         
+         IF (p_iam_worker == 0) allocate (numelm_worker (0:p_np_worker-1))
          CALL mpi_gather (numelm, 1, MPI_INTEGER, &
             numelm_worker, 1, MPI_INTEGER, p_root, p_comm_worker, p_err)
 
-         IF (p_iam_worker == p_root) THEN
+         IF (p_iam_worker == 0) THEN
             CALL mpi_send (numelm_worker, p_np_worker, MPI_INTEGER, &
-               p_address_master, mpi_tag_size, p_comm_glb, p_err)
+               p_root, mpi_tag_size, p_comm_glb, p_err) 
          ENDIF
 
          mesg = (/p_iam_glb, numelm/)
-         CALL mpi_send (mesg, 2, MPI_INTEGER, p_address_master, mpi_tag_mesg, p_comm_glb, p_err)
+         CALL mpi_send (mesg, 2, MPI_INTEGER, p_root, mpi_tag_mesg, p_comm_glb, p_err) 
          IF (numelm > 0) THEN
-            CALL mpi_send (indexelm, numelm, MPI_INTEGER8, p_address_master, mpi_tag_data, p_comm_glb, p_err)
+            CALL mpi_send (indexelm, numelm, MPI_INTEGER8, p_root, mpi_tag_data, p_comm_glb, p_err) 
          ENDIF
 #else
          IF (numelm > 0) THEN
             allocate (eindex_glb (numelm))
-            eindex_glb = landelm%eindex
+            eindex_glb = landelm%eindex 
          ENDIF
 #endif
       ENDIF
@@ -88,7 +91,7 @@ CONTAINS
       IF (p_is_master) THEN
 #ifdef USEMPI
          allocate (numelm_worker (0:p_np_worker-1))
-         CALL mpi_recv (numelm_worker, p_np_worker, MPI_INTEGER, p_address_worker(p_root), &
+         CALL mpi_recv (numelm_worker, p_np_worker, MPI_INTEGER, p_address_worker(0), &
             mpi_tag_size, p_comm_glb, p_stat, p_err)
 
          allocate (vec_worker_dsp (0:p_np_worker-1))
@@ -98,7 +101,7 @@ CONTAINS
          ENDDO
 
          totalnumelm = sum(numelm_worker)
-
+         
          allocate (eindex_glb (totalnumelm))
 
          allocate (elm_data_address(0:p_np_worker-1))
@@ -107,7 +110,7 @@ CONTAINS
                allocate (elm_data_address(iwork)%val (numelm_worker(iwork)))
             ENDIF
          ENDDO
-
+         
          DO iwork = 0, p_np_worker-1
             CALL mpi_recv (mesg, 2, MPI_INTEGER, MPI_ANY_SOURCE, &
                mpi_tag_mesg, p_comm_glb, p_stat, p_err)
@@ -125,10 +128,10 @@ CONTAINS
          allocate (elm_data_address(0:0))
          allocate (elm_data_address(0)%val (totalnumelm))
 #endif
-      ENDIF
-
+      ENDIF 
+      
 #ifdef USEMPI
-      CALL mpi_bcast (totalnumelm, 1, MPI_INTEGER, p_address_master, p_comm_glb, p_err)
+      CALL mpi_bcast (totalnumelm, 1, MPI_INTEGER, p_root, p_comm_glb, p_err)
 #endif
 
       IF (p_is_master) THEN
@@ -139,7 +142,7 @@ CONTAINS
 
 #ifdef USEMPI
          DO i = 1, totalnumelm
-            iwork = findloc_ud(order(i) > vec_worker_dsp, back=.true.) - 1
+            iwork = findloc(order(i) > vec_worker_dsp, .true., dim=1, back=.true.) - 1
             elm_data_address(iwork)%val(order(i)-vec_worker_dsp(iwork)) = i
          ENDDO
 #else
@@ -152,7 +155,7 @@ CONTAINS
       IF (allocated(indexelm))       deallocate(indexelm)
       IF (allocated(order))          deallocate(order)
 
-   END SUBROUTINE elm_vector_init
+   END SUBROUTINE elm_vector_init 
 
    ! ----------
    SUBROUTINE elm_vector_final ()
@@ -161,7 +164,7 @@ CONTAINS
 
       IF (allocated(elm_data_address)) deallocate (elm_data_address)
       IF (allocated(eindex_glb))       deallocate (eindex_glb)
-
+      
    END SUBROUTINE elm_vector_final
 
 END MODULE MOD_ElmVector

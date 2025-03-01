@@ -19,7 +19,7 @@ CONTAINS
 !-----------------------------------------------------------------------
 
 
-   SUBROUTINE meltf (patchtype,is_dry_lake,lb,nl_soil,deltim, &
+   SUBROUTINE meltf (patchtype,lb,nl_soil,deltim, &
                      fact,brr,hs,hs_soil,hs_snow,fsno,dhsdT, &
                      t_soisno_bef,t_soisno,wliq_soisno,wice_soisno,imelt, &
                      scv,snowdp,sm,xmf,porsl,psi0,&
@@ -33,52 +33,49 @@ CONTAINS
                      dz)
 
 !-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  calculation of the phase change within snow and soil layers:
-!  (1) check the conditions which the phase change may take place,
-!      i.e., the layer temperature is great than the freezing point
-!      and the ice mass is not equal to zero (i.e., melting),
-!      or layer temperature is less than the freezing point
-!      and the liquid water mass is not equal to zero (i.e., freezing);
-!  (2) assess the rate of phase change from the energy excess (or deficit)
-!      after setting the layer temperature to freezing point;
-!  (3) re-adjust the ice and liquid mass, and the layer temperature
+! DESCRIPTION:
+! calculation of the phase change within snow and soil layers:
+! (1) check the conditions which the phase change may take place,
+!     i.e., the layer temperature is great than the freezing point
+!     and the ice mass is not equal to zero (i.e., melting),
+!     or layer temperature is less than the freezing point
+!     and the liquid water mass is not equal to zero (i.e., freezing);
+! (2) assess the rate of phase change from the energy excess (or deficit)
+!     after setting the layer temperature to freezing point;
+! (3) re-adjust the ice and liquid mass, and the layer temperature
 !
-!  Original author: Yongjiu Dai, /09/1999/, /03/2014/
+! Original author : Yongjiu Dai, /09/1999/, /03/2014/
 !
-! !REVISIONS:
-!  08/2020, Hua Yuan: separate soil/snow heat flux, exclude glacier (3)
-!  04/2023, Nan Wei: supercooled soil water is included IF supercool is defined.
-!
+! Revisions:
+! Nan Wei, 04/2023: supercooled soil water is included IF supercool is defined.
 !-----------------------------------------------------------------------
 
    USE MOD_Precision
    USE MOD_SPMD_Task
    USE MOD_Hydro_SoilFunction
-   USE MOD_Const_Physical, only: tfrz, hfus, grav
+   USE MOD_Const_Physical, only : tfrz, hfus,grav
    USE MOD_Namelist
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
+!-----------------------------------------------------------------------
 
-    integer, intent(in) :: patchtype                   !land patch type (0=soil,1=urban or built-up,2=wetland,
-                                                       !3=land ice, 4=deep lake, 5=shallow lake)
-    logical, intent(in) :: is_dry_lake
-    integer, intent(in) :: nl_soil                     !upper bound of array (i.e., soil layers)
-    integer, intent(in) :: lb                          !lower bound of array (i.e., snl +1)
-   real(r8), intent(in) :: deltim                      !time step [second]
-   real(r8), intent(in) :: t_soisno_bef(lb:nl_soil)    !temperature at previous time step [K]
-   real(r8), intent(in) :: brr (lb:nl_soil)            !
-   real(r8), intent(in) :: fact(lb:nl_soil)            !temporary variables
-   real(r8), intent(in) :: hs                          !net ground heat flux into the surface
-   real(r8), intent(in) :: hs_soil                     !net ground heat flux into the surface soil
-   real(r8), intent(in) :: hs_snow                     !net ground heat flux into the surface snow
-   real(r8), intent(in) :: fsno                        !snow fractional cover
-   real(r8), intent(in) :: dhsdT                       !temperature derivative of "hs"
-   real(r8), intent(in) :: porsl(1:nl_soil)            !soil porosity [-]
-   real(r8), intent(in) :: psi0 (1:nl_soil)            !soil water suction, negative potential [mm]
+    integer, intent(in) :: patchtype    !land patch type (0=soil,1=urban or built-up,2=wetland,
+                                        !3=land ice, 4=deep lake, 5=shallow lake)
+    integer, intent(in) :: nl_soil             ! upper bound of array (i.e., soil layers)
+    integer, intent(in) :: lb                  ! lower bound of array (i.e., snl +1)
+   real(r8), intent(in) :: deltim              ! time step [second]
+   real(r8), intent(in) :: t_soisno_bef(lb:nl_soil)  ! temperature at previous time step [K]
+   real(r8), intent(in) :: brr (lb:nl_soil)    !
+   real(r8), intent(in) :: fact(lb:nl_soil)    ! temporary variables
+   real(r8), intent(in) :: hs                  ! net ground heat flux into the surface
+   real(r8), intent(in) :: hs_soil             ! net ground heat flux into the surface soil
+   real(r8), intent(in) :: hs_snow             ! net ground heat flux into the surface snow
+   real(r8), intent(in) :: fsno                ! snow fractional cover
+   real(r8), intent(in) :: dhsdT               ! temperature derivative of "hs"
+   real(r8), intent(in) :: porsl(1:nl_soil)    ! soil porosity [-]
+   real(r8), intent(in) :: psi0 (1:nl_soil)    ! soil water suction, negative potential [mm]
 #ifdef Campbell_SOIL_MODEL
-   real(r8), intent(in) :: bsw(1:nl_soil)              !clapp and hornberger "b" parameter [-]
+   real(r8), intent(in) :: bsw(1:nl_soil)      ! clapp and hornbereger "b" parameter [-]
 #endif
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
    real(r8), intent(in) :: theta_r  (1:nl_soil), &
@@ -88,26 +85,26 @@ CONTAINS
                            sc_vgm   (1:nl_soil), &
                            fc_vgm   (1:nl_soil)
 #endif
-   real(r8), intent(in) :: dz(1:nl_soil)               !soil layer thickness [m]
+   real(r8), intent(in) :: dz(1:nl_soil)      ! soil layer thickiness [m]
 
-   real(r8), intent(inout) :: t_soisno   (lb:nl_soil)  !temperature at current time step [K]
-   real(r8), intent(inout) :: wice_soisno(lb:nl_soil)  !ice lens [kg/m2]
-   real(r8), intent(inout) :: wliq_soisno(lb:nl_soil)  !liquid water [kg/m2]
-   real(r8), intent(inout) :: scv                      !snow mass [kg/m2]
-   real(r8), intent(inout) :: snowdp                   !snow depth [m]
+   real(r8), intent(inout) :: t_soisno (lb:nl_soil) ! temperature at current time step [K]
+   real(r8), intent(inout) :: wice_soisno(lb:nl_soil) ! ice lens [kg/m2]
+   real(r8), intent(inout) :: wliq_soisno(lb:nl_soil) ! liquid water [kg/m2]
+   real(r8), intent(inout) :: scv              ! snow mass [kg/m2]
+   real(r8), intent(inout) :: snowdp           ! snow depth [m]
 
-   real(r8), intent(out) :: sm                         !rate of snowmelt [mm/s, kg/(m2 s)]
-   real(r8), intent(out) :: xmf                        !total latent heat of phase change
-    integer, intent(out) :: imelt(lb:nl_soil)          !flag for melting or freezing [-]
+   real(r8), intent(out) :: sm                 ! rate of snowmelt [mm/s, kg/(m2 s)]
+   real(r8), intent(out) :: xmf                ! total latent heat of phase change
+    integer, intent(out) :: imelt(lb:nl_soil)  ! flag for melting or freezing [-]
 
-!-------------------------- Local Variables ----------------------------
-   real(r8) :: hm(lb:nl_soil)                          !energy residual [W/m2]
-   real(r8) :: xm(lb:nl_soil)                          !melting or freezing within a time step [kg/m2]
-   real(r8) :: heatr                                   !energy residual or loss after melting or freezing
-   real(r8) :: temp1                                   !temporary variables [kg/m2]
-   real(r8) :: temp2                                   !temporary variables [kg/m2]
+! Local
+   real(r8) :: hm(lb:nl_soil)                  ! energy residual [W/m2]
+   real(r8) :: xm(lb:nl_soil)                  ! metling or freezing within a time step [kg/m2]
+   real(r8) :: heatr                           ! energy residual or loss after melting or freezing
+   real(r8) :: temp1                           ! temporary variables [kg/m2]
+   real(r8) :: temp2                           ! temporary variables [kg/m2]
    real(r8) :: smp
-   real(r8) :: supercool(1:nl_soil)                    !the maximum liquid water when the soil temperature is below the freezing point [mm3/mm3]
+   real(r8) :: supercool(1:nl_soil)            ! the maximum liquid water when the soil temperature is below the freezing point [mm3/mm3]
    real(r8), dimension(lb:nl_soil) :: wmass0, wice0, wliq0
    real(r8) :: propor, tinc, we, scvold
    integer j
@@ -132,7 +129,7 @@ CONTAINS
       IF (DEF_USE_SUPERCOOL_WATER) THEN
          DO j = 1, nl_soil
             supercool(j) = 0.0
-            IF(t_soisno(j) < tfrz .and. ((patchtype <=2) .or. is_dry_lake)) THEN
+            IF(t_soisno(j) < tfrz .and. patchtype <=2 ) THEN
                smp = hfus * (t_soisno(j)-tfrz)/(grav*t_soisno(j)) * 1000.     ! mm
                IF (porsl(j) > 0.) THEN
 #ifdef Campbell_SOIL_MODEL
@@ -193,9 +190,9 @@ CONTAINS
             tinc = t_soisno(j)-t_soisno_bef(j)
 
             IF(j > lb)THEN             ! => not the top layer
-               IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. ((patchtype<3) .or. is_dry_lake)) THEN
+               IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. patchtype<3) THEN
                                        ! -> interface soil layer
-                  ! 03/08/2020, yuan: separate soil/snow heat flux, exclude glacier(3)
+                  ! 03/08/2020, yuan: seperate soil/snow heat flux, exclude glacier(3)
                   hm(j) = hs_soil + (1.-fsno)*dhsdT*tinc + brr(j) - tinc/fact(j)
                ELSE                    ! -> internal layers other than the interface soil layer
                   hm(j) = brr(j) - tinc/fact(j)
@@ -205,7 +202,7 @@ CONTAINS
                                        ! -> soil layer
                   hm(j) = hs + dhsdT*tinc + brr(j) - tinc/fact(j)
                ELSE                    ! -> snow cover
-                  ! 03/08/2020, yuan: separate soil/snow heat flux, exclude glacier(3)
+                  ! 03/08/2020, yuan: seperate soil/snow heat flux, exclude glacier(3)
                   hm(j) = hs_snow + fsno*dhsdT*tinc + brr(j) - tinc/fact(j)
                ENDIF
             ENDIF
@@ -218,7 +215,7 @@ CONTAINS
            hm(j) = 0.
            imelt(j) = 0
          ENDIF
-! this error was checked carefully, it results from the computed error
+! this error was checked carefully, it results from the the computed error
 ! of "Tridiagonal-Matrix" in SUBROUTINE "thermal".
          IF(imelt(j) == 2 .and. hm(j) > 0.) THEN
            hm(j) = 0.
@@ -275,7 +272,7 @@ CONTAINS
 
             IF(abs(heatr) > 0.)THEN
                IF(j > lb)THEN             ! => not the top layer
-                  IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. ((patchtype<3) .or. is_dry_lake)) THEN
+                  IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. patchtype<3) THEN
                                           ! -> interface soil layer
                      t_soisno(j) = t_soisno(j) + fact(j)*heatr/(1.-fact(j)*(1.-fsno)*dhsdT)
                   ELSE                    ! -> internal layers other than the interface soil layer
@@ -319,7 +316,7 @@ CONTAINS
    END SUBROUTINE meltf
 
 
-   SUBROUTINE meltf_snicar (patchtype,is_dry_lake,lb,nl_soil,deltim, &
+   SUBROUTINE meltf_snicar (patchtype,lb,nl_soil,deltim, &
                      fact,brr,hs,hs_soil,hs_snow,fsno,sabg_snow_lyr,dhsdT, &
                      t_soisno_bef,t_soisno,wliq_soisno,wice_soisno,imelt, &
                      scv,snowdp,sm,xmf,porsl,psi0,&
@@ -333,53 +330,51 @@ CONTAINS
                      dz)
 
 !-----------------------------------------------------------------------
-! !DESCRIPTION:
-!  calculation of the phase change within snow and soil layers:
-!  (1) check the conditions which the phase change may take place,
-!      i.e., the layer temperature is great than the freezing point
-!      and the ice mass is not equal to zero (i.e., melting),
-!      or layer temperature is less than the freezing point
-!      and the liquid water mass is not equal to zero (i.e., freezing);
-!  (2) assess the rate of phase change from the energy excess (or deficit)
-!      after setting the layer temperature to freezing point;
-!  (3) re-adjust the ice and liquid mass, and the layer temperature
+! DESCRIPTION:
+! calculation of the phase change within snow and soil layers:
+! (1) check the conditions which the phase change may take place,
+!     i.e., the layer temperature is great than the freezing point
+!     and the ice mass is not equal to zero (i.e., melting),
+!     or layer temperature is less than the freezing point
+!     and the liquid water mass is not equal to zero (i.e., freezing);
+! (2) assess the rate of phase change from the energy excess (or deficit)
+!     after setting the layer temperature to freezing point;
+! (3) re-adjust the ice and liquid mass, and the layer temperature
 !
-!  Original author: Yongjiu Dai, /09/1999/, /03/2014/
+! Original author : Yongjiu Dai, /09/1999/, /03/2014/
 !
-! !REVISIONS:
-!  08/2020, Hua Yuan: separate soil/snow heat flux, exclude glacier (3)
-!  01/2023, Hua Yuan: added snow layer absorption in melting calculation
-!  04/2023, Nan Wei: supercooled soil water is included IF supercool is defined.
+! Revisions:
+! Hua Yuan, 01/2023: added snow layer absorption in melting calculation
+! Nan Wei , 04/2023: supercooled soil water is included IF supercool is defined.
 !-----------------------------------------------------------------------
 
    USE MOD_Precision
    USE MOD_SPMD_Task
    USE MOD_Hydro_SoilFunction
-   USE MOD_Const_Physical, only: tfrz, hfus, grav
+   USE MOD_Const_Physical, only : tfrz, hfus, grav
    USE MOD_Namelist
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
+!-----------------------------------------------------------------------
 
-    integer, intent(in) :: patchtype                   !land patch type (0=soil,1=urban or built-up,2=wetland,
-                                                       !3=land ice, 4=deep lake, 5=shallow lake)
-    logical, intent(in) :: is_dry_lake
-    integer, intent(in) :: nl_soil                     !upper bound of array (i.e., soil layers)
-    integer, intent(in) :: lb                          !lower bound of array (i.e., snl +1)
-   real(r8), intent(in) :: deltim                      !time step [second]
-   real(r8), intent(in) :: t_soisno_bef(lb:nl_soil)    !temperature at previous time step [K]
-   real(r8), intent(in) :: brr (lb:nl_soil)            !
-   real(r8), intent(in) :: fact(lb:nl_soil)            !temporary variables
-   real(r8), intent(in) :: hs                          !net ground heat flux into the surface
-   real(r8), intent(in) :: hs_soil                     !net ground heat flux into the surface soil
-   real(r8), intent(in) :: hs_snow                     !net ground heat flux into the surface snow
-   real(r8), intent(in) :: fsno                        !snow fractional cover
-   real(r8), intent(in) :: dhsdT                       !temperature derivative of "hs"
-   real(r8), intent(in) :: sabg_snow_lyr (lb:1)        !snow layer absorption [W/m-2]
-   real(r8), intent(in) :: porsl(1:nl_soil)            !soil porosity [-]
-   real(r8), intent(in) :: psi0 (1:nl_soil)            !soil water suction, negative potential [mm]
+    integer, intent(in) :: patchtype    !land patch type (0=soil,1=urban or built-up,2=wetland,
+                                        !3=land ice, 4=deep lake, 5=shallow lake)
+    integer, intent(in) :: nl_soil             ! upper bound of array (i.e., soil layers)
+    integer, intent(in) :: lb                  ! lower bound of array (i.e., snl +1)
+   real(r8), intent(in) :: deltim              ! time step [second]
+   real(r8), intent(in) :: t_soisno_bef(lb:nl_soil)  ! temperature at previous time step [K]
+   real(r8), intent(in) :: brr (lb:nl_soil)    !
+   real(r8), intent(in) :: fact(lb:nl_soil)    ! temporary variables
+   real(r8), intent(in) :: hs                  ! net ground heat flux into the surface
+   real(r8), intent(in) :: hs_soil             ! net ground heat flux into the surface soil
+   real(r8), intent(in) :: hs_snow             ! net ground heat flux into the surface snow
+   real(r8), intent(in) :: fsno                ! snow fractional cover
+   real(r8), intent(in) :: dhsdT               ! temperature derivative of "hs"
+   real(r8), intent(in) :: sabg_snow_lyr (lb:1)! snow layer absorption [W/m-2]
+   real(r8), intent(in) :: porsl(1:nl_soil)    ! soil porosity [-]
+   real(r8), intent(in) :: psi0 (1:nl_soil)    ! soil water suction, negative potential [mm]
 #ifdef Campbell_SOIL_MODEL
-   real(r8), intent(in) :: bsw(1:nl_soil)              !clapp and hornberger "b" parameter [-]
+   real(r8), intent(in) :: bsw(1:nl_soil)      ! clapp and hornbereger "b" parameter [-]
 #endif
 #ifdef vanGenuchten_Mualem_SOIL_MODEL
    real(r8), intent(in) :: theta_r  (1:nl_soil), &
@@ -389,26 +384,26 @@ CONTAINS
                            sc_vgm   (1:nl_soil), &
                            fc_vgm   (1:nl_soil)
 #endif
-   real(r8), intent(in) :: dz(1:nl_soil)               !soil layer thickness [m]
+   real(r8), intent(in) :: dz(1:nl_soil)       ! soil layer thickiness [m]
 
-   real(r8), intent(inout) :: t_soisno (lb:nl_soil)    !temperature at current time step [K]
-   real(r8), intent(inout) :: wice_soisno(lb:nl_soil)  !ice lens [kg/m2]
-   real(r8), intent(inout) :: wliq_soisno(lb:nl_soil)  !liquid water [kg/m2]
-   real(r8), intent(inout) :: scv                      !snow mass [kg/m2]
-   real(r8), intent(inout) :: snowdp                   !snow depth [m]
+   real(r8), intent(inout) :: t_soisno (lb:nl_soil)   ! temperature at current time step [K]
+   real(r8), intent(inout) :: wice_soisno(lb:nl_soil) ! ice lens [kg/m2]
+   real(r8), intent(inout) :: wliq_soisno(lb:nl_soil) ! liquid water [kg/m2]
+   real(r8), intent(inout) :: scv              ! snow mass [kg/m2]
+   real(r8), intent(inout) :: snowdp           ! snow depth [m]
 
-   real(r8), intent(out) :: sm                         !rate of snowmelt [mm/s, kg/(m2 s)]
-   real(r8), intent(out) :: xmf                        !total latent heat of phase change
-    integer, intent(out) :: imelt(lb:nl_soil)          !flag for melting or freezing [-]
+   real(r8), intent(out) :: sm                 ! rate of snowmelt [mm/s, kg/(m2 s)]
+   real(r8), intent(out) :: xmf                ! total latent heat of phase change
+    integer, intent(out) :: imelt(lb:nl_soil)  ! flag for melting or freezing [-]
 
-!-------------------------- Local Variables ----------------------------
-   real(r8) :: hm(lb:nl_soil)                          !energy residual [W/m2]
-   real(r8) :: xm(lb:nl_soil)                          !melting or freezing within a time step [kg/m2]
-   real(r8) :: heatr                                   !energy residual or loss after melting or freezing
-   real(r8) :: temp1                                   !temporary variables [kg/m2]
-   real(r8) :: temp2                                   !temporary variables [kg/m2]
+! Local
+   real(r8) :: hm(lb:nl_soil)                  ! energy residual [W/m2]
+   real(r8) :: xm(lb:nl_soil)                  ! metling or freezing within a time step [kg/m2]
+   real(r8) :: heatr                           ! energy residual or loss after melting or freezing
+   real(r8) :: temp1                           ! temporary variables [kg/m2]
+   real(r8) :: temp2                           ! temporary variables [kg/m2]
    real(r8) :: smp
-   real(r8) :: supercool(1:nl_soil)                    !the maximum liquid water when the soil temperature is below the   freezing point [mm3/mm3]
+   real(r8) :: supercool(1:nl_soil)            ! the maximum liquid water when the soil temperature is below the   freezing point [mm3/mm3]
    real(r8), dimension(lb:nl_soil) :: wmass0, wice0, wliq0
    real(r8) :: propor, tinc, we, scvold
    integer j
@@ -434,7 +429,7 @@ CONTAINS
       IF (DEF_USE_SUPERCOOL_WATER) THEN
          DO j = 1, nl_soil
             supercool(j) = 0.0
-            IF(t_soisno(j) < tfrz .and. ((patchtype <= 2) .or. is_dry_lake)) THEN
+            IF(t_soisno(j) < tfrz .and. patchtype <= 2) THEN
                smp = hfus * (t_soisno(j)-tfrz)/(grav*t_soisno(j)) * 1000.     ! mm
                IF (porsl(j) > 0.) THEN
 #ifdef Campbell_SOIL_MODEL
@@ -496,9 +491,9 @@ CONTAINS
             tinc = t_soisno(j)-t_soisno_bef(j)
 
             IF(j > lb)THEN             ! => not the top layer
-               IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. ((patchtype<3).or.is_dry_lake)) THEN
+               IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. patchtype<3) THEN
                                        ! -> interface soil layer
-                  ! 03/08/2020, yuan: separate soil/snow heat flux, exclude glacier(3)
+                  ! 03/08/2020, yuan: seperate soil/snow heat flux, exclude glacier(3)
                   hm(j) = hs_soil + (1.-fsno)*dhsdT*tinc + brr(j) - tinc/fact(j)
                ELSE                    ! -> internal layers other than the interface soil layer
                   IF (j<1 .or. (j==1 .and. patchtype==3)) THEN
@@ -512,7 +507,7 @@ CONTAINS
                                        ! -> soil layer
                   hm(j) = hs + dhsdT*tinc + brr(j) - tinc/fact(j)
                ELSE                    ! -> snow cover
-                  ! 03/08/2020, yuan: separate soil/snow heat flux, exclude glacier(3)
+                  ! 03/08/2020, yuan: seperate soil/snow heat flux, exclude glacier(3)
                   hm(j) = hs_snow + fsno*dhsdT*tinc + brr(j) - tinc/fact(j)
                ENDIF
             ENDIF
@@ -525,7 +520,7 @@ CONTAINS
            hm(j) = 0.
            imelt(j) = 0
          ENDIF
-! this error was checked carefully, it results from the computed error
+! this error was checked carefully, it results from the the computed error
 ! of "Tridiagonal-Matrix" in SUBROUTINE "thermal".
          IF(imelt(j) == 2 .and. hm(j) > 0.) THEN
            hm(j) = 0.
@@ -582,7 +577,7 @@ CONTAINS
 
             IF(abs(heatr) > 0.)THEN
                IF(j > lb)THEN             ! => not the top layer
-                  IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. ((patchtype<3).or.is_dry_lake)) THEN
+                  IF (j==1 .and. DEF_SPLIT_SOILSNOW .and. patchtype<3) THEN
                                           ! -> interface soil layer
                      t_soisno(j) = t_soisno(j) + fact(j)*heatr/(1.-fact(j)*(1.-fsno)*dhsdT)
                   ELSE                    ! -> internal layers other than the interface soil layer
@@ -632,57 +627,53 @@ CONTAINS
                    scv,snowdp,sm,xmf)
 
 !-----------------------------------------------------------------------
+! Original author : Yongjiu Dai, /09/1999/, /03/2014/
 !
-! !DESCRIPTION:
-!  calculation of the phase change within snow and soil layers:
+! calculation of the phase change within snow and soil layers:
 !
-!  (1) check the conditions which the phase change may take place,
-!      i.e., the layer temperature is great than the freezing point
-!      and the ice mass is not equal to zero (i.e., melting),
-!      or layer temperature is less than the freezing point
-!      and the liquid water mass is not equal to zero (i.e., freezing);
-!  (2) assess the rate of phase change from the energy excess (or deficit)
-!      after setting the layer temperature to freezing point;
-!  (3) re-adjust the ice and liquid mass, and the layer temperature
-!
-!  Original author: Yongjiu Dai, /09/1999/, /03/2014/
-!
-! !REVISIONS:
+! (1) check the conditions which the phase change may take place,
+!     i.e., the layer temperature is great than the freezing point
+!     and the ice mass is not equal to zero (i.e., melting),
+!     or layer temperature is less than the freezing point
+!     and the liquid water mass is not equal to zero (i.e., freezing);
+! (2) assess the rate of phase change from the energy excess (or deficit)
+!     after setting the layer temperature to freezing point;
+! (3) re-adjust the ice and liquid mass, and the layer temperature
 !
 !-----------------------------------------------------------------------
 
    USE MOD_Precision
    USE MOD_SPMD_Task
-   USE MOD_Const_Physical, only: tfrz, hfus
+   USE MOD_Const_Physical, only : tfrz, hfus
    IMPLICIT NONE
 
-!-------------------------- Dummy Arguments ----------------------------
+!-----------------------------------------------------------------------
 
-    integer, intent(in) :: nl_soil                     !upper bound of array (i.e., soil layers)
-    integer, intent(in) :: lb                          !lower bound of array (i.e., snl +1)
-   real(r8), intent(in) :: deltim                      !time step [second]
-   real(r8), intent(in) :: t_soisno_bef(lb:nl_soil)    !temperature at previous time step [K]
-   real(r8), intent(in) :: brr (lb:nl_soil)            !
-   real(r8), intent(in) :: fact(lb:nl_soil)            !temporary variables
-   real(r8), intent(in) :: hs                          !net ground heat flux into the surface
-   real(r8), intent(in) :: dhsdT                       !temperature derivative of "hs"
+   integer, intent(in) :: nl_soil              ! upper bound of array (i.e., soil layers)
+   integer, intent(in) :: lb                   ! lower bound of array (i.e., snl +1)
+   real(r8), intent(in) :: deltim              ! time step [second]
+   real(r8), intent(in) :: t_soisno_bef(lb:nl_soil)  ! temperature at previous time step [K]
+   real(r8), intent(in) :: brr (lb:nl_soil)    !
+   real(r8), intent(in) :: fact(lb:nl_soil)    ! temporary variables
+   real(r8), intent(in) :: hs                  ! net ground heat flux into the surface
+   real(r8), intent(in) :: dhsdT               ! temperature derivative of "hs"
 
-   real(r8), intent(inout) :: t_soisno (lb:nl_soil)    !temperature at current time step [K]
-   real(r8), intent(inout) :: wice_soisno(lb:nl_soil)  !ice lens [kg/m2]
-   real(r8), intent(inout) :: wliq_soisno(lb:nl_soil)  !liquid water [kg/m2]
-   real(r8), intent(inout) :: scv                      !snow mass [kg/m2]
-   real(r8), intent(inout) :: snowdp                   !snow depth [m]
+   real(r8), intent(inout) :: t_soisno (lb:nl_soil)   ! temperature at current time step [K]
+   real(r8), intent(inout) :: wice_soisno(lb:nl_soil) ! ice lens [kg/m2]
+   real(r8), intent(inout) :: wliq_soisno(lb:nl_soil) ! liquid water [kg/m2]
+   real(r8), intent(inout) :: scv              ! snow mass [kg/m2]
+   real(r8), intent(inout) :: snowdp           ! snow depth [m]
 
-   real(r8), intent(out) :: sm                         !rate of snowmelt [mm/s, kg/(m2 s)]
-   real(r8), intent(out) :: xmf                        !total latent heat of phase change
-   integer,  intent(out) :: imelt(lb:nl_soil)          !flag for melting or freezing [-]
+   real(r8), intent(out) :: sm                 ! rate of snowmelt [mm/s, kg/(m2 s)]
+   real(r8), intent(out) :: xmf                ! total latent heat of phase change
+   integer, intent(out) :: imelt(lb:nl_soil)   ! flag for melting or freezing [-]
 
-!-------------------------- Local Variables ----------------------------
-   real(r8) :: hm(lb:nl_soil)                          !energy residual [W/m2]
-   real(r8) :: xm(lb:nl_soil)                          !melting or freezing within a time step [kg/m2]
-   real(r8) :: heatr                                   !energy residual or loss after melting or freezing
-   real(r8) :: temp1                                   !temporary variables [kg/m2]
-   real(r8) :: temp2                                   !temporary variables [kg/m2]
+! Local
+   real(r8) :: hm(lb:nl_soil)                  ! energy residual [W/m2]
+   real(r8) :: xm(lb:nl_soil)                  ! metling or freezing within a time step [kg/m2]
+   real(r8) :: heatr                           ! energy residual or loss after melting or freezing
+   real(r8) :: temp1                           ! temporary variables [kg/m2]
+   real(r8) :: temp2                           ! temporary variables [kg/m2]
 
    real(r8), dimension(lb:nl_soil) :: wmass0, wice0, wliq0
    real(r8) :: propor, tinc, we, scvold
@@ -746,7 +737,7 @@ CONTAINS
             hm(j) = 0.
             imelt(j) = 0
          ENDIF
-! this error was checked carefully, it results from the computed error
+! this error was checked carefully, it results from the the computed error
 ! of "Tridiagonal-Matrix" in SUBROUTINE "thermal".
          IF(imelt(j) == 2 .and. hm(j) > 0.) THEN
             hm(j) = 0.
@@ -818,4 +809,3 @@ CONTAINS
    END SUBROUTINE meltf_urban
 
 END MODULE MOD_PhaseChange
-! ---------- EOP ------------

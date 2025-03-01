@@ -17,8 +17,8 @@ MODULE PARKIND1
    !*** Integer Kinds
    integer,parameter :: JPIT = SELECTED_INT_KIND(2)
    integer,parameter :: JPIS = SELECTED_INT_KIND(4)
-   integer,parameter :: JPIM = SELECTED_INT_KIND(9)  !! 4 byte integer
-   integer,parameter :: JPIB = SELECTED_INT_KIND(12) !! 8 byte long integer
+   integer,parameter :: JPIM = SELECTED_INT_KIND(9)
+   integer,parameter :: JPIB = SELECTED_INT_KIND(12)
    !Special integer type to be used for sensative adress calculations
    !should be *8 for a machine with 8byte adressing for optimum performance
 #ifdef ADDRESS64
@@ -30,15 +30,15 @@ MODULE PARKIND1
    !*** Real Kinds
    integer,parameter :: JPRT = SELECTED_REAL_KIND(2,1)
    integer,parameter :: JPRS = SELECTED_REAL_KIND(4,2)
-INTEGER, PARAMETER :: JPRM = SELECTED_REAL_KIND(6,37)  !! 4 byte float
+   integer,parameter :: JPRM = SELECTED_REAL_KIND(6,37)
 #ifdef SinglePrec_CMF
-   integer,parameter :: JPRB = SELECTED_REAL_KIND(6,37)  !! JPRB is switchable (4 byte in Single Precision Mode)
+   integer,parameter :: JPRB = SELECTED_REAL_KIND(6,37)
 #else
    integer,parameter :: JPRB = SELECTED_REAL_KIND(13,300)
 #endif
    ! Double real for C code and special places requiring 
    !    higher precision. 
-INTEGER, PARAMETER :: JPRD = SELECTED_REAL_KIND(13,300)  !! 8 byte double-precison float (primary used for precise water budget)
+   integer,parameter :: JPRD = SELECTED_REAL_KIND(13,300)
 
    !================================================
    ! Logical Kinds for RTTOV....

@@ -12,18 +12,10 @@ MODULE MOD_Urban_LAIReadin
 CONTAINS
 
    SUBROUTINE UrbanLAI_readin (year, time, dir_landdata)
-!-----------------------------------------------------------------------
-!
-! !DESCRIPTION:
-!  Read in urban LAI, SAI and urban tree cover data.
-!
-!  Create by Hua Yuan, 11/2021
-!
-!
-! !REVISIONS:
-!  08/2023, Wenzong Dong: add codes to read urban tree LAI.
-!
-!-----------------------------------------------------------------------
+
+! ===========================================================
+! Read in urban LAI, SAI and urban tree cover data
+! ===========================================================
 
    USE MOD_Precision
    USE MOD_Namelist
@@ -35,7 +27,6 @@ CONTAINS
    USE MOD_Vars_TimeInvariants
    USE MOD_Urban_Vars_TimeInvariants
    USE MOD_NetCDFVector
-   USE MOD_UserDefFun
 #ifdef SinglePoint
    USE MOD_SingleSrfdata
 #endif
@@ -44,18 +35,18 @@ CONTAINS
 
    integer, intent(in) :: year
    integer, intent(in) :: time
-   character(len=256), intent(in) :: dir_landdata
+   character(LEN=256), intent(in) :: dir_landdata
 
-   character(len=256) :: lndname
+   character(LEN=256) :: lndname
    character(len=256) :: cyear, ctime
    integer :: u, npatch, iyear
 
       ! READ in Leaf area index and stem area index
       write(ctime,'(i2.2)') time
-      write(cyear,'(i4.4)') min(DEF_LAI_END_YEAR, max(DEF_LAI_START_YEAR,year) )
+      write(cyear,'(i4.4)') year
 
 #ifdef SinglePoint
-      iyear = findloc_ud(SITE_LAI_year == min(DEF_LAI_END_YEAR, max(DEF_LAI_START_YEAR,year)) )
+      iyear = findloc(SITE_LAI_year, year, dim=1)
       urb_lai(:) = SITE_LAI_monthly(time,iyear)
       urb_sai(:) = SITE_SAI_monthly(time,iyear)
 #else
@@ -65,7 +56,7 @@ CONTAINS
       lndname = trim(dir_landdata)//'/urban/'//trim(cyear)//'/LAI/urban_SAI_'//trim(ctime)//'.nc'
       CALL ncio_read_vector (lndname, 'TREE_SAI',  landurban, urb_sai)
 #endif
-      ! loop for urban patch to assign fraction of green leaf
+      ! loop for urban atch to assign fraction of green leaf
       IF (p_is_worker) THEN
          DO u = 1, numurban
             npatch = urban2patch(u)
@@ -80,4 +71,3 @@ CONTAINS
 
 END MODULE MOD_Urban_LAIReadin
 #endif
-! ---------- EOP ------------

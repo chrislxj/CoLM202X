@@ -3,21 +3,17 @@
 #if (defined URBAN_MODEL)
 MODULE MOD_Urban_Vars_1DFluxes
 
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
-!
-!  Define urban model 1D flux variables.
-!
-!  Created by Hua Yuan, 12/2020
-!-----------------------------------------------------------------------
+! -------------------------------
+! Created by Hua Yuan, 12/2020
+! -------------------------------
 
    USE MOD_Precision
    IMPLICIT NONE
    SAVE
 
-!-----------------------------------------------------------------------
+! -----------------------------------------------------------------
 ! Fluxes
-!-----------------------------------------------------------------------
+! -----------------------------------------------------------------
   !real(r8), allocatable :: sabroof     (:) !solar absorption of roof [W/m2]
   !real(r8), allocatable :: sabwsun     (:) !solar absorption of sunlit wall [W/m2]
   !real(r8), allocatable :: sabwsha     (:) !solar absorption of shaded wall [W/m2]
@@ -57,7 +53,7 @@ CONTAINS
    USE MOD_Precision
    USE MOD_SPMD_Task
    USE MOD_LandUrban
-   USE MOD_Vars_Global, only: spval
+   USE MOD_Vars_Global, only : spval
    IMPLICIT NONE
 
       IF (p_is_worker) THEN

@@ -2,42 +2,40 @@
 
 #ifdef SrfdataDiag
 MODULE MOD_SrfdataDiag
-!-----------------------------------------------------------------------
-! !DESCRIPTION:
+!-----------------------------------------------------------------------------------------
+! DESCRIPTION:
 !
-!    This module includes subroutines for checking the results of making
-!    surface data.
+!    This module includes subroutines for checking the results of making surface data.
 !
-!    The surface data in vector form is mapped to gridded data with last three
-!    dimensions of [type,longitude,latitude], which can be viewed by other
-!    softwares.
+!    The surface data in vector form is mapped to gridded data with last
+!    three dimensions of [type,longitude,latitude], which can be viewed by other softwares.
 !
-!    In GRIDBASED, the grid of gridded data is just the grid of the mesh.  In
-!    UNSTRUCTURED or CATCHMENT, the grid is user defined and the mapping uses
-!    area weighted scheme.
+!    In GRIDBASED, the grid of gridded data is just the grid of the mesh.
+!    In UNSTRUCTURED or CATCHMENT, the grid is user defined and the mapping uses area
+!    weighted scheme.
 !
-!  Created by Shupeng Zhang, May 2023
+! Created by Shupeng Zhang, May 2023
 !
-! !REVISIONS:
+! Revisions:
 ! TODO
-!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
 
    USE MOD_Grid
-   USE MOD_SpatialMapping
+   USE MOD_Mapping_Pset2Grid
 
    IMPLICIT NONE
 
    ! PUBLIC variables and subroutines
    type(grid_type) :: gdiag
+   
+   type(mapping_pset2grid_type) :: m_elm2diag
 
-   type(spatial_mapping_type) :: m_elm2diag
-
-   type(spatial_mapping_type) :: m_patch2diag
+   type(mapping_pset2grid_type) :: m_patch2diag
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
-   type(spatial_mapping_type) :: m_pft2diag
+   type(mapping_pset2grid_type) :: m_pft2diag
 #endif
 #ifdef URBAN_MODEL
-   type(spatial_mapping_type) :: m_urb2diag
+   type(mapping_pset2grid_type) :: m_urb2diag
 #endif
 
    PUBLIC :: srfdata_diag_init
@@ -81,17 +79,21 @@ CONTAINS
       ENDIF
 
       CALL srf_concat%set (gdiag)
+      
+      CALL m_elm2diag%build (landelm, gdiag)
 
-      CALL m_elm2diag%build_arealweighted (gdiag, landelm)
-
-      CALL m_patch2diag%build_arealweighted (gdiag, landpatch)
+#ifndef CROP
+      CALL m_patch2diag%build (landpatch, gdiag)
+#else
+      CALL m_patch2diag%build (landpatch, gdiag, pctshrpch)
+#endif
 
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
-      CALL m_pft2diag%build_arealweighted (gdiag, landpft)
+      CALL m_pft2diag%build (landpft, gdiag)
 #endif
 
 #ifdef URBAN_MODEL
-      CALL m_urb2diag%build_arealweighted (gdiag, landurban)
+      CALL m_urb2diag%build (landurban, gdiag)
 #endif
 
       srf_data_id = 666
@@ -103,7 +105,7 @@ CONTAINS
       landname = trim(dir_landdata)//'/diag/element.nc'
       CALL srfdata_map_and_write (elmid_r8, landelm%settyp, (/0/), m_elm2diag, &
          -1.0e36_r8, landname, 'element', compress = 1, write_mode = 'one')
-
+      
       IF (p_is_worker) deallocate (elmid_r8)
 
       typindex = (/(ityp, ityp = 0, N_land_classification)/)
@@ -137,7 +139,7 @@ CONTAINS
    integer , intent(in) :: settyp   (:)
    integer , intent(in) :: typindex (:)
 
-   type(spatial_mapping_type), intent(in) :: m_srf
+   type(mapping_pset2grid_type), intent(in) :: m_srf
 
    real(r8), intent(in) :: spv
 
@@ -183,8 +185,8 @@ CONTAINS
          ENDIF
       ENDIF
 
-      CALL m_srf%pset2grid_split (vecone  , settyp, typindex, sumwt, spv)
-      CALL m_srf%pset2grid_split (vsrfdata, settyp, typindex, wdata, spv)
+      CALL m_srf%map_split (vecone  , settyp, typindex, sumwt, spv)
+      CALL m_srf%map_split (vsrfdata, settyp, typindex, wdata, spv)
 
       IF (p_is_io) THEN
          DO iblkme = 1, gblock%nblkme
@@ -322,9 +324,9 @@ CONTAINS
 
                      smesg = (/p_iam_glb, ixseg, iyseg/)
                      CALL mpi_send (smesg, 3, MPI_INTEGER, &
-                        p_address_master, srf_data_id, p_comm_glb, p_err)
+                        p_root, srf_data_id, p_comm_glb, p_err)
                      CALL mpi_send (sbuf, ntyps*xcnt*ycnt, MPI_DOUBLE, &
-                        p_address_master, srf_data_id, p_comm_glb, p_err)
+                        p_root, srf_data_id, p_comm_glb, p_err)
 
                      deallocate (sbuf)
                   ENDIF

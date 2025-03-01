@@ -36,57 +36,60 @@ CONTAINS
    SUBROUTINE river_lake_flow (dt)
 
    USE MOD_SPMD_Task
-   USE MOD_Utils
-   USE MOD_Catch_BasinNetwork
+   USE MOD_Mesh
+   USE MOD_LandHRU
+   USE MOD_LandPatch
+   USE MOD_Vars_TimeVariables
+   USE MOD_Hydro_Vars_1DFluxes
    USE MOD_Catch_HillslopeNetwork
    USE MOD_Catch_RiverLakeNetwork
-   USE MOD_Catch_Vars_TimeVariables
-   USE MOD_Catch_Vars_1DFluxes
-   USE MOD_Const_Physical, only: grav
+   USE MOD_Const_Physical, only : grav
    IMPLICIT NONE
 
    real(r8), intent(in) :: dt
 
    ! Local Variables
-   integer  :: hs, he, i, j
-   real(r8) :: dt_this
+   integer :: nbasin
+   integer :: hs, he, i, j
    
-   real(r8),  allocatable :: wdsrf_bsn_ds(:)
-   real(r8),  allocatable :: veloc_riv_ds(:)
-   real(r8),  allocatable :: momen_riv_ds(:)
+   real(r8), allocatable :: wdsrf_bsn_ds(:)
+   real(r8), allocatable :: veloc_riv_ds(:)
+   real(r8), allocatable :: momen_riv_ds(:)
 
-   real(r16), allocatable :: hflux_fc(:)
-   real(r16), allocatable :: mflux_fc(:)
-   real(r16), allocatable :: zgrad_dn(:)
+   real(r8), allocatable :: hflux_fc(:)
+   real(r8), allocatable :: mflux_fc(:)
+   real(r8), allocatable :: zgrad_dn(:)
    
-   real(r16), allocatable :: sum_hflux_riv(:)
-   real(r16), allocatable :: sum_mflux_riv(:)
-   real(r16), allocatable :: sum_zgrad_riv(:)
+   real(r8), allocatable :: sum_hflux_riv(:)
+   real(r8), allocatable :: sum_mflux_riv(:)
+   real(r8), allocatable :: sum_zgrad_riv(:)
    
    real(r8) :: veloct_fc, height_fc, momen_fc, zsurf_fc
    real(r8) :: bedelv_fc, height_up, height_dn
    real(r8) :: vwave_up, vwave_dn, hflux_up, hflux_dn, mflux_up, mflux_dn
    real(r8) :: totalvolume, loss, friction, dvol, nextl, nexta, nextv, ddep
-   real(r8),  allocatable :: dt_res(:), dt_all(:), dt_tmp(:)
-   logical,   allocatable :: hmask(:), bsnfilter(:)
+   real(r8) :: dt_res, dt_this
+   logical, allocatable :: mask(:)
 
       
       IF (p_is_worker) THEN
-         
+      
+         nbasin = numelm
+
          ! update water depth in basin by aggregating water depths in patches
-         DO i = 1, numbasin
+         DO i = 1, nbasin
             hs = basin_hru%substt(i)
             he = basin_hru%subend(i)
 
             IF (lake_id(i) <= 0) THEN
                ! river or lake catchment
                ! Water surface in a basin is defined as the lowest surface water in the basin
-               wdsrf_bsn(i) = minval(hillslope_basin(i)%hand + wdsrf_bsnhru(hs:he)) - handmin(i)
+               wdsrf_bsn(i) = minval(hillslope_network(i)%hand + wdsrf_hru(hs:he)) - handmin(i)
 
             ELSEIF (lake_id(i) > 0) THEN
                ! lake 
-               totalvolume  = sum(wdsrf_bsnhru(hs:he) * lakeinfo(i)%area0)
-               wdsrf_bsn(i) = lakeinfo(i)%surface(totalvolume)
+               totalvolume  = sum(wdsrf_hru(hs:he) * lakes(i)%area0)
+               wdsrf_bsn(i) = lakes(i)%surface(totalvolume)
             ENDIF
 
 
@@ -107,58 +110,53 @@ CONTAINS
 
          ENDDO
 
-         IF (numbasin > 0) THEN
-            allocate (wdsrf_bsn_ds  (numbasin))
-            allocate (veloc_riv_ds  (numbasin))
-            allocate (momen_riv_ds  (numbasin))
-            allocate (hflux_fc      (numbasin))
-            allocate (mflux_fc      (numbasin))
-            allocate (zgrad_dn      (numbasin))
-            allocate (sum_hflux_riv (numbasin))
-            allocate (sum_mflux_riv (numbasin))
-            allocate (sum_zgrad_riv (numbasin))
-            allocate (bsnfilter     (numbasin))
+         IF (nbasin > 0) THEN
+            allocate (wdsrf_bsn_ds  (nbasin))
+            allocate (veloc_riv_ds  (nbasin))
+            allocate (momen_riv_ds  (nbasin))
+            allocate (hflux_fc      (nbasin))
+            allocate (mflux_fc      (nbasin))
+            allocate (zgrad_dn      (nbasin))
+            allocate (sum_hflux_riv (nbasin))
+            allocate (sum_mflux_riv (nbasin))
+            allocate (sum_zgrad_riv (nbasin))
          ENDIF
 
-         allocate (dt_res (numrivsys))
-         allocate (dt_all (numrivsys))
-         
          ntimestep_riverlake = 0
-
-         dt_res(:) = dt
-
-         DO WHILE (any(dt_res > 0))
+         dt_res = dt
+         DO WHILE (dt_res > 0)
 
             ntimestep_riverlake = ntimestep_riverlake + 1
-
-            DO i = 1, numbasin
-               bsnfilter(i) = dt_res(irivsys(i)) > 0
-               IF (bsnfilter(i)) THEN
-                  sum_hflux_riv(i) = 0.
-                  sum_mflux_riv(i) = 0.
-                  sum_zgrad_riv(i) = 0.
+            
+            DO i = 1, nbasin
+               sum_hflux_riv(i) = 0.
+               sum_mflux_riv(i) = 0.
+               sum_zgrad_riv(i) = 0.
+               
+               IF (addrdown(i) > 0) THEN
+                  wdsrf_bsn_ds(i) = wdsrf_bsn(addrdown(i))
+                  veloc_riv_ds(i) = veloc_riv(addrdown(i))
+                  momen_riv_ds(i) = momen_riv(addrdown(i))
+               ELSE
+                  wdsrf_bsn_ds(i) = 0
+                  veloc_riv_ds(i) = 0
+                  momen_riv_ds(i) = 0
                ENDIF
             ENDDO 
-
-            WHERE (bsnfilter) ntacc_bsn = ntacc_bsn + 1
-
-            CALL pull_from_downstream (wdsrf_bsn, wdsrf_bsn_ds, bsnfilter)
-            CALL pull_from_downstream (veloc_riv, veloc_riv_ds, bsnfilter)
-            CALL pull_from_downstream (momen_riv, momen_riv_ds, bsnfilter)
-
+#ifdef USEMPI
+            CALL river_data_exchange (SEND_DATA_DOWN_TO_UP, accum = .false., &
+               vec_send1 = wdsrf_bsn, vec_recv1 = wdsrf_bsn_ds, &
+               vec_send2 = veloc_riv, vec_recv2 = veloc_riv_ds, &
+               vec_send3 = momen_riv, vec_recv3 = momen_riv_ds )
+#endif
             ! velocity in ocean or inland depression is assumed to be 0.
-            IF (numbasin > 0) THEN
-               WHERE (riverdown <= 0)
-                  veloc_riv_ds = 0.
-               END WHERE
-            ENDIF
+            WHERE (riverdown <= 0)
+               veloc_riv_ds = 0.
+            END WHERE
 
-            dt_all(:) = dt_res(:)
+            dt_this = dt_res
 
-            DO i = 1, numbasin
-
-               IF (.not. bsnfilter(i)) CYCLE
-
+            DO i = 1, nbasin
                IF (riverdown(i) >= 0) THEN
                   
                   IF (riverdown(i) > 0) THEN
@@ -276,35 +274,35 @@ CONTAINS
                ENDIF
 
                IF ((lake_id(i) < 0) .and. (hflux_fc(i) < 0)) THEN
-                  dt_this = dt_all(irivsys(i))
                   hflux_fc(i) = &
-                     max(hflux_fc(i), (height_up-height_dn) / dt_this * sum(hillslope_basin(i)%area, &
-                     mask = hillslope_basin(i)%hand <= wdsrf_bsn(i) + handmin(i)))
+                     max(hflux_fc(i), (height_up-height_dn) / dt_this * sum(hillslope_network(i)%area, &
+                     mask = hillslope_network(i)%hand <= wdsrf_bsn(i) + handmin(i)))
                ENDIF
 
                sum_hflux_riv(i) = sum_hflux_riv(i) + hflux_fc(i)
                sum_mflux_riv(i) = sum_mflux_riv(i) + mflux_fc(i)
 
+               IF (addrdown(i) > 0) THEN
+                  j = addrdown(i)
+                  sum_hflux_riv(j) = sum_hflux_riv(j) - hflux_fc(i)
+                  sum_mflux_riv(j) = sum_mflux_riv(j) - mflux_fc(i)
+                  sum_zgrad_riv(j) = sum_zgrad_riv(j) - zgrad_dn(i)
+               ENDIF
+            
             ENDDO
             
-            IF (numbasin > 0) THEN
-               hflux_fc = - hflux_fc;  mflux_fc = - mflux_fc;  zgrad_dn = - zgrad_dn
-            ENDIF
-         
-            CALL push_to_downstream (hflux_fc, sum_hflux_riv, bsnfilter)
-            CALL push_to_downstream (mflux_fc, sum_mflux_riv, bsnfilter)
-            CALL push_to_downstream (zgrad_dn, sum_zgrad_riv, bsnfilter)
+#ifdef USEMPI
+            hflux_fc = - hflux_fc;  mflux_fc = - mflux_fc;  zgrad_dn = - zgrad_dn
 
-            IF (numbasin > 0) THEN
-               hflux_fc = - hflux_fc;  mflux_fc = - mflux_fc;  zgrad_dn = - zgrad_dn
-            ENDIF
+            CALL river_data_exchange (SEND_DATA_UP_TO_DOWN, accum = .true., &
+               vec_send1 = hflux_fc, vec_recv1 = sum_hflux_riv, &
+               vec_send2 = mflux_fc, vec_recv2 = sum_mflux_riv, &
+               vec_send3 = zgrad_dn, vec_recv3 = sum_zgrad_riv)
+            
+            hflux_fc = - hflux_fc;  mflux_fc = - mflux_fc;  zgrad_dn = - zgrad_dn
+#endif
 
-            DO i = 1, numbasin
-
-               IF (.not. bsnfilter(i)) CYCLE
-
-               dt_this = dt_all(irivsys(i))
-
+            DO i = 1, nbasin
                ! constraint 1: CFL condition (only for rivers)
                IF (lake_id(i) == 0) THEN
                   IF ((veloc_riv(i) /= 0.) .or. (wdsrf_bsn(i) > 0.)) THEN
@@ -316,12 +314,12 @@ CONTAINS
                IF (sum_hflux_riv(i) > 0) THEN
                   IF (lake_id(i) <= 0) THEN
                      ! for river or lake catchment
-                     totalvolume = sum((wdsrf_bsn(i) + handmin(i) - hillslope_basin(i)%hand) &
-                        * hillslope_basin(i)%area, &
-                        mask = wdsrf_bsn(i) + handmin(i) >= hillslope_basin(i)%hand) 
+                     totalvolume = sum((wdsrf_bsn(i) + handmin(i) - hillslope_network(i)%hand) &
+                        * hillslope_network(i)%area, &
+                        mask = wdsrf_bsn(i) + handmin(i) >= hillslope_network(i)%hand) 
                   ELSEIF (lake_id(i) > 0) THEN
                      ! for lake
-                     totalvolume = lakeinfo(i)%volume(wdsrf_bsn(i))
+                     totalvolume = lakes(i)%volume(wdsrf_bsn(i))
                   ENDIF
                
                   dt_this = min(dt_this, totalvolume / sum_hflux_riv(i))
@@ -336,49 +334,42 @@ CONTAINS
                         abs(momen_riv(i) * riverarea(i) / (sum_mflux_riv(i)-sum_zgrad_riv(i))))
                   ENDIF
                ENDIF
-
-               dt_all(irivsys(i)) = min(dt_this, dt_all(irivsys(i)))
-
             ENDDO 
 
 #ifdef USEMPI
-            IF (riversystem /= -1) THEN
-               CALL mpi_allreduce (MPI_IN_PLACE, dt_all, 1, MPI_REAL8, MPI_MIN, p_comm_rivsys, p_err)
-            ENDIF
+            CALL mpi_allreduce (MPI_IN_PLACE, dt_this, 1, MPI_REAL8, MPI_MIN, p_comm_worker, p_err)
 #endif
 
-            DO i = 1, numbasin
-
-               IF (.not. bsnfilter(i)) CYCLE
+            DO i = 1, nbasin
 
                IF (lake_id(i) <= 0) THEN
                   ! rivers or lake catchments
                   hs = basin_hru%substt(i)
                   he = basin_hru%subend(i)
-                  allocate (hmask (hillslope_basin(i)%nhru))
+                  allocate (mask (hillslope_network(i)%nhru))
                   
-                  totalvolume = sum((wdsrf_bsn(i) + handmin(i) - hillslope_basin(i)%hand) &
-                     * hillslope_basin(i)%area, &
-                     mask = wdsrf_bsn(i) + handmin(i) >= hillslope_basin(i)%hand) 
+                  totalvolume = sum((wdsrf_bsn(i) + handmin(i) - hillslope_network(i)%hand) &
+                     * hillslope_network(i)%area, &
+                     mask = wdsrf_bsn(i) + handmin(i) >= hillslope_network(i)%hand) 
 
-                  totalvolume = totalvolume - sum_hflux_riv(i) * dt_all(irivsys(i))
+                  totalvolume = totalvolume - sum_hflux_riv(i) * dt_this
                            
                   IF (totalvolume < VOLUMEMIN) THEN
-                     DO j = 1, hillslope_basin(i)%nhru
-                        IF (hillslope_basin(i)%hand(j) <= wdsrf_bsn(i) + handmin(i)) THEN
-                           wdsrf_bsnhru(j+hs-1) = wdsrf_bsnhru(j+hs-1) &
-                              - (wdsrf_bsn(i) + handmin(i) - hillslope_basin(i)%hand(j))
+                     DO j = 1, hillslope_network(i)%nhru
+                        IF (hillslope_network(i)%hand(j) <= wdsrf_bsn(i) + handmin(i)) THEN
+                           wdsrf_hru(j+hs-1) = wdsrf_hru(j+hs-1) &
+                              - (wdsrf_bsn(i) + handmin(i) - hillslope_network(i)%hand(j))
                         ENDIF
                      ENDDO
                      wdsrf_bsn(i) = 0
                   ELSE
 
-                     dvol = sum_hflux_riv(i) * dt_all(irivsys(i))
+                     dvol = sum_hflux_riv(i) * dt_this
                      IF (dvol > VOLUMEMIN) THEN
                         DO WHILE (dvol > VOLUMEMIN)
-                           hmask = hillslope_basin(i)%hand < wdsrf_bsn(i) + handmin(i)
-                           nextl = maxval(hillslope_basin(i)%hand, mask = hmask)
-                           nexta = sum   (hillslope_basin(i)%area, mask = hmask) 
+                           mask  = hillslope_network(i)%hand < wdsrf_bsn(i) + handmin(i)
+                           nextl = maxval(hillslope_network(i)%hand, mask = mask)
+                           nexta = sum   (hillslope_network(i)%area, mask = mask) 
                            nextv = nexta * (wdsrf_bsn(i)+handmin(i)-nextl)
                            IF (nextv > dvol) THEN
                               ddep = dvol/nexta
@@ -390,23 +381,18 @@ CONTAINS
 
                            wdsrf_bsn(i) = wdsrf_bsn(i) - ddep
 
-                           DO j = 1, hillslope_basin(i)%nhru
-                              IF (hmask(j)) THEN
-                                 wdsrf_bsnhru(j+hs-1) = wdsrf_bsnhru(j+hs-1) - ddep
+                           DO j = 1, hillslope_network(i)%nhru
+                              IF (mask(j)) THEN
+                                 wdsrf_hru(j+hs-1) = wdsrf_hru(j+hs-1) - ddep
                               ENDIF
                            ENDDO
                         ENDDO
                      ELSEIF (dvol < -VOLUMEMIN) THEN
-                        hmask = .true.
-                        nexta = 0.
                         DO WHILE (dvol < -VOLUMEMIN)
-                           IF (any(hmask)) THEN
-                              j = minloc(hillslope_basin(i)%hand + wdsrf_bsnhru(hs:he), 1, mask = hmask)
-                              nexta = nexta + hillslope_basin(i)%area(j)
-                              hmask(j) = .false.
-                           ENDIF
-                           IF (any(hmask)) THEN
-                              nextl = minval(hillslope_basin(i)%hand + wdsrf_bsnhru(hs:he), mask = hmask)
+                           mask = hillslope_network(i)%hand + wdsrf_hru(hs:he) > wdsrf_bsn(i) + handmin(i)
+                           nexta = sum(hillslope_network(i)%area, mask = (.not. mask)) 
+                           IF (any(mask)) THEN
+                              nextl = minval(hillslope_network(i)%hand + wdsrf_hru(hs:he), mask = mask)
                               nextv = nexta*(nextl-(wdsrf_bsn(i)+handmin(i)))
                               IF ((-dvol) > nextv) THEN
                                  ddep = nextl - (wdsrf_bsn(i)+handmin(i))
@@ -422,21 +408,21 @@ CONTAINS
 
                            wdsrf_bsn(i) = wdsrf_bsn(i) + ddep
 
-                           DO j = 1, hillslope_basin(i)%nhru
-                              IF (.not. hmask(j)) THEN
-                                 wdsrf_bsnhru(j+hs-1) = wdsrf_bsnhru(j+hs-1) + ddep
+                           DO j = 1, hillslope_network(i)%nhru
+                              IF (.not. mask(j)) THEN
+                                 wdsrf_hru(j+hs-1) = wdsrf_hru(j+hs-1) + ddep
                               ENDIF
                            ENDDO
                         ENDDO
                      ENDIF
                      
                   ENDIF
-                  deallocate(hmask)
+                  deallocate(mask)
 
                ELSE
-                  totalvolume  = lakeinfo(i)%volume(wdsrf_bsn(i))
-                  totalvolume  = totalvolume - sum_hflux_riv(i) * dt_all(irivsys(i))
-                  wdsrf_bsn(i) = lakeinfo(i)%surface(totalvolume) 
+                  totalvolume  = lakes(i)%volume(wdsrf_bsn(i))
+                  totalvolume  = totalvolume - sum_hflux_riv(i) * dt_this
+                  wdsrf_bsn(i) = lakes(i)%surface(totalvolume) 
                ENDIF
 
                IF ((lake_id(i) /= 0) .or. (wdsrf_bsn(i) < RIVERMIN)) THEN
@@ -445,8 +431,8 @@ CONTAINS
                ELSE
                   friction = grav * nmanning_riv**2 / wdsrf_bsn(i)**(7.0/3.0) * abs(momen_riv(i))
                   momen_riv(i) = (momen_riv(i) &
-                     - (sum_mflux_riv(i) - sum_zgrad_riv(i)) / riverarea(i) * dt_all(irivsys(i))) &
-                     / (1 + friction * dt_all(irivsys(i))) 
+                     - (sum_mflux_riv(i) - sum_zgrad_riv(i)) / riverarea(i) * dt_this) &
+                     / (1 + friction * dt_this) 
                   veloc_riv(i) = momen_riv(i) / wdsrf_bsn(i)
                ENDIF
             
@@ -456,37 +442,29 @@ CONTAINS
                   veloc_riv(i) = min(0., veloc_riv(i))
                ENDIF
 
-               veloc_riv(i) = min(veloc_riv(i),  20.)
-               veloc_riv(i) = max(veloc_riv(i), -20.)
-
             ENDDO
 
-            DO i = 1, numbasin
-               IF (bsnfilter(i)) THEN
+            IF (nbasin > 0) THEN
+               wdsrf_bsn_ta(:) = wdsrf_bsn_ta(:) + wdsrf_bsn(:) * dt_this
+               momen_riv_ta(:) = momen_riv_ta(:) + momen_riv(:) * dt_this
+               discharge   (:) = discharge   (:) + hflux_fc (:) * dt_this
+            ENDIF
 
-                  wdsrf_bsn_ta (i) = wdsrf_bsn_ta (i) + wdsrf_bsn(i) * dt_all(irivsys(i))
-                  momen_riv_ta (i) = momen_riv_ta (i) + momen_riv(i) * dt_all(irivsys(i))
-                  discharge_ta (i) = discharge_ta (i) + hflux_fc (i) * dt_all(irivsys(i))
-         
-                  IF (lake_id(i) > 0) THEN ! for lakes
-                     hs = basin_hru%substt(i)
-                     he = basin_hru%subend(i)
-                     DO j = hs, he
-                        wdsrf_bsnhru(j) = max(wdsrf_bsn(i) - (lakeinfo(i)%depth(1) - lakeinfo(i)%depth0(j-hs+1)), 0.)
-                        wdsrf_bsnhru_ta(j) = wdsrf_bsnhru_ta(j) + wdsrf_bsnhru(j) * dt_all(irivsys(i))
-                     ENDDO
-                  ENDIF
+            dt_res = dt_res - dt_this
 
-               ENDIF
-            ENDDO
-
-            dt_res = dt_res - dt_all
-            
          ENDDO
 
-         IF (numbasin > 0) wdsrf_bsn_prev(:) = wdsrf_bsn(:)
-
-         CALL mpi_allreduce (MPI_IN_PLACE, ntimestep_riverlake, 1, MPI_INTEGER, MPI_MAX, p_comm_worker, p_err)
+         DO i = 1, nbasin
+            IF (lake_id(i) > 0) THEN ! for lakes
+               hs = basin_hru%substt(i)
+               he = basin_hru%subend(i)
+               DO j = hs, he
+                  wdsrf_hru(j) = max(wdsrf_bsn(i) - (lakes(i)%depth(1) - lakes(i)%depth0(j-hs+1)), 0.)
+               ENDDO
+            ENDIF
+         ENDDO
+         
+         wdsrf_bsn_prev(:) = wdsrf_bsn(:)
 
          IF (allocated(wdsrf_bsn_ds )) deallocate(wdsrf_bsn_ds )
          IF (allocated(veloc_riv_ds )) deallocate(veloc_riv_ds )
@@ -497,7 +475,6 @@ CONTAINS
          IF (allocated(sum_hflux_riv)) deallocate(sum_hflux_riv)
          IF (allocated(sum_mflux_riv)) deallocate(sum_mflux_riv)
          IF (allocated(sum_zgrad_riv)) deallocate(sum_zgrad_riv)
-         IF (allocated(bsnfilter    )) deallocate(bsnfilter    )
 
       ENDIF
 

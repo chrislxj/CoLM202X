@@ -40,7 +40,6 @@ CONTAINS
 ! file I/O
 !-- INQUIRE_FID : inruire unused file FID
 !-- NCERROR     : netCDF I/O wrapper
-!-- CMF_CheckNaN: check the value is NaN or not
 !####################################################################
    SUBROUTINE vecD2mapR(D2VEC,R2MAP)
    USE YOS_CMF_MAP,             only: I1SEQX,I1SEQY
@@ -172,6 +171,9 @@ CONTAINS
    integer(KIND=JPIM),SAVE         :: IX,IY, ISEQ
 !$OMP THREADPRIVATE               (IX,IY)
 !================================================
+      ! write(LOGNAM,*) "Debug-zsl-0508 I1SEQX    ",  I1SEQX
+      ! write(LOGNAM,*) "Debug-zsl-0508 I1SEQY    ",  I1SEQY
+      ! write(LOGNAM,*) "Debug-zsl-0508 NSEQALL   ",  NSEQALL
 !$OMP PARALLEL DO
       DO ISEQ=1,NSEQALL
          IX=I1SEQX(ISEQ)
@@ -534,9 +536,9 @@ CONTAINS
    FUNCTION INQUIRE_FID() RESULT(FID)
    IMPLICIT NONE
    !* input/output
-   integer :: FID ! FILE ID
+   integer :: FID !< FILE ID
    !* local variable
-   logical :: I_OPENED ! FILE ID IS ALREADY USED or not?
+   logical :: I_OPENED !< FILE ID IS ALREADY USED or not?
    !================================================
       DO FID = 10, 999
          INQUIRE(FID,OPENED=I_OPENED)
@@ -564,18 +566,6 @@ CONTAINS
    ENDIF
    END SUBROUTINE NCERROR
 #endif
-!####################################################################
-
-!####################################################################
-FUNCTION CMF_CheckNanB(VAR,zero) RESULT(FLAG)
-  implicit none
-  REAL(KIND=JPRB)      :: VAR, zero
-  LOGICAL              :: FLAG
-  FLAG = .false.
-  if(VAR*zero/=zero)then
-    FLAG = .true.
-  endif
-END FUNCTION CMF_CheckNanB
 !####################################################################
 
 END MODULE CMF_UTILS_MOD

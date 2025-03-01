@@ -6,7 +6,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
 
 !---------------------------------------------------------------------------------------------------------
 ! !DESCRIPTION
-! Define, allocate, and deallocate biogeochemical state variables at pft level.
+! Define, allocate, and deallocate biogeochmeical state variables at pft level.
 ! Read and write biogeochemical state variables at pft level from/to restart files.
 
 ! !ORIGINAL:
@@ -15,13 +15,13 @@ MODULE MOD_BGC_Vars_PFTimeVariables
 #ifdef BGC
 
    USE MOD_Precision
-   USE MOD_Namelist, only: DEF_USE_SASU, DEF_USE_DiagMatrix
+   USE MOD_Namelist, only : DEF_USE_SASU
    USE MOD_TimeManager
-
+ 
    IMPLICIT NONE
    SAVE
 ! -----------------------------------------------------------------
-! Time-varying state variables which required by restart run
+! Time-varying state variables which reaquired by restart run
 !--------------------- bgc variables ---------------------------------------
    real(r8), allocatable :: leafc_p                  (:)     ! leaf display C (gC m-2)
    real(r8), allocatable :: leafc_storage_p          (:)     ! leaf storage C (gC m-2)
@@ -46,18 +46,18 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: grainc_xfer_p            (:)     ! grain transfer C (gC m-2)
    real(r8), allocatable :: cropseedc_deficit_p      (:)     ! crop seed deficit C (gC m-2)
    real(r8), allocatable :: cropprod1c_p             (:)     ! product C (gC m-2)
-   real(r8), allocatable :: xsmrpool_p               (:)     ! maintenance respiration storage C (gC m-2)
+   real(r8), allocatable :: xsmrpool_p               (:)     !! maintenance respiration storage C (gC m-2)
    real(r8), allocatable :: gresp_storage_p          (:)     ! growth respiration storage C (gC m-2)
    real(r8), allocatable :: gresp_xfer_p             (:)     ! growth respiration transfer C (gC m-2)
    real(r8), allocatable :: cpool_p                  (:)     ! available C (gC m-2)
    real(r8), allocatable :: totvegc_p                (:)     ! total vegetation C, including available C (gC m-2)
-
+ 
    real(r8), allocatable :: leaf_prof_p              (:,:)   ! vertical profile of leaves input to litter (m-1)
    real(r8), allocatable :: stem_prof_p              (:,:)   ! vertical profile of stem input to litter (m-1)
    real(r8), allocatable :: froot_prof_p             (:,:)   ! vertical profile of fine roots input to litter (m-1)
    real(r8), allocatable :: croot_prof_p             (:,:)   ! vertical profile of coarse roots input to litter (m-1)
    real(r8), allocatable :: cinput_rootfr_p          (:,:)   ! root fraction used for calculating vertical profile of roots input to litter (m-1)
-
+ 
    real(r8), allocatable :: leafn_p                  (:)     ! leaf display N (gN m-2)
    real(r8), allocatable :: leafn_storage_p          (:)     ! leaf storage N (gN m-2)
    real(r8), allocatable :: leafn_xfer_p             (:)     ! leaf transfer N (gN m-2)
@@ -84,7 +84,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    integer , allocatable :: nyrs_crop_active_p       (:)     ! number of years of this crop has been active to calculate climate GDD
    real(r8), allocatable :: retransn_p               (:)     ! retranslocated N (gN m-2)
    real(r8), allocatable :: totvegn_p                (:)     ! total vegetation N, including available N (gN m-2)
-
+ 
    real(r8), allocatable :: tempsum_potential_gpp_p  (:)     ! temporary annual sum of potential GPP (gC m-2)
    real(r8), allocatable :: tempmax_retransn_p       (:)     ! temporary annual max of retranslocated N (gN m-2)
    real(r8), allocatable :: tempavg_tref_p           (:)     ! temporary annual average 2m air temperature (degree C)
@@ -95,7 +95,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: annavg_tref_p            (:)     ! annual average 2m air temperature (degree C)
    real(r8), allocatable :: annsum_npp_p             (:)     ! annual sum NPP (gC m-2)
    real(r8), allocatable :: annsum_litfall_p         (:)     ! annual sum litterfall (gC m-2)
-
+ 
    real(r8), allocatable :: bglfr_p                  (:)     ! background litterfall rate (1/s)
    real(r8), allocatable :: bgtr_p                   (:)     ! background transfer rate (1/s)
    real(r8), allocatable :: lgsf_p                   (:)     ! long growing season factor (0-1)
@@ -105,29 +105,29 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: gdd020_p                 (:)     ! 20-year mean of GDD based on 0 degree C
    real(r8), allocatable :: gdd820_p                 (:)     ! 20-year mean of GDD based on 8 degree C
    real(r8), allocatable :: gdd1020_p                (:)     ! 20-year mean of GDD based on 10 degree C
-
-   real(r8), allocatable :: offset_flag_p            (:)     ! flag, 1 if offset
+ 
+   integer , allocatable :: offset_flag_p            (:)     ! flag, 1 if offset
    real(r8), allocatable :: offset_counter_p         (:)     ! time left for offset (s)
-   real(r8), allocatable :: onset_flag_p             (:)     ! flag, 1 if onset
+   integer , allocatable :: onset_flag_p             (:)     ! flag, 1 if onset
    real(r8), allocatable :: onset_counter_p          (:)     ! time left for onset (s)
-   real(r8), allocatable :: onset_gddflag_p          (:)     ! flag, 1 if begin to accumulate GDD for onset
+   integer , allocatable :: onset_gddflag_p          (:)     ! flag, 1 if begin to accumulate GDD for onset
    real(r8), allocatable :: onset_gdd_p              (:)     ! onset GDD
    real(r8), allocatable :: onset_fdd_p              (:)     ! onset freezing degree days counter
    real(r8), allocatable :: onset_swi_p              (:)     ! onset soil water index
    real(r8), allocatable :: offset_fdd_p             (:)     ! offset freezing degree days counter
    real(r8), allocatable :: offset_swi_p             (:)     ! offset soil water index
-   real(r8), allocatable :: dormant_flag_p           (:)     ! flag, 1 if dormancy, 0 if not
+   integer , allocatable :: dormant_flag_p           (:)     ! flag, 1 if dormancy, 0 if not
    real(r8), allocatable :: prev_leafc_to_litter_p   (:)     ! previous timestep leaf display C to litter C (gN m-2 s-1)
    real(r8), allocatable :: prev_frootc_to_litter_p  (:)     ! previous timestep fine root display C to litter C (gN m-2 s-1)
    real(r8), allocatable :: days_active_p            (:)     ! phenology-associated state: number of days since last dormancy
-
+ 
    real(r8), allocatable :: burndate_p               (:)     ! burn date for crop
-
+ 
    real(r8), allocatable :: c_allometry_p            (:)     ! C allocation index
    real(r8), allocatable :: n_allometry_p            (:)     ! N allocation index
    real(r8), allocatable :: downreg_p                (:)     ! fractional reduction in GPP due to N limitation
-   real(r8), allocatable :: grain_flag_p             (:)     ! flag, 1 if grain fill, 0 if not
-
+   integer , allocatable :: grain_flag_p             (:)     ! flag, 1 if grain fill, 0 if not
+ 
    real(r8), allocatable :: ctrunc_p                 (:)     ! additional carbon from precision control, currently not used
    real(r8), allocatable :: ntrunc_p                 (:)     ! additional nitrogen from precision control, currently not used
    real(r8), allocatable :: npool_p                  (:)     ! available N (gN m-2)
@@ -145,7 +145,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8),allocatable :: astemi_p                  (:)     ! stem allocation coefficient of phase 2
    real(r8),allocatable :: aleafi_p                  (:)     ! leaf allocation coefficient of phase 2
    real(r8),allocatable :: gddmaturity_p             (:)     ! gdd needed to harvest
-
+ 
    logical, allocatable :: cropplant_p               (:)     ! flag, true if crop planted, not harvested; but if winter cereal still live at begin of the year, it will be set false
    integer ,allocatable :: idop_p                    (:)     ! planting date
    real(r8),allocatable :: a5tmin_p                  (:)     ! 5-day running mean of min 2 m temperature (degree C)
@@ -163,48 +163,11 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8),allocatable :: fert_p                    (:)     ! fertilizer nitrogen (gN m-2) including manure
    real(r8),allocatable :: latbaset_p                (:)     ! latitude vary base temperature for gddplant (degree C)
    real(r8),allocatable :: plantdate_p               (:)     ! planting date (input)
+   real(r8),allocatable :: maturitydate_p            (:)     ! maturity date (input)
 #endif
 ! --------------------- END CROP variables -------------------------
 
 ! --------------------- SASU variables -----------------------------
-   real(r8), allocatable :: leafcCap_p                  (:)     ! leaf display C (gC m-2)
-   real(r8), allocatable :: leafc_storageCap_p          (:)     ! leaf storage C (gC m-2)
-   real(r8), allocatable :: leafc_xferCap_p             (:)     ! leaf transfer C (gC m-2)
-   real(r8), allocatable :: frootcCap_p                 (:)     ! fine root display C (gC m-2)
-   real(r8), allocatable :: frootc_storageCap_p         (:)     ! fine root storage C (gC m-2)
-   real(r8), allocatable :: frootc_xferCap_p            (:)     ! fine root transfer C (gC m-2)
-   real(r8), allocatable :: livestemcCap_p              (:)     ! live stem display C (gC m-2)
-   real(r8), allocatable :: livestemc_storageCap_p      (:)     ! live stem storage C (gC m-2)
-   real(r8), allocatable :: livestemc_xferCap_p         (:)     ! live stem transfer C (gC m-2)
-   real(r8), allocatable :: deadstemcCap_p              (:)     ! dead stem display C (gC m-2)
-   real(r8), allocatable :: deadstemc_storageCap_p      (:)     ! dead stem storage C (gC m-2)
-   real(r8), allocatable :: deadstemc_xferCap_p         (:)     ! dead stem transfer C (gC m-2)
-   real(r8), allocatable :: livecrootcCap_p             (:)     ! live coarse root display C (gC m-2)
-   real(r8), allocatable :: livecrootc_storageCap_p     (:)     ! live coarse root storage C (gC m-2)
-   real(r8), allocatable :: livecrootc_xferCap_p        (:)     ! live coarse root transfer C (gC m-2)
-   real(r8), allocatable :: deadcrootcCap_p             (:)     ! dead coarse root display C (gC m-2)
-   real(r8), allocatable :: deadcrootc_storageCap_p     (:)     ! dead coarse root storage C (gC m-2)
-   real(r8), allocatable :: deadcrootc_xferCap_p        (:)     ! dead coarse root transfer C (gC m-2)
-
-   real(r8), allocatable :: leafnCap_p                  (:)     ! leaf display C (gC m-2)
-   real(r8), allocatable :: leafn_storageCap_p          (:)     ! leaf storage C (gC m-2)
-   real(r8), allocatable :: leafn_xferCap_p             (:)     ! leaf transfer C (gC m-2)
-   real(r8), allocatable :: frootnCap_p                 (:)     ! fine root display C (gC m-2)
-   real(r8), allocatable :: frootn_storageCap_p         (:)     ! fine root storage C (gC m-2)
-   real(r8), allocatable :: frootn_xferCap_p            (:)     ! fine root transfer C (gC m-2)
-   real(r8), allocatable :: livestemnCap_p              (:)     ! live stem display C (gC m-2)
-   real(r8), allocatable :: livestemn_storageCap_p      (:)     ! live stem storage C (gC m-2)
-   real(r8), allocatable :: livestemn_xferCap_p         (:)     ! live stem transfer C (gC m-2)
-   real(r8), allocatable :: deadstemnCap_p              (:)     ! dead stem display C (gC m-2)
-   real(r8), allocatable :: deadstemn_storageCap_p      (:)     ! dead stem storage C (gC m-2)
-   real(r8), allocatable :: deadstemn_xferCap_p         (:)     ! dead stem transfer C (gC m-2)
-   real(r8), allocatable :: livecrootnCap_p             (:)     ! live coarse root display C (gC m-2)
-   real(r8), allocatable :: livecrootn_storageCap_p     (:)     ! live coarse root storage C (gC m-2)
-   real(r8), allocatable :: livecrootn_xferCap_p        (:)     ! live coarse root transfer C (gC m-2)
-   real(r8), allocatable :: deadcrootnCap_p             (:)     ! dead coarse root display C (gC m-2)
-   real(r8), allocatable :: deadcrootn_storageCap_p     (:)     ! dead coarse root storage C (gC m-2)
-   real(r8), allocatable :: deadcrootn_xferCap_p        (:)     ! dead coarse root transfer C (gC m-2)
-
    real(r8), allocatable :: leafc0_p                 (:) ! SASU spinup initial value: leaf display C (gC m-2)
    real(r8), allocatable :: leafc0_storage_p         (:) ! SASU spinup initial value: leaf storage C (gC m-2)
    real(r8), allocatable :: leafc0_xfer_p            (:) ! SASU spinup initial value: leaf transfer C (gC m-2)
@@ -226,7 +189,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: grainc0_p                (:) ! SASU spinup initial value: grain display C (gC m-2)
    real(r8), allocatable :: grainc0_storage_p        (:) ! SASU spinup initial value: grain storage C (gC m-2)
    real(r8), allocatable :: grainc0_xfer_p           (:) ! SASU spinup initial value: grain transfer C (gC m-2)
-
+ 
    real(r8), allocatable :: leafn0_p                 (:) ! SASU spinup initial value: leaf display N (gN m-2)
    real(r8), allocatable :: leafn0_storage_p         (:) ! SASU spinup initial value: leaf storage N (gN m-2)
    real(r8), allocatable :: leafn0_xfer_p            (:) ! SASU spinup initial value: leaf transfer N (gN m-2)
@@ -249,7 +212,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: grainn0_storage_p        (:) ! SASU spinup initial value: grain storage N (gN m-2)
    real(r8), allocatable :: grainn0_xfer_p           (:) ! SASU spinup initial value: grain transfer N (gN m-2)
    real(r8), allocatable :: retransn0_p              (:) ! SASU spinup initial value: retranslocated N (gN m-2)
-
+ 
    real(r8), allocatable :: I_leafc_p_acc            (:) ! SASU spinup diagnostics: accumulated input to leaf display C (gC m-2)
    real(r8), allocatable :: I_leafc_st_p_acc         (:) ! SASU spinup diagnostics: accumulated input to leaf storage C (gC m-2)
    real(r8), allocatable :: I_frootc_p_acc           (:) ! SASU spinup diagnostics: accumulated input to fine root display C (gC m-2)
@@ -278,7 +241,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: I_deadcrootn_st_p_acc    (:) ! SASU spinup diagnostics: accumulated input to dead coarse root storage N (gN m-2)
    real(r8), allocatable :: I_grainn_p_acc           (:) ! SASU spinup diagnostics: accumulated input to grain display N (gN m-2)
    real(r8), allocatable :: I_grainn_st_p_acc        (:) ! SASU spinup diagnostics: accumulated input to grain storage N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_leafc_xf_to_leafc_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux from leaf transfer C to display C (gC m-2)
    real(r8), allocatable :: AKX_frootc_xf_to_frootc_p_acc               (:) ! SASU spinup diagnostics: accumulated flux from fine root transfer C to display C (gC m-2)
    real(r8), allocatable :: AKX_livestemc_xf_to_livestemc_p_acc         (:) ! SASU spinup diagnostics: accumulated flux from live stem transfer C to display C (gC m-2)
@@ -288,7 +251,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_grainc_xf_to_grainc_p_acc               (:) ! SASU spinup diagnostics: accumulated flux from grain transfer C to display C (gC m-2)
    real(r8), allocatable :: AKX_livestemc_to_deadstemc_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from live stem display C to dead stem display C (gC m-2)
    real(r8), allocatable :: AKX_livecrootc_to_deadcrootc_p_acc          (:) ! SASU spinup diagnostics: accumulated flux from live coarse root display C to dead coarse root display C (gC m-2)
-
+ 
    real(r8), allocatable :: AKX_leafc_st_to_leafc_xf_p_acc              (:) ! SASU spinup diagnostics: accumulated flux from leaf storage C to transfer C (gC m-2)
    real(r8), allocatable :: AKX_frootc_st_to_frootc_xf_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from fine root storage C to transfer C (gC m-2)
    real(r8), allocatable :: AKX_livestemc_st_to_livestemc_xf_p_acc      (:) ! SASU spinup diagnostics: accumulated flux from live stem storage C to transfer C (gC m-2)
@@ -296,7 +259,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_livecrootc_st_to_livecrootc_xf_p_acc    (:) ! SASU spinup diagnostics: accumulated flux from live coarse root storage C to transfer C (gC m-2)
    real(r8), allocatable :: AKX_deadcrootc_st_to_deadcrootc_xf_p_acc    (:) ! SASU spinup diagnostics: accumulated flux from dead coarse root storage C to transfer C (gC m-2)
    real(r8), allocatable :: AKX_grainc_st_to_grainc_xf_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from grain storage C to transfer C (gC m-2)
-
+ 
    real(r8), allocatable :: AKX_leafc_exit_p_acc                        (:) ! SASU spinup diagnostics: accumulated flux exiting from leaf display C (gC m-2)
    real(r8), allocatable :: AKX_frootc_exit_p_acc                       (:) ! SASU spinup diagnostics: accumulated flux exiting from fine root display C (gC m-2)
    real(r8), allocatable :: AKX_livestemc_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from live stem display C (gC m-2)
@@ -304,7 +267,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_livecrootc_exit_p_acc                   (:) ! SASU spinup diagnostics: accumulated flux exiting from live coarse root display C (gC m-2)
    real(r8), allocatable :: AKX_deadcrootc_exit_p_acc                   (:) ! SASU spinup diagnostics: accumulated flux exiting from dead coarse root display C (gC m-2)
    real(r8), allocatable :: AKX_grainc_exit_p_acc                       (:) ! SASU spinup diagnostics: accumulated flux exiting from grain display C (gC m-2)
-
+ 
    real(r8), allocatable :: AKX_leafc_st_exit_p_acc                     (:) ! SASU spinup diagnostics: accumulated flux exiting from leaf storage C (gC m-2)
    real(r8), allocatable :: AKX_frootc_st_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from fine root storage C (gC m-2)
    real(r8), allocatable :: AKX_livestemc_st_exit_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux exiting from live stem storage C (gC m-2)
@@ -312,7 +275,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_livecrootc_st_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from live coarse root storage C (gC m-2)
    real(r8), allocatable :: AKX_deadcrootc_st_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from dead coarse root storage C (gC m-2)
    real(r8), allocatable :: AKX_grainc_st_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from grain storage C (gC m-2)
-
+ 
    real(r8), allocatable :: AKX_leafc_xf_exit_p_acc                     (:) ! SASU spinup diagnostics: accumulated flux exiting from leaf transfer C (gC m-2)
    real(r8), allocatable :: AKX_frootc_xf_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from fine root transfer C (gC m-2)
    real(r8), allocatable :: AKX_livestemc_xf_exit_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux exiting from live stem transfer C (gC m-2)
@@ -320,7 +283,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_livecrootc_xf_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from live coarse root transfer C (gC m-2)
    real(r8), allocatable :: AKX_deadcrootc_xf_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from dead coarse root transfer C (gC m-2)
    real(r8), allocatable :: AKX_grainc_xf_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from grain transfer C (gC m-2)
-
+ 
    real(r8), allocatable :: AKX_leafn_xf_to_leafn_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux from leaf transfer N to display N (gN m-2)
    real(r8), allocatable :: AKX_frootn_xf_to_frootn_p_acc               (:) ! SASU spinup diagnostics: accumulated flux from fine root transfer N to display N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_xf_to_livestemn_p_acc         (:) ! SASU spinup diagnostics: accumulated flux from live stem transfer N to display N (gN m-2)
@@ -330,7 +293,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_grainn_xf_to_grainn_p_acc               (:) ! SASU spinup diagnostics: accumulated flux from grain transfer N to display N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_to_deadstemn_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from live stem display N to dead stem display N (gN m-2)
    real(r8), allocatable :: AKX_livecrootn_to_deadcrootn_p_acc          (:) ! SASU spinup diagnostics: accumulated flux from live coarse root display N to dead coarse root display N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_leafn_st_to_leafn_xf_p_acc              (:) ! SASU spinup diagnostics: accumulated flux from leaf storage N to transfer N (gN m-2)
    real(r8), allocatable :: AKX_frootn_st_to_frootn_xf_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from fine root storage N to transfer N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_st_to_livestemn_xf_p_acc      (:) ! SASU spinup diagnostics: accumulated flux from live stem storage N to transfer N (gN m-2)
@@ -338,12 +301,12 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_livecrootn_st_to_livecrootn_xf_p_acc    (:) ! SASU spinup diagnostics: accumulated flux from live coarse root storage N to transfer N (gN m-2)
    real(r8), allocatable :: AKX_deadcrootn_st_to_deadcrootn_xf_p_acc    (:) ! SASU spinup diagnostics: accumulated flux from dead coarse root storage N to transfer N (gN m-2)
    real(r8), allocatable :: AKX_grainn_st_to_grainn_xf_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from grain storage N to transfer N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_leafn_to_retransn_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux from leaf display N to retranslocated N (gN m-2)
    real(r8), allocatable :: AKX_frootn_to_retransn_p_acc                (:) ! SASU spinup diagnostics: accumulated flux from fine root display N to retranslocated N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_to_retransn_p_acc             (:) ! SASU spinup diagnostics: accumulated flux from live stem display N to retranslocated N (gN m-2)
    real(r8), allocatable :: AKX_livecrootn_to_retransn_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from live coarse root display N to retranslocated N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_retransn_to_leafn_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to leaf display N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_frootn_p_acc                (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to fine root display N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_livestemn_p_acc             (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to live stem display N (gN m-2)
@@ -351,7 +314,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_retransn_to_livecrootn_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to live coarse root display N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_deadcrootn_p_acc            (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to dead coarse root display N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_grainn_p_acc                (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to grain display N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_retransn_to_leafn_st_p_acc              (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to leaf storage N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_frootn_st_p_acc             (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to fine root storage N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_livestemn_st_p_acc          (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to live stem storage N (gN m-2)
@@ -359,7 +322,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_retransn_to_livecrootn_st_p_acc         (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to live coarse root storage N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_deadcrootn_st_p_acc         (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to dead coarse root storage N (gN m-2)
    real(r8), allocatable :: AKX_retransn_to_grainn_st_p_acc             (:) ! SASU spinup diagnostics: accumulated flux from retranslocated N to grain storage N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_leafn_exit_p_acc                        (:) ! SASU spinup diagnostics: accumulated flux exiting from leaf display N (gN m-2)
    real(r8), allocatable :: AKX_frootn_exit_p_acc                       (:) ! SASU spinup diagnostics: accumulated flux exiting from fine root display N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from live stem display N (gN m-2)
@@ -368,7 +331,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_deadcrootn_exit_p_acc                   (:) ! SASU spinup diagnostics: accumulated flux exiting from dead coarse root display N (gN m-2)
    real(r8), allocatable :: AKX_grainn_exit_p_acc                       (:) ! SASU spinup diagnostics: accumulated flux exiting from grain display N (gN m-2)
    real(r8), allocatable :: AKX_retransn_exit_p_acc                     (:) ! SASU spinup diagnostics: accumulated flux exiting from retranslocated N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_leafn_st_exit_p_acc                     (:) ! SASU spinup diagnostics: accumulated flux exiting from leaf storge N (gN m-2)
    real(r8), allocatable :: AKX_frootn_st_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from fine root storge N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_st_exit_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux exiting from live stem storge N (gN m-2)
@@ -376,7 +339,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_livecrootn_st_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from live coarse root storge N (gN m-2)
    real(r8), allocatable :: AKX_deadcrootn_st_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from dead coarse root storge N (gN m-2)
    real(r8), allocatable :: AKX_grainn_st_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from grain storge N (gN m-2)
-
+ 
    real(r8), allocatable :: AKX_leafn_xf_exit_p_acc                     (:) ! SASU spinup diagnostics: accumulated flux exiting from leaf transfer N (gN m-2)
    real(r8), allocatable :: AKX_frootn_xf_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from fine root transfer N (gN m-2)
    real(r8), allocatable :: AKX_livestemn_xf_exit_p_acc                 (:) ! SASU spinup diagnostics: accumulated flux exiting from live stem transfer N (gN m-2)
@@ -385,7 +348,7 @@ MODULE MOD_BGC_Vars_PFTimeVariables
    real(r8), allocatable :: AKX_deadcrootn_xf_exit_p_acc                (:) ! SASU spinup diagnostics: accumulated flux exiting from dead coarse root transfer N (gN m-2)
    real(r8), allocatable :: AKX_grainn_xf_exit_p_acc                    (:) ! SASU spinup diagnostics: accumulated flux exiting from grain transfer N (gN m-2)
  !------------------------- END BGC/SASU variables ---------------------
-
+ 
  ! PUBLIC MEMBER FUNCTIONS:
    PUBLIC :: allocate_BGCPFTimeVariables
    PUBLIC :: deallocate_BGCPFTimeVariables
@@ -500,17 +463,17 @@ CONTAINS
             allocate (gdd1020_p                (numpft)); gdd1020_p                (:) = spval
             allocate (nyrs_crop_active_p       (numpft)); nyrs_crop_active_p       (:) = spval_i4
 
-            allocate (offset_flag_p            (numpft)); offset_flag_p            (:) = spval
+            allocate (offset_flag_p            (numpft)); offset_flag_p            (:) = spval_i4
             allocate (offset_counter_p         (numpft)); offset_counter_p         (:) = spval
-            allocate (onset_flag_p             (numpft)); onset_flag_p             (:) = spval
+            allocate (onset_flag_p             (numpft)); onset_flag_p             (:) = spval_i4
             allocate (onset_counter_p          (numpft)); onset_counter_p          (:) = spval
-            allocate (onset_gddflag_p          (numpft)); onset_gddflag_p          (:) = spval
+            allocate (onset_gddflag_p          (numpft)); onset_gddflag_p          (:) = spval_i4
             allocate (onset_gdd_p              (numpft)); onset_gdd_p              (:) = spval
             allocate (onset_fdd_p              (numpft)); onset_fdd_p              (:) = spval
             allocate (onset_swi_p              (numpft)); onset_swi_p              (:) = spval
             allocate (offset_fdd_p             (numpft)); offset_fdd_p             (:) = spval
             allocate (offset_swi_p             (numpft)); offset_swi_p             (:) = spval
-            allocate (dormant_flag_p           (numpft)); dormant_flag_p           (:) = spval
+            allocate (dormant_flag_p           (numpft)); dormant_flag_p           (:) = spval_i4
             allocate (prev_leafc_to_litter_p   (numpft)); prev_leafc_to_litter_p   (:) = spval
             allocate (prev_frootc_to_litter_p  (numpft)); prev_frootc_to_litter_p  (:) = spval
             allocate (days_active_p            (numpft)); days_active_p            (:) = spval
@@ -520,7 +483,7 @@ CONTAINS
             allocate (c_allometry_p            (numpft)); c_allometry_p            (:) = spval
             allocate (n_allometry_p            (numpft)); n_allometry_p            (:) = spval
             allocate (downreg_p                (numpft)); downreg_p                (:) = spval
-            allocate (grain_flag_p             (numpft)); grain_flag_p             (:) = spval
+            allocate (grain_flag_p             (numpft)); grain_flag_p             (:) = spval_i4
 
             allocate (ctrunc_p                 (numpft)); ctrunc_p                 (:) = spval
             allocate (ntrunc_p                 (numpft)); ntrunc_p                 (:) = spval
@@ -557,47 +520,10 @@ CONTAINS
             allocate (fert_p                   (numpft)); fert_p                   (:) = spval
             allocate (latbaset_p               (numpft)); latbaset_p               (:) = spval
             allocate (plantdate_p              (numpft)); plantdate_p              (:) = spval
+            allocate (maturitydate_p           (numpft)); maturitydate_p           (:) = spval
 #endif
 
 ! SASU variables
-            allocate (leafcCap_p               (numpft)); leafcCap_p               (:) = spval
-            allocate (leafc_storageCap_p       (numpft)); leafc_storageCap_p       (:) = spval
-            allocate (leafc_xferCap_p          (numpft)); leafc_xferCap_p          (:) = spval
-            allocate (frootcCap_p              (numpft)); frootcCap_p              (:) = spval
-            allocate (frootc_storageCap_p      (numpft)); frootc_storageCap_p      (:) = spval
-            allocate (frootc_xferCap_p         (numpft)); frootc_xferCap_p         (:) = spval
-            allocate (livestemcCap_p           (numpft)); livestemcCap_p           (:) = spval
-            allocate (livestemc_storageCap_p   (numpft)); livestemc_storageCap_p   (:) = spval
-            allocate (livestemc_xferCap_p      (numpft)); livestemc_xferCap_p      (:) = spval
-            allocate (deadstemcCap_p           (numpft)); deadstemcCap_p           (:) = spval
-            allocate (deadstemc_storageCap_p   (numpft)); deadstemc_storageCap_p   (:) = spval
-            allocate (deadstemc_xferCap_p      (numpft)); deadstemc_xferCap_p      (:) = spval
-            allocate (livecrootcCap_p          (numpft)); livecrootcCap_p          (:) = spval
-            allocate (livecrootc_storageCap_p  (numpft)); livecrootc_storageCap_p  (:) = spval
-            allocate (livecrootc_xferCap_p     (numpft)); livecrootc_xferCap_p     (:) = spval
-            allocate (deadcrootcCap_p          (numpft)); deadcrootcCap_p          (:) = spval
-            allocate (deadcrootc_storageCap_p  (numpft)); deadcrootc_storageCap_p  (:) = spval
-            allocate (deadcrootc_xferCap_p     (numpft)); deadcrootc_xferCap_p     (:) = spval
-
-            allocate (leafnCap_p               (numpft)); leafnCap_p               (:) = spval
-            allocate (leafn_storageCap_p       (numpft)); leafn_storageCap_p       (:) = spval
-            allocate (leafn_xferCap_p          (numpft)); leafn_xferCap_p          (:) = spval
-            allocate (frootnCap_p              (numpft)); frootnCap_p              (:) = spval
-            allocate (frootn_storageCap_p      (numpft)); frootn_storageCap_p      (:) = spval
-            allocate (frootn_xferCap_p         (numpft)); frootn_xferCap_p         (:) = spval
-            allocate (livestemnCap_p           (numpft)); livestemnCap_p           (:) = spval
-            allocate (livestemn_storageCap_p   (numpft)); livestemn_storageCap_p   (:) = spval
-            allocate (livestemn_xferCap_p      (numpft)); livestemn_xferCap_p      (:) = spval
-            allocate (deadstemnCap_p           (numpft)); deadstemnCap_p           (:) = spval
-            allocate (deadstemn_storageCap_p   (numpft)); deadstemn_storageCap_p   (:) = spval
-            allocate (deadstemn_xferCap_p      (numpft)); deadstemn_xferCap_p      (:) = spval
-            allocate (livecrootnCap_p          (numpft)); livecrootnCap_p          (:) = spval
-            allocate (livecrootn_storageCap_p  (numpft)); livecrootn_storageCap_p  (:) = spval
-            allocate (livecrootn_xferCap_p     (numpft)); livecrootn_xferCap_p     (:) = spval
-            allocate (deadcrootnCap_p          (numpft)); deadcrootnCap_p          (:) = spval
-            allocate (deadcrootn_storageCap_p  (numpft)); deadcrootn_storageCap_p  (:) = spval
-            allocate (deadcrootn_xferCap_p     (numpft)); deadcrootn_xferCap_p     (:) = spval
-
             allocate (leafc0_p                 (numpft)); leafc0_p                 (:) = spval
             allocate (leafc0_storage_p         (numpft)); leafc0_storage_p         (:) = spval
             allocate (leafc0_xfer_p            (numpft)); leafc0_xfer_p            (:) = spval
@@ -790,7 +716,7 @@ CONTAINS
 
    IMPLICIT NONE
 
-   character(len=*), intent(in) :: file_restart
+   character(LEN=*), intent(in) :: file_restart
 
 ! bgc variables
       CALL ncio_read_vector (file_restart, 'leafc_p                ', landpft, leafc_p               )
@@ -821,7 +747,7 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'cpool_p                ', landpft, cpool_p               )
  !     CALL ncio_read_vector (file_restart, 'totvegc_p              ', landpft, totvegc_p             )
       CALL ncio_read_vector (file_restart, 'cropprod1c_p           ', landpft, cropprod1c_p          )
-
+ 
       CALL ncio_read_vector (file_restart, 'leafn_p                ', landpft, leafn_p               )
       CALL ncio_read_vector (file_restart, 'leafn_storage_p        ', landpft, leafn_storage_p       )
       CALL ncio_read_vector (file_restart, 'leafn_xfer_p           ', landpft, leafn_xfer_p          )
@@ -846,9 +772,9 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'cropseedn_deficit_p    ', landpft, cropseedn_deficit_p   )
       CALL ncio_read_vector (file_restart, 'retransn_p             ', landpft, retransn_p            )
  !     CALL ncio_read_vector (file_restart, 'totvegn_p              ', landpft, totvegn_p             )
-
+ 
       CALL ncio_read_vector (file_restart, 'harvdate_p             ', landpft, harvdate_p            )
-
+ 
       CALL ncio_read_vector (file_restart, 'tempsum_potential_gpp_p', landpft, tempsum_potential_gpp_p)
       CALL ncio_read_vector (file_restart, 'tempmax_retransn_p     ', landpft, tempmax_retransn_p    )
       CALL ncio_read_vector (file_restart, 'tempavg_tref_p         ', landpft, tempavg_tref_p        )
@@ -859,7 +785,7 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'annavg_tref_p          ', landpft, annavg_tref_p         )
       CALL ncio_read_vector (file_restart, 'annsum_npp_p           ', landpft, annsum_npp_p          )
       CALL ncio_read_vector (file_restart, 'annsum_litfall_p       ', landpft, annsum_litfall_p      )
-
+ 
       CALL ncio_read_vector (file_restart, 'bglfr_p                ', landpft, bglfr_p               )
       CALL ncio_read_vector (file_restart, 'bgtr_p                 ', landpft, bgtr_p                )
       CALL ncio_read_vector (file_restart, 'lgsf_p                 ', landpft, lgsf_p                )
@@ -870,7 +796,7 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'gdd820_p               ', landpft, gdd820_p              )
       CALL ncio_read_vector (file_restart, 'gdd1020_p              ', landpft, gdd1020_p             )
       CALL ncio_read_vector (file_restart, 'nyrs_crop_active_p     ', landpft, nyrs_crop_active_p    )
-
+ 
       CALL ncio_read_vector (file_restart, 'offset_flag_p          ', landpft, offset_flag_p         )
       CALL ncio_read_vector (file_restart, 'offset_counter_p       ', landpft, offset_counter_p      )
       CALL ncio_read_vector (file_restart, 'onset_flag_p           ', landpft, onset_flag_p          )
@@ -885,7 +811,7 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'prev_leafc_to_litter_p ', landpft, prev_leafc_to_litter_p)
       CALL ncio_read_vector (file_restart, 'prev_frootc_to_litter_p', landpft, prev_frootc_to_litter_p)
       CALL ncio_read_vector (file_restart, 'days_active_p          ', landpft, days_active_p         )
-
+ 
       CALL ncio_read_vector (file_restart, 'burndate_p             ', landpft, burndate_p            )
       CALL ncio_read_vector (file_restart, 'grain_flag_p           ', landpft, grain_flag_p          )
       CALL ncio_read_vector (file_restart, 'ctrunc_p               ', landpft, ctrunc_p              )
@@ -905,7 +831,7 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'astemi_p               ', landpft, astemi_p              )
       CALL ncio_read_vector (file_restart, 'aleafi_p               ', landpft, aleafi_p              )
       CALL ncio_read_vector (file_restart, 'gddmaturity_p          ', landpft, gddmaturity_p         )
-
+ 
       CALL ncio_read_vector (file_restart, 'cropplant_p            ', landpft, cropplant_p           )
       CALL ncio_read_vector (file_restart, 'idop_p                 ', landpft, idop_p                )
       CALL ncio_read_vector (file_restart, 'a5tmin_p               ', landpft, a5tmin_p              )
@@ -925,48 +851,8 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'plantdate_p            ', landpft, plantdate_p           )
 #endif
 
-      IF(DEF_USE_DiagMatrix)THEN
+      IF(DEF_USE_SASU)THEN
 ! SASU variables
-         CALL ncio_read_vector (file_restart, 'leafcCap_p             ', landpft, leafcCap_p             , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'leafc_storageCap_p     ', landpft, leafc_storageCap_p     , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'leafc_xferCap_p        ', landpft, leafc_xferCap_p        , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'frootcCap_p            ', landpft, frootcCap_p            , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'frootc_storageCap_p    ', landpft, frootc_storageCap_p    , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'frootc_xferCap_p       ', landpft, frootc_xferCap_p       , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livestemcCap_p         ', landpft, livestemcCap_p         , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livestemc_storageCap_p ', landpft, livestemc_storageCap_p , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livestemc_xferCap_p    ', landpft, livestemc_xferCap_p    , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadstemcCap_p         ', landpft, deadstemcCap_p         , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadstemc_storageCap_p ', landpft, deadstemc_storageCap_p , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadstemc_xferCap_p    ', landpft, deadstemc_xferCap_p    , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livecrootcCap_p        ', landpft, livecrootcCap_p        , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livecrootc_storageCap_p', landpft, livecrootc_storageCap_p, defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livecrootc_xferCap_p   ', landpft, livecrootc_xferCap_p   , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadcrootcCap_p        ', landpft, deadcrootcCap_p        , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadcrootc_storageCap_p', landpft, deadcrootc_storageCap_p, defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadcrootc_xferCap_p   ', landpft, deadcrootc_xferCap_p   , defval = 1._r8)
-
-         CALL ncio_read_vector (file_restart, 'leafnCap_p             ', landpft, leafnCap_p             , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'leafn_storageCap_p     ', landpft, leafn_storageCap_p     , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'leafn_xferCap_p        ', landpft, leafn_xferCap_p        , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'frootnCap_p            ', landpft, frootnCap_p            , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'frootn_storageCap_p    ', landpft, frootn_storageCap_p    , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'frootn_xferCap_p       ', landpft, frootn_xferCap_p       , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livestemnCap_p         ', landpft, livestemnCap_p         , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livestemn_storageCap_p ', landpft, livestemn_storageCap_p , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livestemn_xferCap_p    ', landpft, livestemn_xferCap_p    , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadstemnCap_p         ', landpft, deadstemnCap_p         , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadstemn_storageCap_p ', landpft, deadstemn_storageCap_p , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadstemn_xferCap_p    ', landpft, deadstemn_xferCap_p    , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livecrootnCap_p        ', landpft, livecrootnCap_p        , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livecrootn_storageCap_p', landpft, livecrootn_storageCap_p, defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'livecrootn_xferCap_p   ', landpft, livecrootn_xferCap_p   , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadcrootnCap_p        ', landpft, deadcrootnCap_p        , defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadcrootn_storageCap_p', landpft, deadcrootn_storageCap_p, defval = 1._r8)
-         CALL ncio_read_vector (file_restart, 'deadcrootn_xferCap_p   ', landpft, deadcrootn_xferCap_p   , defval = 1._r8)
-      ENDIF
-
-      IF(DEF_USE_SASU .or. DEF_USE_DiagMatrix)THEN
          CALL ncio_read_vector (file_restart, 'leafc0_p               ', landpft, leafc0_p              , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'leafc0_storage_p       ', landpft, leafc0_storage_p      , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'leafc0_xfer_p          ', landpft, leafc0_xfer_p         , defval = 1._r8)
@@ -988,7 +874,7 @@ CONTAINS
          CALL ncio_read_vector (file_restart, 'grainc0_p              ', landpft, grainc0_p             , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'grainc0_storage_p      ', landpft, grainc0_storage_p     , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'grainc0_xfer_p         ', landpft, grainc0_xfer_p        , defval = 1._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'leafn0_p               ', landpft, leafn0_p              , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'leafn0_storage_p       ', landpft, leafn0_storage_p      , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'leafn0_xfer_p          ', landpft, leafn0_xfer_p         , defval = 1._r8)
@@ -1011,7 +897,7 @@ CONTAINS
          CALL ncio_read_vector (file_restart, 'grainn0_storage_p      ', landpft, grainn0_storage_p     , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'grainn0_xfer_p         ', landpft, grainn0_xfer_p        , defval = 1._r8)
          CALL ncio_read_vector (file_restart, 'retransn0_p            ', landpft, retransn0_p           , defval = 1._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'I_leafc_p_acc          ', landpft, I_leafc_p_acc         , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'I_leafc_st_p_acc       ', landpft, I_leafc_st_p_acc      , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'I_frootc_p_acc         ', landpft, I_frootc_p_acc        , defval = 0._r8)
@@ -1040,7 +926,7 @@ CONTAINS
          CALL ncio_read_vector (file_restart, 'I_deadcrootn_st_p_acc  ', landpft, I_deadcrootn_st_p_acc , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'I_grainn_p_acc         ', landpft, I_grainn_p_acc        , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'I_grainn_st_p_acc      ', landpft, I_grainn_st_p_acc     , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafc_xf_to_leafc_p_acc               ', landpft, &
          AKX_leafc_xf_to_leafc_p_acc              , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootc_xf_to_frootc_p_acc             ', landpft, &
@@ -1059,8 +945,8 @@ CONTAINS
          AKX_livestemc_to_deadstemc_p_acc         , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_livecrootc_to_deadcrootc_p_acc        ', landpft, &
          AKX_livecrootc_to_deadcrootc_p_acc       , defval = 0._r8)
-
-
+ 
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafc_st_to_leafc_xf_p_acc            ', landpft, &
          AKX_leafc_st_to_leafc_xf_p_acc           , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootc_st_to_frootc_xf_p_acc          ', landpft, &
@@ -1075,7 +961,7 @@ CONTAINS
          AKX_deadcrootc_st_to_deadcrootc_xf_p_acc , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_grainc_st_to_grainc_xf_p_acc          ', landpft, &
          AKX_grainc_st_to_grainc_xf_p_acc         , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafc_exit_p_acc                      ', landpft, &
          AKX_leafc_exit_p_acc                     , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootc_exit_p_acc                     ', landpft, &
@@ -1090,7 +976,7 @@ CONTAINS
          AKX_deadcrootc_exit_p_acc                , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_grainc_exit_p_acc                     ', landpft, &
          AKX_grainc_exit_p_acc                    , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafc_st_exit_p_acc                   ', landpft, &
          AKX_leafc_st_exit_p_acc                  , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootc_st_exit_p_acc                  ', landpft, &
@@ -1105,7 +991,7 @@ CONTAINS
          AKX_deadcrootc_st_exit_p_acc             , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_grainc_st_exit_p_acc                  ', landpft, &
          AKX_grainc_st_exit_p_acc                 , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafc_xf_exit_p_acc                   ', landpft, &
          AKX_leafc_xf_exit_p_acc                  , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootc_xf_exit_p_acc                  ', landpft, &
@@ -1120,7 +1006,7 @@ CONTAINS
          AKX_deadcrootc_xf_exit_p_acc             , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_grainc_xf_exit_p_acc                  ', landpft, &
          AKX_grainc_xf_exit_p_acc                 , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafn_xf_to_leafn_p_acc               ', landpft, &
          AKX_leafn_xf_to_leafn_p_acc              , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootn_xf_to_frootn_p_acc             ', landpft, &
@@ -1139,7 +1025,7 @@ CONTAINS
          AKX_livestemn_to_deadstemn_p_acc         , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_livecrootn_to_deadcrootn_p_acc        ', landpft, &
          AKX_livecrootn_to_deadcrootn_p_acc       , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafn_st_to_leafn_xf_p_acc            ', landpft, &
          AKX_leafn_st_to_leafn_xf_p_acc           , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootn_st_to_frootn_xf_p_acc          ', landpft, &
@@ -1154,7 +1040,7 @@ CONTAINS
          AKX_deadcrootn_st_to_deadcrootn_xf_p_acc , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_grainn_st_to_grainn_xf_p_acc          ', landpft, &
          AKX_grainn_st_to_grainn_xf_p_acc         , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafn_to_retransn_p_acc               ', landpft, &
          AKX_leafn_to_retransn_p_acc              , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootn_to_retransn_p_acc              ', landpft, &
@@ -1163,7 +1049,7 @@ CONTAINS
          AKX_livestemn_to_retransn_p_acc          , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_livecrootn_to_retransn_p_acc          ', landpft, &
          AKX_livecrootn_to_retransn_p_acc         , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_retransn_to_leafn_p_acc               ', landpft, &
          AKX_retransn_to_leafn_p_acc              , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_retransn_to_frootn_p_acc              ', landpft, &
@@ -1178,7 +1064,7 @@ CONTAINS
          AKX_retransn_to_deadcrootn_p_acc         , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_retransn_to_grainn_p_acc              ', landpft, &
          AKX_retransn_to_grainn_p_acc             , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_retransn_to_leafn_st_p_acc            ', landpft, &
          AKX_retransn_to_leafn_st_p_acc           , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_retransn_to_frootn_st_p_acc           ', landpft, &
@@ -1193,7 +1079,7 @@ CONTAINS
          AKX_retransn_to_deadcrootn_st_p_acc      , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_retransn_to_grainn_st_p_acc           ', landpft, &
          AKX_retransn_to_grainn_st_p_acc          , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafn_exit_p_acc                      ', landpft, &
          AKX_leafn_exit_p_acc                     , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootn_exit_p_acc                     ', landpft, &
@@ -1210,7 +1096,7 @@ CONTAINS
          AKX_grainn_exit_p_acc                    , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_retransn_exit_p_acc                   ', landpft, &
          AKX_retransn_exit_p_acc                  , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafn_st_exit_p_acc                   ', landpft, &
          AKX_leafn_st_exit_p_acc                  , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootn_st_exit_p_acc                  ', landpft, &
@@ -1225,7 +1111,7 @@ CONTAINS
          AKX_deadcrootn_st_exit_p_acc             , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_grainn_st_exit_p_acc                  ', landpft, &
          AKX_grainn_st_exit_p_acc                 , defval = 0._r8)
-
+ 
          CALL ncio_read_vector (file_restart, 'AKX_leafn_xf_exit_p_acc                   ', landpft, &
          AKX_leafn_xf_exit_p_acc                  , defval = 0._r8)
          CALL ncio_read_vector (file_restart, 'AKX_frootn_xf_exit_p_acc                  ', landpft, &
@@ -1245,19 +1131,19 @@ CONTAINS
 
    SUBROUTINE WRITE_BGCPFTimeVariables (file_restart)
 
-   USE MOD_Namelist, only: DEF_REST_CompressLevel
+   USE MOD_Namelist, only : DEF_REST_CompressLevel
    USE MOD_LandPFT
    USE MOD_NetCDFVector
    USE MOD_Vars_Global
    IMPLICIT NONE
 
-   character(len=*), intent(in) :: file_restart
+   character(LEN=*), intent(in) :: file_restart
 
    ! Local variables
    integer :: compress
 
       compress = DEF_REST_CompressLevel
-
+ 
  ! bgc variables
       CALL ncio_write_vector (file_restart, 'leafc_p                ', 'pft', landpft, &
       leafc_p               , compress)
@@ -1315,7 +1201,7 @@ CONTAINS
  !     totvegc_p             , compress)
       CALL ncio_write_vector (file_restart, 'cropprod1c_p           ', 'pft', landpft, &
       cropprod1c_p          , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'leafn_p                ', 'pft', landpft, &
       leafn_p               , compress)
       CALL ncio_write_vector (file_restart, 'leafn_storage_p        ', 'pft', landpft, &
@@ -1364,10 +1250,10 @@ CONTAINS
       retransn_p            , compress)
  !     CALL ncio_write_vector (file_restart, 'totvegn_p              ', 'pft', landpft, &
  !     totvegn_p             , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'harvdate_p             ', 'pft', landpft, &
       harvdate_p            , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'tempsum_potential_gpp_p', 'pft', landpft, &
       tempsum_potential_gpp_p, compress)
       CALL ncio_write_vector (file_restart, 'tempmax_retransn_p     ', 'pft', landpft, &
@@ -1388,7 +1274,7 @@ CONTAINS
       annsum_npp_p          , compress)
       CALL ncio_write_vector (file_restart, 'annsum_litfall_p       ', 'pft', landpft, &
       annsum_litfall_p      , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'bglfr_p                ', 'pft', landpft, &
       bglfr_p               , compress)
       CALL ncio_write_vector (file_restart, 'bgtr_p                 ', 'pft', landpft, &
@@ -1409,7 +1295,7 @@ CONTAINS
       gdd1020_p             , compress)
       CALL ncio_write_vector (file_restart, 'nyrs_crop_active_p     ', 'pft', landpft, &
       nyrs_crop_active_p    , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'offset_flag_p          ', 'pft', landpft, &
       offset_flag_p         , compress)
       CALL ncio_write_vector (file_restart, 'offset_counter_p       ', 'pft', landpft, &
@@ -1438,7 +1324,7 @@ CONTAINS
       prev_frootc_to_litter_p, compress)
       CALL ncio_write_vector (file_restart, 'days_active_p          ', 'pft', landpft, &
       days_active_p         , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'burndate_p             ', 'pft', landpft, &
       burndate_p            , compress)
       CALL ncio_write_vector (file_restart, 'grain_flag_p           ', 'pft', landpft, &
@@ -1474,7 +1360,7 @@ CONTAINS
       aleafi_p              , compress)
       CALL ncio_write_vector (file_restart, 'gddmaturity_p          ', 'pft', landpft, &
       gddmaturity_p         , compress)
-
+ 
       CALL ncio_write_vector (file_restart, 'cropplant_p            ', 'pft', landpft, &
       cropplant_p           , compress)
       CALL ncio_write_vector (file_restart, 'idop_p                 ', 'pft', landpft, &
@@ -1511,84 +1397,8 @@ CONTAINS
       plantdate_p           , compress)
 #endif
 
-      IF(DEF_USE_DiagMatrix)THEN
+      IF(DEF_USE_SASU)THEN
 ! SASU variables
-         CALL ncio_write_vector (file_restart, 'leafcCap_p                ', 'pft', landpft, &
-         leafcCap_p               , compress)
-         CALL ncio_write_vector (file_restart, 'leafc_storageCap_p        ', 'pft', landpft, &
-         leafc_storageCap_p       , compress)
-         CALL ncio_write_vector (file_restart, 'leafc_xferCap_p           ', 'pft', landpft, &
-         leafc_xferCap_p          , compress)
-         CALL ncio_write_vector (file_restart, 'frootcCap_p               ', 'pft', landpft, &
-         frootcCap_p              , compress)
-         CALL ncio_write_vector (file_restart, 'frootc_storageCap_p       ', 'pft', landpft, &
-         frootc_storageCap_p      , compress)
-         CALL ncio_write_vector (file_restart, 'frootc_xferCap_p          ', 'pft', landpft, &
-         frootc_xferCap_p         , compress)
-         CALL ncio_write_vector (file_restart, 'livestemcCap_p            ', 'pft', landpft, &
-         livestemcCap_p           , compress)
-         CALL ncio_write_vector (file_restart, 'livestemc_storageCap_p    ', 'pft', landpft, &
-         livestemc_storageCap_p   , compress)
-         CALL ncio_write_vector (file_restart, 'livestemc_xferCap_p       ', 'pft', landpft, &
-         livestemc_xferCap_p      , compress)
-         CALL ncio_write_vector (file_restart, 'deadstemcCap_p            ', 'pft', landpft, &
-         deadstemcCap_p           , compress)
-         CALL ncio_write_vector (file_restart, 'deadstemc_storageCap_p    ', 'pft', landpft, &
-         deadstemc_storageCap_p   , compress)
-         CALL ncio_write_vector (file_restart, 'deadstemc_xferCap_p       ', 'pft', landpft, &
-         deadstemc_xferCap_p      , compress)
-         CALL ncio_write_vector (file_restart, 'livecrootcCap_p           ', 'pft', landpft, &
-         livecrootcCap_p          , compress)
-         CALL ncio_write_vector (file_restart, 'livecrootc_storageCap_p   ', 'pft', landpft, &
-         livecrootc_storageCap_p  , compress)
-         CALL ncio_write_vector (file_restart, 'livecrootc_xferCap_p      ', 'pft', landpft, &
-         livecrootc_xferCap_p     , compress)
-         CALL ncio_write_vector (file_restart, 'deadcrootcCap_p           ', 'pft', landpft, &
-         deadcrootcCap_p          , compress)
-         CALL ncio_write_vector (file_restart, 'deadcrootc_storageCap_p   ', 'pft', landpft, &
-         deadcrootc_storageCap_p  , compress)
-         CALL ncio_write_vector (file_restart, 'deadcrootc_xferCap_p      ', 'pft', landpft, &
-         deadcrootc_xferCap_p     , compress)
-
-         CALL ncio_write_vector (file_restart, 'leafnCap_p                ', 'pft', landpft, &
-         leafcCap_p               , compress)
-         CALL ncio_write_vector (file_restart, 'leafn_storageCap_p        ', 'pft', landpft, &
-         leafc_storageCap_p       , compress)
-         CALL ncio_write_vector (file_restart, 'leafn_xferCap_p           ', 'pft', landpft, &
-         leafc_xferCap_p          , compress)
-         CALL ncio_write_vector (file_restart, 'frootnCap_p               ', 'pft', landpft, &
-         frootcCap_p              , compress)
-         CALL ncio_write_vector (file_restart, 'frootn_storageCap_p       ', 'pft', landpft, &
-         frootc_storageCap_p      , compress)
-         CALL ncio_write_vector (file_restart, 'frootn_xferCap_p          ', 'pft', landpft, &
-         frootc_xferCap_p         , compress)
-         CALL ncio_write_vector (file_restart, 'livestemnCap_p            ', 'pft', landpft, &
-         livestemnCap_p           , compress)
-         CALL ncio_write_vector (file_restart, 'livestemn_storageCap_p    ', 'pft', landpft, &
-         livestemn_storageCap_p   , compress)
-         CALL ncio_write_vector (file_restart, 'livestemn_xferCap_p       ', 'pft', landpft, &
-         livestemn_xferCap_p      , compress)
-         CALL ncio_write_vector (file_restart, 'deadstemnCap_p            ', 'pft', landpft, &
-         deadstemnCap_p           , compress)
-         CALL ncio_write_vector (file_restart, 'deadstemn_storageCap_p    ', 'pft', landpft, &
-         deadstemn_storageCap_p   , compress)
-         CALL ncio_write_vector (file_restart, 'deadstemn_xferCap_p       ', 'pft', landpft, &
-         deadstemn_xferCap_p      , compress)
-         CALL ncio_write_vector (file_restart, 'livecrootnCap_p           ', 'pft', landpft, &
-         livecrootnCap_p          , compress)
-         CALL ncio_write_vector (file_restart, 'livecrootn_storageCap_p   ', 'pft', landpft, &
-         livecrootn_storageCap_p  , compress)
-         CALL ncio_write_vector (file_restart, 'livecrootn_xferCap_p      ', 'pft', landpft, &
-         livecrootn_xferCap_p     , compress)
-         CALL ncio_write_vector (file_restart, 'deadcrootnCap_p           ', 'pft', landpft, &
-         deadcrootnCap_p          , compress)
-         CALL ncio_write_vector (file_restart, 'deadcrootn_storageCap_p   ', 'pft', landpft, &
-         deadcrootn_storageCap_p  , compress)
-         CALL ncio_write_vector (file_restart, 'deadcrootn_xferCap_p      ', 'pft', landpft, &
-         deadcrootn_xferCap_p     , compress)
-      ENDIF
-
-      IF(DEF_USE_SASU .or. DEF_USE_DiagMatrix)THEN
          CALL ncio_write_vector (file_restart, 'leafc0_p               ', 'pft', landpft, &
          leafc0_p              , compress)
          CALL ncio_write_vector (file_restart, 'leafc0_storage_p       ', 'pft', landpft, &
@@ -1631,7 +1441,7 @@ CONTAINS
          grainc0_storage_p     , compress)
          CALL ncio_write_vector (file_restart, 'grainc0_xfer_p         ', 'pft', landpft, &
          grainc0_xfer_p        , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'leafn0_p               ', 'pft', landpft, &
          leafn0_p              , compress)
          CALL ncio_write_vector (file_restart, 'leafn0_storage_p       ', 'pft', landpft, &
@@ -1676,7 +1486,7 @@ CONTAINS
          grainn0_xfer_p        , compress)
          CALL ncio_write_vector (file_restart, 'retransn0_p            ', 'pft', landpft, &
          retransn0_p           , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'I_leafc_p_acc            ', 'pft', landpft, &
          I_leafc_p_acc           , compress)
          CALL ncio_write_vector (file_restart, 'I_leafc_st_p_acc         ', 'pft', landpft, &
@@ -1733,7 +1543,7 @@ CONTAINS
          I_grainn_p_acc          , compress)
          CALL ncio_write_vector (file_restart, 'I_grainn_st_p_acc        ', 'pft', landpft, &
          I_grainn_st_p_acc       , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafc_xf_to_leafc_p_acc               ', 'pft', landpft, &
          AKX_leafc_xf_to_leafc_p_acc              , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootc_xf_to_frootc_p_acc             ', 'pft', landpft, &
@@ -1752,8 +1562,8 @@ CONTAINS
          AKX_livestemc_to_deadstemc_p_acc         , compress)
          CALL ncio_write_vector (file_restart, 'AKX_livecrootc_to_deadcrootc_p_acc        ', 'pft', landpft, &
          AKX_livecrootc_to_deadcrootc_p_acc       , compress)
-
-
+ 
+    
          CALL ncio_write_vector (file_restart, 'AKX_leafc_st_to_leafc_xf_p_acc            ', 'pft', landpft, &
          AKX_leafc_st_to_leafc_xf_p_acc           , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootc_st_to_frootc_xf_p_acc          ', 'pft', landpft, &
@@ -1768,7 +1578,7 @@ CONTAINS
          AKX_deadcrootc_st_to_deadcrootc_xf_p_acc , compress)
          CALL ncio_write_vector (file_restart, 'AKX_grainc_st_to_grainc_xf_p_acc          ', 'pft', landpft, &
          AKX_grainc_st_to_grainc_xf_p_acc         , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafc_exit_p_acc                      ', 'pft', landpft, &
          AKX_leafc_exit_p_acc                     , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootc_exit_p_acc                     ', 'pft', landpft, &
@@ -1783,7 +1593,7 @@ CONTAINS
          AKX_deadcrootc_exit_p_acc                , compress)
          CALL ncio_write_vector (file_restart, 'AKX_grainc_exit_p_acc                     ', 'pft', landpft, &
          AKX_grainc_exit_p_acc                    , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafc_st_exit_p_acc                   ', 'pft', landpft, &
          AKX_leafc_st_exit_p_acc                  , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootc_st_exit_p_acc                  ', 'pft', landpft, &
@@ -1798,7 +1608,7 @@ CONTAINS
          AKX_deadcrootc_st_exit_p_acc             , compress)
          CALL ncio_write_vector (file_restart, 'AKX_grainc_st_exit_p_acc                  ', 'pft', landpft, &
          AKX_grainc_st_exit_p_acc                 , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafc_xf_exit_p_acc                   ', 'pft', landpft, &
          AKX_leafc_xf_exit_p_acc                  , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootc_xf_exit_p_acc                  ', 'pft', landpft, &
@@ -1813,7 +1623,7 @@ CONTAINS
          AKX_deadcrootc_xf_exit_p_acc             , compress)
          CALL ncio_write_vector (file_restart, 'AKX_grainc_xf_exit_p_acc                  ', 'pft', landpft, &
          AKX_grainc_xf_exit_p_acc                 , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafn_xf_to_leafn_p_acc               ', 'pft', landpft, &
          AKX_leafn_xf_to_leafn_p_acc              , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootn_xf_to_frootn_p_acc             ', 'pft', landpft, &
@@ -1832,7 +1642,7 @@ CONTAINS
          AKX_livestemn_to_deadstemn_p_acc         , compress)
          CALL ncio_write_vector (file_restart, 'AKX_livecrootn_to_deadcrootn_p_acc        ', 'pft', landpft, &
          AKX_livecrootn_to_deadcrootn_p_acc       , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafn_st_to_leafn_xf_p_acc            ', 'pft', landpft, &
          AKX_leafn_st_to_leafn_xf_p_acc           , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootn_st_to_frootn_xf_p_acc          ', 'pft', landpft, &
@@ -1847,7 +1657,7 @@ CONTAINS
          AKX_deadcrootn_st_to_deadcrootn_xf_p_acc , compress)
          CALL ncio_write_vector (file_restart, 'AKX_grainn_st_to_grainn_xf_p_acc          ', 'pft', landpft, &
          AKX_grainn_st_to_grainn_xf_p_acc         , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafn_to_retransn_p_acc               ', 'pft', landpft, &
          AKX_leafn_to_retransn_p_acc              , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootn_to_retransn_p_acc              ', 'pft', landpft, &
@@ -1856,7 +1666,7 @@ CONTAINS
          AKX_livestemn_to_retransn_p_acc          , compress)
          CALL ncio_write_vector (file_restart, 'AKX_livecrootn_to_retransn_p_acc          ', 'pft', landpft, &
          AKX_livecrootn_to_retransn_p_acc         , compress)
-
+    
          CALL ncio_write_vector (file_restart, 'AKX_retransn_to_leafn_p_acc               ', 'pft', landpft, &
          AKX_retransn_to_leafn_p_acc              , compress)
          CALL ncio_write_vector (file_restart, 'AKX_retransn_to_frootn_p_acc              ', 'pft', landpft, &
@@ -1871,7 +1681,7 @@ CONTAINS
          AKX_retransn_to_deadcrootn_p_acc         , compress)
          CALL ncio_write_vector (file_restart, 'AKX_retransn_to_grainn_p_acc              ', 'pft', landpft, &
          AKX_retransn_to_grainn_p_acc             , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_retransn_to_leafn_st_p_acc            ', 'pft', landpft, &
          AKX_retransn_to_leafn_st_p_acc           , compress)
          CALL ncio_write_vector (file_restart, 'AKX_retransn_to_frootn_st_p_acc           ', 'pft', landpft, &
@@ -1886,7 +1696,7 @@ CONTAINS
          AKX_retransn_to_deadcrootn_st_p_acc      , compress)
          CALL ncio_write_vector (file_restart, 'AKX_retransn_to_grainn_st_p_acc           ', 'pft', landpft, &
          AKX_retransn_to_grainn_st_p_acc          , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafn_exit_p_acc                      ', 'pft', landpft, &
          AKX_leafn_exit_p_acc                     , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootn_exit_p_acc                     ', 'pft', landpft, &
@@ -1903,7 +1713,7 @@ CONTAINS
          AKX_grainn_exit_p_acc                    , compress)
          CALL ncio_write_vector (file_restart, 'AKX_retransn_exit_p_acc                   ', 'pft', landpft, &
          AKX_retransn_exit_p_acc                  , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafn_st_exit_p_acc                   ', 'pft', landpft, &
          AKX_leafn_st_exit_p_acc                  , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootn_st_exit_p_acc                  ', 'pft', landpft, &
@@ -1918,7 +1728,7 @@ CONTAINS
          AKX_deadcrootn_st_exit_p_acc             , compress)
          CALL ncio_write_vector (file_restart, 'AKX_grainn_st_exit_p_acc                  ', 'pft', landpft, &
          AKX_grainn_st_exit_p_acc                 , compress)
-
+ 
          CALL ncio_write_vector (file_restart, 'AKX_leafn_xf_exit_p_acc                   ', 'pft', landpft, &
          AKX_leafn_xf_exit_p_acc                  , compress)
          CALL ncio_write_vector (file_restart, 'AKX_frootn_xf_exit_p_acc                  ', 'pft', landpft, &
@@ -2088,47 +1898,10 @@ CONTAINS
             deallocate (fert_p                   )
             deallocate (latbaset_p               )
             deallocate (plantdate_p              )
+            deallocate (maturitydate_p           )
 #endif
 
 ! SASU variables
-            deallocate (leafcCap_p                  )
-            deallocate (leafc_storageCap_p          )
-            deallocate (leafc_xferCap_p             )
-            deallocate (frootcCap_p                 )
-            deallocate (frootc_storageCap_p         )
-            deallocate (frootc_xferCap_p            )
-            deallocate (livestemcCap_p              )
-            deallocate (livestemc_storageCap_p      )
-            deallocate (livestemc_xferCap_p         )
-            deallocate (deadstemcCap_p              )
-            deallocate (deadstemc_storageCap_p      )
-            deallocate (deadstemc_xferCap_p         )
-            deallocate (livecrootcCap_p             )
-            deallocate (livecrootc_storageCap_p     )
-            deallocate (livecrootc_xferCap_p        )
-            deallocate (deadcrootcCap_p             )
-            deallocate (deadcrootc_storageCap_p     )
-            deallocate (deadcrootc_xferCap_p        )
-
-            deallocate (leafnCap_p                  )
-            deallocate (leafn_storageCap_p          )
-            deallocate (leafn_xferCap_p             )
-            deallocate (frootnCap_p                 )
-            deallocate (frootn_storageCap_p         )
-            deallocate (frootn_xferCap_p            )
-            deallocate (livestemnCap_p              )
-            deallocate (livestemn_storageCap_p      )
-            deallocate (livestemn_xferCap_p         )
-            deallocate (deadstemnCap_p              )
-            deallocate (deadstemn_storageCap_p      )
-            deallocate (deadstemn_xferCap_p         )
-            deallocate (livecrootnCap_p             )
-            deallocate (livecrootn_storageCap_p     )
-            deallocate (livecrootn_xferCap_p        )
-            deallocate (deadcrootnCap_p             )
-            deallocate (deadcrootn_storageCap_p     )
-            deallocate (deadcrootn_xferCap_p        )
-
             deallocate (leafc0_p                 )
             deallocate (leafc0_storage_p         )
             deallocate (leafc0_xfer_p            )
@@ -2457,50 +2230,11 @@ CONTAINS
       CALL check_vector_data ('fert_p                 ', fert_p                 )
       CALL check_vector_data ('latbaset_p             ', latbaset_p             )
       CALL check_vector_data ('plantdate_p            ', plantdate_p            )
+      CALL check_vector_data ('maturitydate_p         ', maturitydate_p         )
 #endif
 
-      IF(DEF_USE_DiagMatrix)THEN
+      IF(DEF_USE_SASU)THEN
 ! SASU variables
-         CALL check_vector_data ('leafcCap_p                ', leafcCap_p                )
-         CALL check_vector_data ('leafc_storageCap_p        ', leafc_storageCap_p        )
-         CALL check_vector_data ('leafc_xferCap_p           ', leafc_xferCap_p           )
-         CALL check_vector_data ('frootcCap_p               ', frootcCap_p               )
-         CALL check_vector_data ('frootc_storageCap_p       ', frootc_storageCap_p       )
-         CALL check_vector_data ('frootc_xferCap_p          ', frootc_xferCap_p          )
-         CALL check_vector_data ('livestemcCap_p            ', livestemcCap_p            )
-         CALL check_vector_data ('livestemc_storageCap_p    ', livestemc_storageCap_p    )
-         CALL check_vector_data ('livestemc_xferCap_p       ', livestemc_xferCap_p       )
-         CALL check_vector_data ('deadstemcCap_p            ', deadstemcCap_p            )
-         CALL check_vector_data ('deadstemc_storageCap_p    ', deadstemc_storageCap_p    )
-         CALL check_vector_data ('deadstemc_xferCap_p       ', deadstemc_xferCap_p       )
-         CALL check_vector_data ('livecrootcCap_p           ', livecrootcCap_p           )
-         CALL check_vector_data ('livecrootc_storageCap_p   ', livecrootc_storageCap_p   )
-         CALL check_vector_data ('livecrootc_xferCap_p      ', livecrootc_xferCap_p      )
-         CALL check_vector_data ('deadcrootcCap_p           ', deadcrootcCap_p           )
-         CALL check_vector_data ('deadcrootc_storageCap_p   ', deadcrootc_storageCap_p   )
-         CALL check_vector_data ('deadcrootc_xferCap_p      ', deadcrootc_xferCap_p      )
-
-         CALL check_vector_data ('leafnCap_p                ', leafnCap_p                )
-         CALL check_vector_data ('leafn_storageCap_p        ', leafn_storageCap_p        )
-         CALL check_vector_data ('leafn_xferCap_p           ', leafn_xferCap_p           )
-         CALL check_vector_data ('frootnCap_p               ', frootnCap_p               )
-         CALL check_vector_data ('frootn_storageCap_p       ', frootn_storageCap_p       )
-         CALL check_vector_data ('frootn_xferCap_p          ', frootn_xferCap_p          )
-         CALL check_vector_data ('livestemnCap_p            ', livestemnCap_p            )
-         CALL check_vector_data ('livestemn_storageCap_p    ', livestemn_storageCap_p    )
-         CALL check_vector_data ('livestemn_xferCap_p       ', livestemn_xferCap_p       )
-         CALL check_vector_data ('deadstemnCap_p            ', deadstemnCap_p            )
-         CALL check_vector_data ('deadstemn_storageCap_p    ', deadstemn_storageCap_p    )
-         CALL check_vector_data ('deadstemn_xferCap_p       ', deadstemn_xferCap_p       )
-         CALL check_vector_data ('livecrootnCap_p           ', livecrootnCap_p           )
-         CALL check_vector_data ('livecrootn_storageCap_p   ', livecrootn_storageCap_p   )
-         CALL check_vector_data ('livecrootn_xferCap_p      ', livecrootn_xferCap_p      )
-         CALL check_vector_data ('deadcrootnCap_p           ', deadcrootnCap_p           )
-         CALL check_vector_data ('deadcrootn_storageCap_p   ', deadcrootn_storageCap_p   )
-         CALL check_vector_data ('deadcrootn_xferCap_p      ', deadcrootn_xferCap_p      )
-      ENDIF
-
-      IF(DEF_USE_SASU .or. DEF_USE_DiagMatrix)THEN
          CALL check_vector_data ('leafc0_p               ', leafc0_p               )
          CALL check_vector_data ('leafc0_storage_p       ', leafc0_storage_p       )
          CALL check_vector_data ('leafc0_xfer_p          ', leafc0_xfer_p          )
@@ -2624,7 +2358,7 @@ CONTAINS
          CALL check_vector_data ('AKX_grainn_xf_to_grainn_p_acc             ', AKX_grainn_xf_to_grainn_p_acc             )
          CALL check_vector_data ('AKX_livestemn_to_deadstemn_p_acc          ', AKX_livestemn_to_deadstemn_p_acc          )
          CALL check_vector_data ('AKX_livecrootn_to_deadcrootn_p_acc        ', AKX_livecrootn_to_deadcrootn_p_acc        )
-
+   
          CALL check_vector_data ('AKX_leafn_st_to_leafn_xf_p_acc            ', AKX_leafn_st_to_leafn_xf_p_acc            )
          CALL check_vector_data ('AKX_frootn_st_to_frootn_xf_p_acc          ', AKX_frootn_st_to_frootn_xf_p_acc          )
          CALL check_vector_data ('AKX_livestemn_st_to_livestemn_xf_p_acc    ', AKX_livestemn_st_to_livestemn_xf_p_acc    )
@@ -2670,7 +2404,7 @@ CONTAINS
          CALL check_vector_data ('AKX_livecrootn_st_exit_p_acc              ', AKX_livecrootn_st_exit_p_acc              )
          CALL check_vector_data ('AKX_deadcrootn_st_exit_p_acc              ', AKX_deadcrootn_st_exit_p_acc              )
          CALL check_vector_data ('AKX_grainn_st_exit_p_acc                  ', AKX_grainn_st_exit_p_acc                  )
-
+   
          CALL check_vector_data ('AKX_leafn_xf_exit_p_acc                   ', AKX_leafn_xf_exit_p_acc                   )
          CALL check_vector_data ('AKX_frootn_xf_exit_p_acc                  ', AKX_frootn_xf_exit_p_acc                  )
          CALL check_vector_data ('AKX_livestemn_xf_exit_p_acc               ', AKX_livestemn_xf_exit_p_acc               )

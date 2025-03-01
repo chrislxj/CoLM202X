@@ -1,14 +1,14 @@
 MODULE MOD_Utils
 
 !-----------------------------------------------------------------------------------------
-! !DESCRIPTION:
+! DESCRIPTION:
 !
 !    This MODULE CONTAINS utilities.
 !
-! !REVISIONS:
+! History:
 !    Subroutines lmder, enorm, tridia and polint are moved from other files.
 !
-!  Created by Shupeng Zhang, May 2023
+! Created by Shupeng Zhang, May 2023
 !-----------------------------------------------------------------------------------------
 
    ! ---- PUBLIC subroutines ----
@@ -1074,11 +1074,8 @@ CONTAINS
    real(r8), intent(in) :: lat1, lon1, lat2, lon2
 
    real(r8), parameter :: re = 6.37122e3 ! kilometer
-   real(r8) :: tmp
 
-      tmp = sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2) * cos(lon1-lon2)
-      tmp = min(max(tmp, -1.), 1.)
-      arclen = re * acos(tmp)
+      arclen = re * acos (sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2) * cos(lon1-lon2))
 
    END FUNCTION arclen
 

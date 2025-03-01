@@ -2,52 +2,49 @@
 
 PROGRAM MKSRFDATA
 
-!=======================================================================
-!  Surface grid edges:
-!  The model domain was defined with the north, east, south, west edges:
-!           edgen: northern edge of grid : > -90 and <= 90 (degrees)
-!           edgee: eastern edge of grid  : > western edge and <= 180
-!           edges: southern edge of grid : >= -90  and <  90
-!           edgew: western edge of grid  : >= -180 and < 180
+! ======================================================================
+! Surface grid edges:
+! The model domain was defined with the north, east, south, west edges:
+!          edgen: northern edge of grid : > -90 and <= 90 (degrees)
+!          edgee: eastern edge of grid  : > western edge and <= 180
+!          edges: southern edge of grid : >= -90  and <  90
+!          edgew: western edge of grid  : >= -180 and < 180
 !
-!  Region (global) latitude grid goes from:
-!                  NORTHERN edge (POLE) to SOUTHERN edge (POLE)
-!  Region (global) longitude grid starts at:
-!                  WESTERN edge (DATELINE with western edge)
-!                  West of Greenwich defined negative for global grids,
-!                  the western edge of the longitude grid starts at the dateline
+! Region (global) latitude grid goes from:
+!                 NORTHERN edge (POLE) to SOUTHERN edge (POLE)
+! Region (global) longitude grid starts at:
+!                 WESTERN edge (DATELINE with western edge)
+!                 West of Greenwich defined negative for global grids,
+!                 the western edge of the longitude grid starts at the dateline
 !
-!  Land characteristics at the 30 arc-seconds grid resolution (RAW DATA):
-!               1. Global Terrain Dataset (elevation height, topography-based
-!                  factors)
-!               2. Global Land Cover Characteristics (land cover type, plant
-!                  leaf area index, Forest Height, ...)
-!               3. Global Lakes and Wetlands Characteristics (lake and wetlands
-!                  types, lake coverage and lake depth)
-!               4. Global Glacier Characteristics
-!               5. Global Urban Characteristics (urban extent, ...)
-!               6. Global Soil Characteristics (...)
-!               7. Global Cultural Characteristics (ON-GONG PROJECT)
+! Land characteristics at the 30 arc-seconds grid resolution (RAW DATA):
+!              1. Global Terrain Dataset (elevation height,...)
+!              2. Global Land Cover Characteristics (land cover TYPE, plant leaf area index, Forest Height, ...)
+!              3. Global Lakes and Wetlands Characteristics (lake and wetlands types, lake coverage and lake depth)
+!              4. Global Glacier Characteristics
+!              5. Global Urban Characteristics (urban extent, ...)
+!              6. Global Soil Characteristics (...)
+!              7. Global Cultural Characteristics (ON-GONG PROJECT)
 !
-!  Land characteristics at the model grid resolution (CREATED):
-!               1. Model grid (longitude, latitude)
-!               2. Fraction (area) of patches of grid (0-1)
-!                  2.1 Fraction of land water bodies (lake, reservoir, river)
-!                  2.2 Fraction of wetland
-!                  2.3 Fraction of glacier
-!                  2.4 Fraction of urban and built-up
-!                  ......
-!               3. Plant leaf area index
-!               4. Tree height
-!               5. Lake depth
-!               6. Soil thermal and hydraulic parameters
+! Land charateristics at the model grid resolution (CREATED):
+!              1. Model grid (longitude, latitude)
+!              2. Fraction (area) of patches of grid (0-1)
+!                 2.1 Fraction of land water bodies (lake, reservoir, river)
+!                 2.2 Fraction of wetland
+!                 2.3 Fraction of glacier
+!                 2.4 Fraction of urban and built-up
+!                 ......
+!              3. Plant leaf area index
+!              4. Tree height
+!              5. Lake depth
+!              6. Soil thermal and hydraulic parameters
 !
-!  Created by Yongjiu Dai, 02/2014
+! Created by Yongjiu Dai, 02/2014
 !
-! !REVISIONS:
-!  Shupeng Zhang, 01/2022: porting codes to MPI parallel version
+! REVISIONS:
+! Shupeng Zhang, 01/2022: porting codes to MPI parallel version
 !
-!=======================================================================
+! ======================================================================
 
    USE MOD_Precision
    USE MOD_SPMD_Task
@@ -75,7 +72,7 @@ PROGRAM MKSRFDATA
 #endif
    USE MOD_RegionClip
 #ifdef SrfdataDiag
-   USE MOD_SrfdataDiag, only: gdiag, srfdata_diag_init
+   USE MOD_SrfdataDiag, only : gdiag, srfdata_diag_init
 #endif
 
    USE MOD_RegionClip
@@ -84,19 +81,18 @@ PROGRAM MKSRFDATA
    IMPLICIT NONE
 
    character(len=256) :: nlfile
-   character(len=256) :: lndname
-   character(len=256) :: dir_rawdata
-   character(len=256) :: dir_landdata
+
+   character(LEN=256) :: dir_rawdata
+   character(LEN=256) :: dir_landdata
    real(r8) :: edgen  ! northern edge of grid (degrees)
    real(r8) :: edgee  ! eastern edge of grid (degrees)
    real(r8) :: edges  ! southern edge of grid (degrees)
    real(r8) :: edgew  ! western edge of grid (degrees)
 
-   type (grid_type) :: gsoil, gridlai, gtopo, grid_topo_factor
+   type (grid_type) :: gsoil, gridlai, gtopo
    type (grid_type) :: grid_urban_5km, grid_urban_500m
 
    integer   :: lc_year
-   character(len=4) :: cyear
    integer*8 :: start_time, end_time, c_per_sec, time_used
 
 
@@ -114,9 +110,9 @@ PROGRAM MKSRFDATA
 
 #ifdef SinglePoint
 #ifndef URBAN_MODEL
-   CALL read_surface_data_single (SITE_fsitedata, mksrfdata=.true.)
+   CALL read_surface_data_single (SITE_fsrfdata, mksrfdata=.true.)
 #else
-   CALL read_urban_surface_data_single (SITE_fsitedata, mksrfdata=.true.)
+   CALL read_urban_surface_data_single (SITE_fsrfdata, mksrfdata=.true.)
 #endif
 #endif
 
@@ -213,13 +209,6 @@ PROGRAM MKSRFDATA
    ! define grid for topography
    CALL gtopo%define_by_name ('colm_500m')
 
-   ! define grid for topography factors
-   IF (DEF_USE_Forcing_Downscaling) THEN
-      !CALL grid_topo_factor%define_by_name ('merit_90m')
-      lndname = trim(DEF_DS_HiresTopographyDataDir) // '/slope.nc'
-      CALL grid_topo_factor%define_from_file (lndname,"lat","lon")
-   ENDIF
-
    ! add by dong, only test for making urban data
 #ifdef URBAN_MODEL
    CALL gurban%define_by_name          ('colm_500m')
@@ -252,10 +241,6 @@ PROGRAM MKSRFDATA
 
    CALL pixel%assimilate_grid (gtopo)
 
-   IF (DEF_USE_Forcing_Downscaling) THEN
-      CALL pixel%assimilate_grid (grid_topo_factor)
-   ENDIF
-
    ! map pixels to grid coordinates
 #ifndef SinglePoint
    CALL pixel%map_to_grid (gridmesh)
@@ -281,24 +266,18 @@ PROGRAM MKSRFDATA
 
    CALL pixel%map_to_grid (gtopo)
 
-   IF (DEF_USE_Forcing_Downscaling) THEN
-      CALL pixel%map_to_grid (grid_topo_factor)
-   ENDIF
-
    ! build land elms
    CALL mesh_build ()
    CALL landelm_build
 
-#if (defined GRIDBASED || defined UNSTRUCTURED)
-   IF (DEF_LANDONLY) THEN
+#ifdef GRIDBASED
+   IF (.not. read_mesh_from_file) THEN
       !TODO: distinguish USGS and IGBP land cover
 #ifndef LULC_USGS
-      write(cyear,'(i4.4)') lc_year
-      lndname = trim(DEF_dir_rawdata)//'/landtypes/landtype-igbp-modis-'//trim(cyear)//'.nc'
+      CALL mesh_filter (gpatch, trim(DEF_dir_rawdata)//'/landtype_update.nc', 'landtype')
 #else
-      lndname = trim(DEF_dir_rawdata)//'/landtypes/landtype-usgs-update.nc'
+      CALL mesh_filter (gpatch, trim(DEF_dir_rawdata)//'/landtypes/landtype-usgs-update.nc', 'landtype')
 #endif
-      CALL mesh_filter (gpatch, lndname, 'landtype')
    ENDIF
 #endif
 
@@ -323,7 +302,7 @@ PROGRAM MKSRFDATA
 #endif
 
 #if (defined LULC_IGBP_PFT || defined LULC_IGBP_PC)
-   CALL landpft_build  (lc_year)
+   CALL landpft_build(lc_year)
 #endif
 
 ! ................................................................
@@ -356,7 +335,11 @@ PROGRAM MKSRFDATA
 ! 3. Mapping land characteristic parameters to the model grids
 ! ................................................................
 #ifdef SrfdataDiag
+#if (defined CROP)
+   CALL elm_patch%build (landelm, landpatch, use_frac = .true., sharedfrac = pctshrpch)
+#else
    CALL elm_patch%build (landelm, landpatch, use_frac = .true.)
+#endif
 #ifdef GRIDBASED
    CALL gdiag%define_by_copy (gridmesh)
 #else
@@ -371,7 +354,7 @@ PROGRAM MKSRFDATA
    CALL Aggregation_PercentagesPFT  (gpatch , dir_rawdata, dir_landdata, lc_year)
 
    CALL Aggregation_LakeDepth       (gpatch , dir_rawdata, dir_landdata, lc_year)
-
+   
    CALL Aggregation_SoilParameters  (gsoil,   dir_rawdata, dir_landdata, lc_year)
 
    CALL Aggregation_SoilBrightness  (gpatch , dir_rawdata, dir_landdata, lc_year)
@@ -386,17 +369,10 @@ PROGRAM MKSRFDATA
 
    CALL Aggregation_Topography      (gtopo  , dir_rawdata, dir_landdata, lc_year)
 
-   IF (DEF_USE_Forcing_Downscaling) THEN
-      CALL Aggregation_TopographyFactors (grid_topo_factor, &
-         trim(DEF_DS_HiresTopographyDataDir), dir_landdata, lc_year)
-   ENDIF
-
 #ifdef URBAN_MODEL
    CALL Aggregation_urban (dir_rawdata, dir_landdata, lc_year, &
                            grid_urban_5km, grid_urban_500m)
 #endif
-
-   CALL Aggregation_SoilTexture (gsoil, dir_rawdata, dir_landdata, lc_year)
 
 ! ................................................................
 ! 4. Free memories.
