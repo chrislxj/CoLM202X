@@ -320,6 +320,12 @@ MODULE MOD_Namelist
 
    !use irrigation
    logical            :: DEF_USE_IRRIGATION      = .false.
+   !irrigation allocated method
+   integer            :: DEF_IRRIGATION_ALLOCATION = 1
+   !photosynthesis stress option 
+   logical            :: DEF_USE_NOSTRESSNITROGEN = .false.
+   !root resistance factors option
+   integer            :: DEF_RSTFAC               = 1
 
    !Plant Hydraulics
    logical            :: DEF_USE_PLANTHYDRAULICS = .true.
@@ -723,10 +729,14 @@ MODULE MOD_Namelist
       logical :: irrig_method_rice2               = .true.
       logical :: irrig_method_sugarcane           = .true.
 
-      logical :: irrig_rate                       = .true.
-      logical :: deficit_irrig                    = .true.
       logical :: sum_irrig                        = .true.
+      logical :: sum_deficit_irrig                = .true.
       logical :: sum_irrig_count                  = .true.
+      logical :: waterstorage                     = .true.
+      logical :: groundwater_demand               = .true.
+      logical :: groundwater_supply               = .true.
+      logical :: reservoirriver_demand            = .true.
+      logical :: reservoirriver_supply            = .true.
 
       logical :: ndep_to_sminn                    = .true.
       logical :: CONC_O2_UNSAT                    = .false.
@@ -949,7 +959,9 @@ CONTAINS
       DEF_LAI_CHANGE_YEARLY,                  &
       DEF_USE_LAIFEEDBACK,                    & !add by Xingjie Lu, use for updating LAI with leaf carbon
       DEF_USE_IRRIGATION,                     & !use irrigation
-
+      DEF_IRRIGATION_ALLOCATION,              &
+      DEF_USE_NOSTRESSNITROGEN,               &
+      DEF_RSTFAC,                             &
       DEF_LC_YEAR,                            &
       DEF_LULCC_SCHEME,                       &
 
@@ -1456,7 +1468,10 @@ CONTAINS
       ! 05/2023, added by Xingjie lu
       CALL mpi_bcast (DEF_USE_LAIFEEDBACK                    ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_USE_IRRIGATION                     ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
-
+      CALL mpi_bcast (DEF_IRRIGATION_ALLOCATION              ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_USE_NOSTRESSNITROGEN               ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_RSTFAC                             ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
+      
       ! LULC related
       CALL mpi_bcast (DEF_LC_YEAR                            ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_LULCC_SCHEME                       ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
@@ -1925,10 +1940,14 @@ CONTAINS
       CALL sync_hist_vars_one (DEF_hist_vars%cropprodc_unmanagedcrop         , set_defaults)
       CALL sync_hist_vars_one (DEF_hist_vars%fert_to_sminn                   , set_defaults)
       IF(DEF_USE_IRRIGATION)THEN
-         CALL sync_hist_vars_one (DEF_hist_vars%irrig_rate                   , set_defaults)
-         CALL sync_hist_vars_one (DEF_hist_vars%deficit_irrig                , set_defaults)
          CALL sync_hist_vars_one (DEF_hist_vars%sum_irrig                    , set_defaults)
+         CALL sync_hist_vars_one (DEF_hist_vars%sum_deficit_irrig            , set_defaults)    
          CALL sync_hist_vars_one (DEF_hist_vars%sum_irrig_count              , set_defaults)
+         CALL sync_hist_vars_one (DEF_hist_vars%waterstorage                 , set_defaults)
+         CALL sync_hist_vars_one (DEF_hist_vars%groundwater_demand           , set_defaults)
+         CALL sync_hist_vars_one (DEF_hist_vars%groundwater_supply           , set_defaults)
+         CALL sync_hist_vars_one (DEF_hist_vars%reservoirriver_demand        , set_defaults)
+         CALL sync_hist_vars_one (DEF_hist_vars%reservoirriver_supply        , set_defaults)
       ENDIF
 #endif
       CALL sync_hist_vars_one (DEF_hist_vars%ndep_to_sminn                   , set_defaults)

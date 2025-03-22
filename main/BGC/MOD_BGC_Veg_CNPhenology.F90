@@ -259,13 +259,13 @@ CONTAINS
       DO m = ps , pe
          tempavg_tref_p(m) = tempavg_tref_p(m) + tref_p(m) * (deltim/86400._r8/dayspyr)
 #ifdef CROP
-         IF(idate(3) .eq. 1800 .or. tref_max_inst_p(m) .eq. spval)THEN
+         IF(idate(3) .eq. deltim .or. tref_max_inst_p(m) .eq. spval)THEN
             tref_max_inst_p(m) = tref_p(m)
          ELSE
             tref_max_inst_p(m) = max(tref_max_inst_p(m) , tref_p(m))
          ENDIF
 
-         IF(idate(3) .eq. 1800 .or. tref_min_inst_p(m) .eq. spval)THEN
+         IF(idate(3) .eq. deltim .or. tref_min_inst_p(m) .eq. spval)THEN
             tref_min_inst_p(m) = tref_p(m)
          ELSE
             tref_min_inst_p(m) = min(tref_min_inst_p(m) , tref_p(m))
@@ -317,7 +317,7 @@ CONTAINS
     !calculate gdd020,gdd820,gdd1020 for gddmaturity in GPAM crop phenology F. Li
       DO m = ps , pe
          ivt = pftclass(m)
-         IF (idate(2) == 1 .and. idate(3) ==1800)THEN
+         IF (idate(2) == 1 .and. idate(3) == deltim)THEN
             IF(nyrs_crop_active_p(m) == 0) THEN ! YR 1:
                gdd020_p(m)  = 0._r8                      ! set gdd..20 variables to 0
                gdd820_p(m)  = 0._r8                      ! and crops will not be planted
@@ -515,12 +515,10 @@ CONTAINS
                IF (offset_counter_p(m) == 0.0_r8) THEN
                  ! this code block was originally handled by CALL cn_offset_cleanup(i)
                  ! inlined during vectorization
-
                   offset_flag_p(m) = 0._r8
                   offset_counter_p(m) = 0._r8
                   dormant_flag_p(m) = 1._r8
                   days_active_p(m) = 0._r8
-
                  ! reset the previous timestep litterfall flux memory
                   prev_leafc_to_litter_p(m) = 0._r8
                   prev_frootc_to_litter_p(m) = 0._r8
@@ -1115,9 +1113,9 @@ CONTAINS
               ! enter phase 2 onset for one time step:
               ! transfer seed carbon to leaf emergence
 
-               IF (peaklai_p(m) >= 1) THEN
-                  hui_p(m) = max(hui_p(m),grnfill(ivt))
-               ENDIF
+               ! IF (peaklai_p(m) >= 1) THEN
+               !    hui_p(m) = max(hui_p(m),grnfill(ivt))
+               ! ENDIF
 
                IF (hui_p(m) >= lfemerg(ivt) .and. hui_p(m) < grnfill(ivt) .and. idpp < mxmat(ivt)) THEN
                   cphase_p(m) = 2._r8

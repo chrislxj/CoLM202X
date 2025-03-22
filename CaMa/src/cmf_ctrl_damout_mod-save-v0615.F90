@@ -489,7 +489,7 @@ SUBROUTINE READ_WUSE_GRID
   allocate(dam_tot_demand(NDAM))
   allocate(dam_tot_demand_save(NDAM))
   allocate(dam_grid_demand(NDAM, max_gridnum))
-  allocate(save_damwithdraw(NDAM))
+  allocate(save_damwithdraw(NDAM)) 
 
   ! allocate(dam_grid_demand_unmt(NDAM, max_gridnum))
   ! ALLOCATE(dam_tot_demand_unmt(NDAM))
@@ -654,9 +654,30 @@ SUBROUTINE CMF_RIV_WUSE_ALLOC
 END SUBROUTINE CMF_RIV_WUSE_ALLOC
 !#################################################################### added!!!
 
+! !#################################################################### added !!
+! SUBROUTINE CMF_DAM_WUSE_UPDATE(IDAM)
+!   USE YOS_CMF_PROG, ONLY: dirrig_cama
+!   IMPLICIT NONE
+
+!   INTEGER(KIND=JPIM), INTENT(IN) :: IDAM
+
+!   ! local variables
+!   INTEGER(KIND=JPIM) :: i
+!   !##############################################
+
+!   !###### gridded daily irr_demand to dam-scale daily irr_demand
+!   dam_grid_demand(:,:) = 0._JPRB
+!   DO i = 1, grid_num(IDAM)
+!       dam_grid_demand(IDAM, i) = grids_share(IDAM, i) * dirrig_cama(grids_x(IDAM, i), grids_y(IDAM, i))
+!   END DO
+  
+!   ! 计算所有网格的总需求
+!   dam_tot_demand(IDAM) = SUM(dam_grid_demand(IDAM, 1:grid_num(IDAM)))
+  
+! END SUBROUTINE CMF_DAM_WUSE_UPDATE
 
 SUBROUTINE CMF_DAM_WUSE_UPDATE
-  USE YOS_CMF_PROG,  ONLY: dirrig_cama
+  USE YOS_CMF_PROG, ONLY: dirrig_cama
   USE YOS_CMF_INPUT, ONLY: NX, NY
   IMPLICIT NONE
 
@@ -665,6 +686,14 @@ SUBROUTINE CMF_DAM_WUSE_UPDATE
   INTEGER(KIND=JPIM) :: i,ii,jj
   !##############################################
 
+  ! do ii = 1, NX
+  !   do jj = 1, NY
+  !     if (dirrig_cama(ii,jj) .lt. 0.0) then
+  !       write(LOGNAM,*) 'debug-zsl: dirrig_cama:', ii, jj, dirrig_cama(ii,jj)
+  !     end if
+  !   end do
+  ! end do
+
   !###### gridded daily irr_demand to dam-scale daily irr_demand
   dam_grid_demand(:,:) = 0._JPRB
   dam_tot_demand(:) = 0._JPRB
@@ -672,9 +701,64 @@ SUBROUTINE CMF_DAM_WUSE_UPDATE
   DO i_idam = NRIV+1, NDAM
     DO i = 1, grid_num(i_idam)
         dam_grid_demand(i_idam, i) = grids_share(i_idam, i) * dirrig_cama(grids_x(i_idam, i), grids_y(i_idam, i))
-    END DO    
+        ! dam_tot_demand(i_idam) = dam_tot_demand(i_idam) + dam_grid_demand(i_idam, i)
+    END DO
+    
     dam_tot_demand(i_idam) = sum(dam_grid_demand(i_idam, :))
+
+    ! if(dam_tot_demand(i_idam).gt.0)then
+    !   write(LOGNAM,*) "LHB debug line708 CaMa error : dam_tot_demand -----> ", dam_tot_demand(i_idam)
+    ! endif
+
+    ! DO i = 1, grid_num(i_idam)
+    !    dam_tot_demand(i_idam) = dam_tot_demand(i_idam) + dam_grid_demand(i_idam, 1:grid_num(i_idam))
+    ! end do
+
+      ! dam_tot_demand(i_idam) = SUM(dam_grid_demand(i_idam, 1:grid_num(i_idam)))
+    ! dam_tot_demand(i_idam) = sum(dam_grid_demand(i_idam, :))
+    ! if (dam_tot_demand(i_idam) .lt. 0.0) then
+    !   write(LOGNAM,*) 'debug-zsl: i_idam, dam_tot_demand',i_idam, dam_tot_demand(i_idam)
+
+    ! !   do i = 1, grid_num(i_idam)
+    ! !     if (dam_grid_demand(i_idam, i) .lt. 0.0) then
+    ! !       write(LOGNAM,*) 'debug-zsl: dam_grid_demand,grids_share,dirrig_cama:',&
+    ! !         i, grids_share(i_idam, i), dirrig_cama(grids_x(i_idam, i), grids_y(i_idam, i))
+    ! !     endif
+    ! !   end do
+    ! end if
+    
+      ! write(LOGNAM,*) 'debug-zsl: ==== before dam water use ===='
+      ! write(LOGNAM,*) 'debug-zsl: dam_grid_demand-sum:', sum(dam_grid_demand) * 1.E-9
+      ! write(LOGNAM,*) 'debug-zsl: dam_tot_demand-sum:', sum(dam_tot_demand) * 1.E-9
+      ! write(LOGNAM,*) 'debug-zsl: dirrig_cama-sum:', sum(dirrig_cama) * 1.E-9
+
+      ! if (sum(dam_grid_demand(i_idam,:)).gt.dam_tot_demand(i_idam))then
+      !   write(LOGNAM,*) "LHB debug line719 CaMa error : i_idam -----> ", i_idam
+      !   write(LOGNAM,*) "LHB debug line719 CaMa error : dam_tot_demand, dam_grid_demand -----> ", dam_tot_demand(i_idam), sum(dam_grid_demand(i_idam,:))
+      !   write(LOGNAM,*) "LHB debug line719 CaMa error : diff -----> ", sum(dam_grid_demand(i_idam,:)) - dam_tot_demand(i_idam)
+      !   ! write(LOGNAM,*) "LHB debug line719 CaMa error : diff2 -----> ", dam_tot_demand(i_idam) - sum(dam_grid_demand(i_idam, 1:grid_num(i_idam)))
+      !   ! write(LOGNAM,*) "LHB debug line719 CaMa error : size1, size2 ----->", size(dam_grid_demand(i_idam,:)), size(dam_grid_demand(i_idam, 1:grid_num(i_idam)))
+      !   ! write(LOGNAM,*) "LHB debug line719 CaMa error : dam_grid_demand_1 ----->", dam_grid_demand(i_idam,:)
+      !   ! write(LOGNAM,*) "LHB debug line719 CaMa error : dam_grid_demand_2 ----->", dam_grid_demand(i_idam, 1:grid_num(i_idam))
+      !   write(LOGNAM,*) "LHB debug line719 CaMa error : diffall_prefix ----->", sum(dam_grid_demand(i_idam, :) - dam_grid_demand(i_idam, 1:grid_num(i_idam)))
+      !   write(LOGNAM,*) "LHB debug line719 CaMa error : diffall_suffix ----->", sum(dam_grid_demand(i_idam, grid_num(i_idam)+1:))
+      ! endif
+
   END DO
+
+  ! write(LOGNAM,*) 'debug-zsl: ==== before dam water use ===='
+  ! write(LOGNAM,*) 'debug-zsl: dam_grid_demand-sum:', sum(dam_grid_demand) * 1.E-9
+  ! write(LOGNAM,*) 'debug-zsl: dam_tot_demand-sum:', sum(dam_tot_demand) * 1.E-9
+  ! write(LOGNAM,*) 'debug-zsl: dirrig_cama-sum:', sum(dirrig_cama) * 1.E-9
+  
+  ! do ii = 1, NX
+  !   do jj = 1, NY
+  !     if (dirrig_cama(ii,jj) .lt. 0.0) then
+  !       write(LOGNAM,*) 'debug-zsl: dirrig_cama:', ii, jj, dirrig_cama(ii,jj) * 1.E-9
+  !     end if
+  !   end do
+  ! end do
+
 
   ! intialize 
   dam_tot_demand_save(:) = 0._JPRB
@@ -705,12 +789,32 @@ SUBROUTINE CMF_DAM_WUSE_ALLOC
     if (dam_tot_demand_save(i_idam) .gt. 0.0) then
       release_water_temp(:,:) = 0._JPRB
       ratio = 0._JPRB
+      ! tmp = 0._JPRB
+      ! do i = 1, grid_num(i_idam)
+      !    tmp = tmp + dam_grid_demand(i_idam,i)
+      ! end do 
+      ! if (abs(tmp - dam_tot_demand_save(i_idam)) .lt. 1.e-8)then
+      !    dam_tot_demand_save(i_idam) = tmp
+      ! end if 
 
       do i = 1, grid_num(i_idam)        
-        release_water_temp (grids_x(i_idam,i), grids_y(i_idam,i)) = (dam_grid_demand(i_idam,i) / & 
-            dam_tot_demand_save(i_idam)) * save_damwithdraw(i_idam)
+        release_water_temp (grids_x(i_idam,i), grids_y(i_idam,i)) = (dam_grid_demand(i_idam,i) / dam_tot_demand_save(i_idam)) * save_damwithdraw(i_idam)
         ratio = ratio + (dam_grid_demand(i_idam,i) / dam_tot_demand_save(i_idam))
       end do
+      !   ! if (i_idam .eq. 2352) then
+      !   ! if(tmp.ne.dam_tot_demand_save(i_idam))then
+      !   if(ratio.gt.1.0)then
+      !     write(LOGNAM,*) "LHB debug line771 CaMa error : i_idam -----> ", i_idam
+      !     write(LOGNAM,*) "LHB debug line771 CaMa error : dam_tot_demand_save, dam_grid_demand -----> ", dam_tot_demand_save(i_idam), sum(dam_grid_demand(i_idam,1:grid_num(i_idam)))
+      !     write(LOGNAM,*) "LHB debug line771 CaMa error : diff -----> ", sum(dam_grid_demand(i_idam,1:grid_num(i_idam))) - dam_tot_demand_save(i_idam)
+      !     ! write(LOGNAM,*) "LHB debug line771 CaMa error : diff_tmp -----> ", dam_tot_demand_save(i_idam) - tmp
+      !   endif
+      ! ! endif
+      !   ! if(sum(release_water_temp).gt.save_damwithdraw(i_idam))then
+      !   !   write(LOGNAM,*) "LHB debug line810 CaMa error : i_idam, ratio -----> ", i_idam, ratio
+      !   !   write(LOGNAM,*) "LHB debug line810 CaMa error : release_water_temp, save_damwithdraw -----> ", sum(release_water_temp), save_damwithdraw(i_idam)
+      !   !   write(LOGNAM,*) "LHB debug line810 CaMa error : diff -----> ", save_damwithdraw(i_idam) - sum(release_water_temp)
+      !   ! endif
 
       release_cama_dam_temp = release_cama_dam_temp + release_water_temp   ! unit: m3/day
     end if
@@ -718,19 +822,36 @@ SUBROUTINE CMF_DAM_WUSE_ALLOC
   
   DEALLOCATE(release_water_temp)
 
+  ! update dirrig_cama demend
+  ! write(LOGNAM,*) 'debug-zsl: ***** before update dirrig_cama *****:'
+  ! do ii = 1, NX
+  !   do jj = 1, NY
+  !     if (dirrig_cama(ii,jj) .lt. 0.0) then
+  !       write(LOGNAM,*) 'debug-zsl: dirrig_cama:', ii, jj, dirrig_cama(ii,jj)
+  !     end if
+  !   end do
+  ! end do
 
-  ! allocate(dirrig_cama_save(NX,NY))
-  ! dirrig_cama_save = dirrig_cama
-
+  allocate(dirrig_cama_save(NX,NY))
   release_cama_dam_temp = min(dirrig_cama, release_cama_dam_temp)
+  dirrig_cama_save = dirrig_cama
   dirrig_cama = dirrig_cama - release_cama_dam_temp
 
-  ! deallocate(dirrig_cama_save)
+  ! write(LOGNAM,*) 'debug-zsl: ***** after update dirrig_cama *****:'
+  ! do ii = 1, NX
+  !   do jj = 1, NY
+  !     if (dirrig_cama(ii,jj) .lt. 0.0) then
+  !       write(LOGNAM,*) 'debug-zsl: dirrig_cama:', ii, jj, dirrig_cama(ii,jj),  dirrig_cama_save(ii,jj), release_cama_dam_temp(ii,jj)
+  !     end if
+  !   end do
+  ! end do
+  deallocate(dirrig_cama_save)
 
   ! update release_cama_dam
   release_cama_dam = release_cama_dam + release_cama_dam_temp
 
   write(LOGNAM,*) 'debug-zsl: ==== after dam water use ===='
+  write(LOGNAM,*) 'debug-zsl: dam_grid_demand-sum:', sum(dam_grid_demand) * 1.E-9
   write(LOGNAM,*) 'debug-zsl: dam_tot_demand-sum:', sum(dam_tot_demand) * 1.E-9
   write(LOGNAM,*) 'debug-zsl: dam_tot_demand_save-sum:', sum(dam_tot_demand_save) * 1.E-9
   write(LOGNAM,*) 'debug-zsl: release_cama_dam_temp-sum:', sum(release_cama_dam_temp) * 1.E-9
@@ -738,23 +859,20 @@ SUBROUTINE CMF_DAM_WUSE_ALLOC
   write(LOGNAM,*) 'debug-zsl: release_cama_dam-sum:', sum(release_cama_dam) * 1.E-9
   write(LOGNAM,*) 'debug-zsl: dirrig_cama-sum:', sum(dirrig_cama) * 1.E-9
   
+  ! if (sum(dam_tot_demand) .gt. 0.0) then
+  !   dam_tot_demand_unmt = dam_tot_demand
+  !   dam_grid_demand_unmt = dam_grid_demand
+  !   write(LOGNAM,*) 'debug-zsl: dam_tot_demand_unmt-sum:', sum(dam_tot_demand_unmt) * 1.E-9
+  ! end if
+  
+  ! deallocate(save_damwithdraw)  
+  ! deallocate(dam_tot_demand)
+  ! deallocate(dam_tot_demand_save)
+  ! deallocate(dam_grid_demand)
+  
 END SUBROUTINE CMF_DAM_WUSE_ALLOC
 !#################################################################### added!!!
     
-SUBROUTINE CMF_DAM_DEMAND_UPDATE
-  USE YOS_CMF_PROG,       ONLY: dirrig_cama,dirrig_cama_unmt
-  USE YOS_CMF_TIME,       only: IHHMM, JMM, JDD
-  IMPLICIT NONE
-
-  ! 每天600时刻重新初始化dirrig_cama
-  if ((JMM == 12) .and. (JDD == 31) .and. (IHHMM == 1800)) then
-    dirrig_cama_unmt = 0._JPRB
-  else
-    dirrig_cama_unmt = dirrig_cama
-  end if
-
-END SUBROUTINE CMF_DAM_DEMAND_UPDATE
-
   
 !#################################################################### added !!
 SUBROUTINE CMF_DAM_WUSE_INIT
@@ -771,7 +889,13 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM)                       :: i
 ! INTEGER(KIND=JPIM)                     :: NX = 1440, NY = 720
 
-!###################################################################
+!####################################################################
+!###### Randomly Assume Water Demand
+! irr_demand = 0._JPRB
+! call RANDOM_NUMBER(irr_demand)
+! irr_demand = irr_demand * 90000._JPRB + 10000._JPRB  ! 10000~100000 unit m3/day
+! irr_demand = dirrig_came   !! kg/m2/day
+! write(LOGNAM,*) 'CMF_DAM - check daily dirrig_2d:', sum(dirrig_cama) * 1.E-9
 
 !###### allocate
 allocate(dam_tot_demand(NDAM))
@@ -784,6 +908,12 @@ DO IDAM=1, NDAM
   ! print *, grid_demand
   do i = 1, grid_num(IDAM)  
       dam_grid_demand(IDAM,i) = grids_share(IDAM,i) * dirrig_cama(grids_x(IDAM,i), grids_y(IDAM,i))  ! Assume that the demand score is equal to the grid's demand for that reservoir
+      ! write(*,'(A, 2I4, 2F16.2, 2I4)'),"LHB debug line579 withdraw error : i, IDAM, grids_share, dirrig_cama -----> ", &
+      ! i, IDAM, grids_share(IDAM,i), dirrig_cama(grids_x(IDAM,i), grids_y(IDAM,i)), grids_x(IDAM,i), grids_y(IDAM,i)
+      
+      ! if (dirrig_cama(grids_x(IDAM,i), grids_y(IDAM,i)) > 0.0) then
+      !     write(LOGNAM,*) 'debug-zsl: IDAM, dirrig_cama_dam_grid:', IDAM, dirrig_cama(grids_x(IDAM,i), grids_y(IDAM,i))*1.E-9
+      ! end if
   end do
   ! Calculate the total demand of all grids
   dam_tot_demand(IDAM) = sum(dam_grid_demand(IDAM,:))  
@@ -803,13 +933,20 @@ if (sum(dam_tot_demand_unmt) .gt. 0.0) then
   dam_grid_demand = dam_grid_demand + dam_grid_demand_unmt
 end if
 
+! if ( sum(dirrig_cama).gt.sum(dam_tot_demand) ) then
   write(LOGNAM,*) 'debug-zsl: dam_tot_demand-sum:', sum(dam_tot_demand) * 1.E-9
   write(LOGNAM,*) 'debug-zsl: dirrig_cama-sum:', sum(dirrig_cama) * 1.E-9
-
+! end if
 
 !###### allocate
+! allocate(save_damsto(NDAM),save_daminf(NDAM),save_damout(NDAM))
+! allocate(save_damout2(NDAM),save_daminf2(NDAM),save_damsto2(NDAM))
+! allocate(save_damout_all(NDAM))
 allocate(save_damwithdraw(NDAM))
+! allocate(DamOutflw_all(NDAM))
+
 save_damwithdraw(:) = 0._JPRB
+! DamOutflw_all(:) = 0._JPRB
 
 END SUBROUTINE CMF_DAM_WUSE_INIT
 
@@ -942,25 +1079,34 @@ DO IDAM=1, NDAM
   DamInflow = P2DAMINF(ISEQD,1)
   
   IF( LDAMIRR .and. (IDAM <= NRIV)) THEN
-
     if (IDAM == 1) then
       write(LOGNAM,*) 'debug-zsl: ==== before river water use ===='
       write(LOGNAM,*) 'debug-zsl: dirrig_cama-sum:', sum(dirrig_cama) * 1.E-9
+      ! do ii = 1, NX
+      !   do jj = 1, NY
+      !     if (dirrig_cama(ii,jj) .lt. 0.0) then
+      !       write(LOGNAM,*) 'debug-zsl: dirrig_cama:', ii, jj, dirrig_cama(ii,jj) * 1.E-9
+      !     end if
+      !   end do
+      ! end do
     endif
-
-    !!! =========================== river water use ===========================    
+    !!! =========================== river water use ===========================
     DamOutflw = DamInflow
     riv_demand_temp = dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM)) / DT   ! unit: m3 to m3/s
 
     if (riv_demand_temp .gt. 0.0) then
-      RivWithdraw_temp = min(max(0._JPRB, DamOutflw * 0.8), riv_demand_temp)
+      RivWithdraw_temp = min(max(0._JPRB, DamOutflw * 0.5), riv_demand_temp)
       DamOutflw = DamOutflw - RivWithdraw_temp 
       !! add release and reduce demand
       release_cama_riv(IX_RIV(IDAM), IY_RIV(IDAM)) = release_cama_riv(IX_RIV(IDAM), IY_RIV(IDAM)) + RivWithdraw_temp * DT
+      ! dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM))      = dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM)) - RivWithdraw_temp * DT
       dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM))      = max(dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM)) - RivWithdraw_temp * DT, 0._JPRB)
+      
+      ! ! if (dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM)) .lt. 0.0) then
+      !   write(LOGNAM,*) 'debug-zsl: IDAM, riv_demand_temp, dirrig_cama, DamOutflw, RivWithdraw_temp:', &
+      !       IDAM, riv_demand_temp, dirrig_cama(IX_RIV(IDAM), IY_RIV(IDAM)), DamOutflw, RivWithdraw_temp
+      ! ! end if    
     endif
-
-
   ELSE
     IF (LDAMIRR) THEN
       !!! ============================== dam w ater use =============================      
@@ -972,6 +1118,10 @@ DO IDAM=1, NDAM
         CALL CMF_DAM_WUSE_UPDATE
       endif
 
+      ! if (dam_tot_demand(IDAM) .lt. 0.0) then
+      !   write(LOGNAM,*) 'debug-zsl: IDAM, dam_tot_demand:', IDAM, dam_tot_demand(IDAM)*1.E-9
+      ! endif
+
       !!! ============================== step2: dam water use
       if (dam_tot_demand(IDAM) .gt. 0.0) then
         DamWithdraw_temp = min(max(0._JPRB, DamVol - ConVol(IDAM) * 0.5), dam_tot_demand(IDAM))  ! ConVol: conservation storage mcm m3    
@@ -979,10 +1129,21 @@ DO IDAM=1, NDAM
         DamVol = DamVol - DamWithdraw_temp
         P2DAMSTO(ISEQD,1) = DamVol
 
+        ! write(LOGNAM,*) "debug-zsl: withdraw-1 ==before withdraw== IDAM, dam_tot_demand, save_damwithdraw:", &
+        !   IDAM, dam_tot_demand(IDAM)*1.E-9, save_damwithdraw(IDAM)*1.E-9
+
         save_damwithdraw(IDAM) = min(DamWithdraw_temp, dam_tot_demand(IDAM)) !+ save_damwithdraw(IDAM)
         dam_tot_demand_save(IDAM) = dam_tot_demand(IDAM)
         dam_tot_demand(IDAM) = dam_tot_demand(IDAM) - DamWithdraw_temp
-    
+
+
+        ! ! if (dam_tot_demand(IDAM) .lt. 0.0) then
+        ! write(LOGNAM,*) 'debug-zsl: IDIM, dam_tot_demand_save, dam_tot_demand, DamWithdraw_temp:', &
+        !   IDAM, dam_tot_demand_save(IDAM)*1.E-9, dam_tot_demand(IDAM)*1.E-9, DamWithdraw_temp*1.E-9
+        ! ! end if
+
+        ! write(LOGNAM,*) "debug-zsl: withdraw-1 ==after withdraw== IDAM, dam_tot_demand, save_damwithdraw:", &
+        !   IDAM, dam_tot_demand(IDAM)*1.E-9, save_damwithdraw(IDAM)*1.E-9      
       end if
     end if
 

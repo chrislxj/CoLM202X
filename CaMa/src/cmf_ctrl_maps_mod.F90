@@ -18,7 +18,7 @@ MODULE CMF_CTRL_MAPS_MOD
 ! See the License for the specific language governing permissions and limitations under the License.
 !==========================================================
    ! shared variables in module
-   USE PARKIND1,                ONLY: JPIM, JPRB, JPRD, JPRM
+   USE PARKIND1,                only: JPIM, JPRB, JPRM
    USE YOS_CMF_INPUT,           only: LOGNAM
    IMPLICIT NONE
    SAVE
@@ -29,6 +29,7 @@ MODULE CMF_CTRL_MAPS_MOD
    character(LEN=256)              :: CNXTDST         !! distance to next outlet
    character(LEN=256)              :: CRIVLEN         !! river channel length
    character(LEN=256)              :: CFLDHGT         !! floodplain elevation profile
+   character(LEN=256)              :: CGRDARE         !! grid area
    !* river channel parameters
    character(LEN=256)              :: CRIVWTH         !! channel width
    character(LEN=256)              :: CRIVHGT         !! channel depth
@@ -44,9 +45,9 @@ MODULE CMF_CTRL_MAPS_MOD
    character(LEN=256)              :: CRIVCLINC       !! river map netcdf
    character(LEN=256)              :: CRIVPARNC       !! river parameter netcdf (WIDTH,HEIGHT, Manning, ground wateer delay)
    character(LEN=256)              :: CMEANSLNC       !! mean sea level netCDF
-   character(LEN=256)              :: CMPIREGNC       !! MPI region map in netcdf
+   character(LEN=256)              :: CMPIREGNC       !! MPI Region netCDF
 
-   NAMELIST/NMAP/     CNEXTXY,  CGRAREA,  CELEVTN,  CNXTDST, CRIVLEN, CFLDHGT, &
+   NAMELIST/NMAP/     CNEXTXY,  CGRAREA,  CELEVTN,  CNXTDST, CRIVLEN, CFLDHGT, CGRDARE, &
                      CRIVWTH,  CRIVHGT,  CRIVMAN,  CPTHOUT, CGDWDLY, CMEANSL, &
                      CMPIREG,  LMAPCDF,  CRIVCLINC,CRIVPARNC,CMEANSLNC,CMPIREGNC
 
@@ -81,10 +82,12 @@ CONTAINS
       CNXTDST="./nxtdst.bin"
       CRIVLEN="./rivlen.bin"
       CFLDHGT="./fldhgt.bin"
+      CGRDARE="./grdare.bin"
 
       CRIVWTH="./rivwth.bin"
       CRIVHGT="./rivhgt.bin"
       CRIVMAN="./rivman.bin"
+     
 
       CPTHOUT="./bifprm.txt"
       CGDWDLY="NONE"
@@ -120,6 +123,7 @@ CONTAINS
          write(LOGNAM,*)   "CNXTDST:   ", TRIM(CNXTDST)
          write(LOGNAM,*)   "CRIVLEN:   ", TRIM(CRIVLEN)
          write(LOGNAM,*)   "CFLDHGT:   ", TRIM(CFLDHGT)
+         write(LOGNAM,*)   "CGRDARE:   ", TRIM(CGRDARE)
 
          write(LOGNAM,*)   "CRIVWTH:   ", TRIM(CRIVWTH)
          write(LOGNAM,*)   "CRIVHGT:   ", TRIM(CRIVHGT)
@@ -241,6 +245,11 @@ CONTAINS
          read(TMPNAM,REC=2) I2NEXTY
          close(TMPNAM)
 
+         ! write(LOGNAM,*) 'Debug-zsl-0508 I2NEXTX   ', I2NEXTX
+         ! write(LOGNAM,*) 'Debug-zsl-0508 I2NEXTY   ', I2NEXTY
+         
+
+         
          IF ( LMAPEND )THEN
             CALL CONV_ENDI(I2NEXTX,NX,NY)
             CALL CONV_ENDI(I2NEXTY,NX,NY)
@@ -313,11 +322,8 @@ CONTAINS
       !
       integer(KIND=JPIM),SAVE         :: IX,IY
       integer(KIND=JPIM),SAVE         :: IREGION
-#ifdef UseMPI_CMF
 #ifdef UseCDF_CMF
-INTEGER(KIND=JPIM)              :: NCID
-INTEGER(KIND=JPIM)              :: VARID
-#endif
+      integer(KIND=JPIM)              :: NCID,VARID
 #endif
 !$OMP THREADPRIVATE               (IX)
       !================================================
@@ -384,7 +390,8 @@ INTEGER(KIND=JPIM)              :: VARID
 
          write(LOGNAM,*) 'CALC_REGION: REGIONALL= ', REGIONALL
          write(LOGNAM,*) 'CALC_REGION: NSEQMAX='   , NSEQMAX
-         WRITE(LOGNAM,*) 'CALC_REGION: NSEQALL='   , NSEQALL
+         write(LOGNAM,*) 'CALC_REGION: NSEQALL='   , NSEQALL
+
       END SUBROUTINE CALC_REGION
       !==========================================================
       !+
@@ -584,9 +591,9 @@ INTEGER(KIND=JPIM)              :: VARID
                            & LFPLAIN,  LMEANSL,  LGDWDLY,  LSLPMIX, LSLOPEMOUTH
    USE YOS_CMF_MAP,    only: D2NXTDST, D2GRAREA, D2ELEVTN, D2RIVLEN, &
                            & D2RIVWTH, D2RIVHGT, D2FLDHGT, D2RIVELV, &
-                           & D2FLDGRD, D2RIVMAN, P2RIVSTOMAX, P2FLDSTOMAX,  &
+                           & D2FLDGRD, D2RIVMAN, D2RIVSTOMAX, D2FLDSTOMAX,  &
                            & DFRCINC,  NSEQALL,  NSEQMAX, D2MEANSL, D2DWNELV, &
-                           & D2GDWDLY, I2MASK
+                           & D2GDWDLY, I2MASK, R2GRDARE
    IMPLICIT NONE
    !================================================
       write(LOGNAM,*) ""
@@ -607,6 +614,7 @@ INTEGER(KIND=JPIM)              :: VARID
       allocate( D2DWNELV(NSEQMAX,1) )
       allocate( D2GDWDLY(NSEQMAX,1) )
       allocate( I2MASK(NSEQMAX,1) )
+      allocate( R2GRDARE(NX,NY)     )
 
       D2GRAREA(:,:)  =0._JPRB
       D2ELEVTN(:,:)  =0._JPRB
@@ -620,6 +628,7 @@ INTEGER(KIND=JPIM)              :: VARID
       D2DWNELV(:,:)  =0._JPRB
       D2GDWDLY(:,:)  =0._JPRB
       I2MASK(:,:)    =0._JPIM     !! mask for calculation (IFS slopemix: Kinemacti Wave for Mask=1; Reservoir: dam=2, dam upstream=1)
+      R2GRDARE(:,:)  =0._JPRB
 
       !============================
       ! *** 2. Read topo map
@@ -634,21 +643,21 @@ INTEGER(KIND=JPIM)              :: VARID
       ! *** 3a. Calc Channel Parameters
       write(LOGNAM,*) 'TOPO_INIT: calc river channel parameters'
 
-      ALLOCATE(P2RIVSTOMAX(NSEQMAX,1))
+      allocate(D2RIVSTOMAX(NSEQMAX,1))
       allocate(D2RIVELV(NSEQMAX,1))
 
       IF ( LFPLAIN ) THEN
-         P2RIVSTOMAX(:,:) = D2RIVLEN(:,:) * D2RIVWTH(:,:) * D2RIVHGT(:,:)
+         D2RIVSTOMAX(:,:) = D2RIVLEN(:,:) * D2RIVWTH(:,:) * D2RIVHGT(:,:)
       ELSE
          write(LOGNAM,*) 'TOPO_INIT: no floodplain (rivstomax=1.D18)'
-         P2RIVSTOMAX(:,:) = 1.E18
+         D2RIVSTOMAX(:,:) = 1.E18
       ENDIF
       D2RIVELV(:,:) = D2ELEVTN(:,:) - D2RIVHGT(:,:)
 
       !*** 3b. Calc Channel Parameters
       write(LOGNAM,*) 'TOPO_INIT: calc floodplain parameters'
 
-      ALLOCATE(P2FLDSTOMAX(NSEQMAX,1,NLFP))
+      allocate(D2FLDSTOMAX(NSEQMAX,1,NLFP))
       allocate(D2FLDGRD(NSEQMAX,1,NLFP))
       CALL SET_FLDSTG
 
@@ -685,6 +694,7 @@ INTEGER(KIND=JPIM)              :: VARID
       IF( LMAPEND ) CALL CONV_END(R2TEMP,NX,NY)
       CALL mapR2vecD(R2TEMP,D2GRAREA)
       close(TMPNAM)
+      ! write(LOGNAM,*) "LHB debug line697 gridarea read : -----> D2GRAREA ", sum(D2GRAREA(:,:))
 
       write(LOGNAM,*)'TOPO_INIT: ground elevation : ',TRIM(CELEVTN)
       open(TMPNAM,FILE=CELEVTN,FORM='UNFORMATTED',ACCESS='DIRECT',RECL=4*NX*NY)
@@ -716,6 +726,15 @@ INTEGER(KIND=JPIM)              :: VARID
          D2FLDHGT(:,:,ILFP)= D2TEMP(:,:)
       ENDDO
       close(TMPNAM)
+
+      write(LOGNAM,*)'TOPO_INIT: grid area : ',TRIM(CGRDARE)
+      open(TMPNAM,FILE=TRIM(CGRDARE),FORM='UNFORMATTED',ACCESS='DIRECT',RECL=4*NX*NY)
+      read(TMPNAM,REC=1) R2TEMP(:,:)
+      IF( LMAPEND ) CALL CONV_END(R2TEMP,NX,NY)
+      R2GRDARE(:,:) = R2TEMP(:,:)
+      close(TMPNAM)
+
+      ! write(LOGNAM,*) "LHB debug line736 gridarea read : -----> R2GRDARE ", sum(R2GRDARE(:,:))
 
       !*** river channel / groundwater parameters)
 
@@ -905,20 +924,20 @@ INTEGER(KIND=JPIM)              :: VARID
    real(KIND=JPRB),SAVE     ::  DWTHINC
 !$OMP THREADPRIVATE               (I,DSTONOW,DSTOPRE,DHGTPRE,DWTHINC)
       !================================================
-      P2FLDSTOMAX(:,:,:) = 0._JPRD
+      D2FLDSTOMAX(:,:,:) = 0._JPRB
       D2FLDGRD(:,:,:)    = 0._JPRB
       DFRCINC=dble(NLFP)**(-1.)
       !
 !$OMP PARALLEL DO
       DO ISEQ=1, NSEQALL
-         DSTOPRE = P2RIVSTOMAX(ISEQ,1)
+         DSTOPRE = D2RIVSTOMAX(ISEQ,1)
          DHGTPRE = 0._JPRB
          DWTHINC = D2GRAREA(ISEQ,1) * D2RIVLEN(ISEQ,1)**(-1.) * DFRCINC
          DO I=1, NLFP
             DSTONOW = D2RIVLEN(ISEQ,1) * ( D2RIVWTH(ISEQ,1) + DWTHINC*(DBLE(I)-0.5) ) * (D2FLDHGT(ISEQ,1,I)-DHGTPRE)
-            P2FLDSTOMAX(ISEQ,1,I) = DSTOPRE + DSTONOW
+            D2FLDSTOMAX(ISEQ,1,I) = DSTOPRE + DSTONOW
             D2FLDGRD(ISEQ,1,I) = (D2FLDHGT(ISEQ,1,I)-DHGTPRE) * DWTHINC**(-1.)
-            DSTOPRE = P2FLDSTOMAX(ISEQ,1,I)
+            DSTOPRE = D2FLDSTOMAX(ISEQ,1,I)
             DHGTPRE = D2FLDHGT(ISEQ,1,I)
          ENDDO
       ENDDO

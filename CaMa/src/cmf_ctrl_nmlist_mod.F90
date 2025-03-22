@@ -34,7 +34,7 @@ CONTAINS
    SUBROUTINE CMF_CONFIG_NMLIST
    USE YOS_CMF_INPUT,      only: TMPNAM,   NSETFILE,   CSETFILE
    ! run version
-   USE YOS_CMF_INPUT,      only: LADPSTP,  LFPLAIN,  LKINE,    LFLDOUT,  LPTHOUT,  LDAMOUT,  &
+   USE YOS_CMF_INPUT,      only: CLOGOUT, LADPSTP,  LFPLAIN,  LKINE,    LFLDOUT,  LPTHOUT,  LDAMOUT,  LDAMIRR, &     !!! 
                               & LROSPLIT, LGDWDLY,  LSLPMIX,  LMEANSL,  LSEALEV,  LOUTPUT,  &
                               & LRESTART, LSTOONLY, LGRIDMAP, LLEAPYR,  LMAPEND,  LBITSAFE, &
                               & LSTG_ES,  LLEVEE,   LOUTINS,  LOUTINI,  LSEDOUT, &
@@ -50,7 +50,7 @@ CONTAINS
    !* local
    character(LEN=8)              :: CREG                 !! 
    !
-   NAMELIST/NRUNVER/  LADPSTP,  LFPLAIN,  LKINE,    LFLDOUT,  LPTHOUT,  LDAMOUT,  &
+   NAMELIST/NRUNVER/ CLOGOUT, LADPSTP,  LFPLAIN,  LKINE,    LFLDOUT,  LPTHOUT,  LDAMOUT,  LDAMIRR,&
                      LROSPLIT, LGDWDLY,  LSLPMIX,  LMEANSL,  LSEALEV,  LOUTPUT,  &
                      LRESTART, LSTOONLY, LGRIDMAP, LLEAPYR,  LMAPEND,  LBITSAFE, &
                      LSTG_ES,  LLEVEE,   LSEDOUT,  LOUTINS,  LSLOPEMOUTH,        &
@@ -79,6 +79,7 @@ CONTAINS
       LFLDOUT  = .TRUE.            !! true: floodplain flow (high-water channel flow) active
       LPTHOUT  = .FALSE.           !! true: activate bifurcation scheme
       LDAMOUT  = .FALSE.           !! true: activate dam operation (under development)
+      LDAMIRR  = .FALSE.           !! true: activate water withdrawals for irrigation  (under development)
       LLEVEE   = .FALSE.           !! true: activate levee scheme  (under development)
       LSEDOUT  = .FALSE.           !! true: activate sediment transport (under development)
       LOUTINS  = .FALSE.           !! true: diagnose instantaneous discharge
@@ -122,6 +123,7 @@ CONTAINS
       write(LOGNAM,*) "LFLDOUT ",  LFLDOUT
       write(LOGNAM,*) "LPTHOUT ",  LPTHOUT
       write(LOGNAM,*) "LDAMOUT ",  LDAMOUT
+      write(LOGNAM,*) "LDAMIRR ",  LDAMIRR
       write(LOGNAM,*) "LLEVEE  ",  LLEVEE
       write(LOGNAM,*) "LSEDOUT ",  LSEDOUT
       write(LOGNAM,*) "LOUTINS ",  LOUTINS

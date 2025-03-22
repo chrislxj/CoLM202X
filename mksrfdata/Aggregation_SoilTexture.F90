@@ -52,6 +52,7 @@ SUBROUTINE Aggregation_SoilTexture ( &
 
    type(block_data_int32_2d) :: soiltext
    integer, allocatable :: soiltext_patches(:), soiltext_one(:)
+   real(r8), allocatable :: soiltext_patches_temp(:)
 #ifdef SrfdataDiag
    integer :: typpatch(N_land_classification+1), ityp
 #endif
@@ -91,7 +92,7 @@ SUBROUTINE Aggregation_SoilTexture ( &
 
       IF (p_is_worker) THEN
 
-         IF (numpatch > 0) allocate (soiltext_patches (numpatch))
+         allocate (soiltext_patches (numpatch))
 
          DO ipatch = 1, numpatch
             CALL aggregation_request_data (landpatch, ipatch, gland, &
@@ -122,8 +123,15 @@ SUBROUTINE Aggregation_SoilTexture ( &
 #ifdef SrfdataDiag
       typpatch = (/(ityp, ityp = 0, N_land_classification)/)
       lndname = trim(dir_model_landdata)//'/diag/soiltexture_'//trim(cyear)//'.nc'
-      CALL srfdata_map_and_write (real(soiltext_patches,r8), landpatch%settyp, typpatch,  &
-         m_patch2diag, -1., lndname, 'soiltexture', compress = 1, write_mode = 'one')
+      IF (p_is_worker) THEN
+            allocate (soiltext_patches_temp (size(soiltext_patches)))
+            IF (numpatch > 0) soiltext_patches_temp = real(soiltext_patches, r8)
+      ENDIF
+      CALL srfdata_map_and_write (soiltext_patches_temp, landpatch%settyp, typpatch,  &
+         m_patch2diag, -1.0_r8, lndname, 'soiltexture', compress = 1, write_mode = 'one')
+      IF (p_is_worker) THEN
+            deallocate (soiltext_patches_temp)
+      ENDIF
 #endif
 #else
       SITE_soil_texture = soiltext_patches(1)

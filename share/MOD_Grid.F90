@@ -62,6 +62,7 @@ MODULE MOD_Grid
    CONTAINS
       procedure, PUBLIC :: define_by_name   => grid_define_by_name
       procedure, PUBLIC :: define_by_ndims  => grid_define_by_ndims
+      procedure, PUBLIC :: define_by_ndims_cama => grid_define_by_ndims_cama
       procedure, PUBLIC :: define_by_res    => grid_define_by_res
       procedure, PUBLIC :: define_by_center => grid_define_by_center
       procedure, PUBLIC :: define_from_file => grid_define_from_file
@@ -245,6 +246,47 @@ CONTAINS
       CALL this%set_blocks ()
 
    END SUBROUTINE grid_define_by_ndims
+
+   !-----------------------------------------------------
+   SUBROUTINE grid_define_by_ndims_cama (this, lon_points, lat_points, &
+                                          lon_w, lon_e, lat_s, lat_n)
+
+   IMPLICIT NONE
+   class (grid_type) :: this
+
+   integer, intent(in) :: lon_points
+   integer, intent(in) :: lat_points
+
+   real(r8), intent(in) :: lon_w, lon_e, lat_s, lat_n
+
+   ! Local variables
+   integer  :: ilat, ilon
+   real(r8) :: del_lat, del_lon
+
+      this%nlat = lat_points
+      this%nlon = lon_points
+
+      CALL this%init (this%nlon, this%nlat)
+
+      del_lat = (lat_n - lat_s) / lat_points
+      DO ilat = 1, this%nlat
+         this%lat_s(ilat) = lat_n - del_lat * ilat
+         this%lat_n(ilat) = lat_n - del_lat * (ilat-1)
+      ENDDO
+
+      
+      del_lon = (lon_e - lon_w) / lon_points
+      DO ilon = 1, this%nlon
+         this%lon_w(ilon) = lon_w + del_lon * (ilon-1)
+         this%lon_e(ilon) = lon_w + del_lon * ilon
+      ENDDO
+
+      this%lon_e(this%nlon) = lon_w
+
+      CALL this%normalize  ()
+      CALL this%set_blocks ()
+
+   END SUBROUTINE grid_define_by_ndims_cama
 
    !-----------------------------------------------------
    SUBROUTINE grid_define_by_res (this, lon_res, lat_res)

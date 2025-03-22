@@ -9,8 +9,6 @@ MODULE CMF_DRV_CONTROL_MOD
 !
 ! (C) D.Yamazaki & E. Dutra  (U-Tokyo/FCUL)  Aug 2019
 !
-! Modifications: I. Ayan-Miguez (BSC) Apr 2023: Added LECMF2LAKEC switch
-!
 ! Licensed under the Apache License, Version 2.0 (the "License");
 !   You may not use this file except in compliance with the License.
 !   You may obtain a copy of the License at: http://www.apache.org/licenses/LICENSE-2.0
@@ -58,10 +56,13 @@ CONTAINS
    character(LEN=8)              :: CREG                 !! 
    !================================================
 
+      !*** 1. CaMa-Flood configulation namelist
+      CALL CMF_CONFIG_NMLIST
+      
    !*** 0a. Set log file & namelist
    ! Preset in YOS_INPUT:  LLOGOUT=.TRUE.   CLOGOUT='./log_CaMa.txt'
    ! It can be modified in MAIN program before DRV_INPUT
-
+      ! print*, "LHB debug line62 CaMa namelist error : namelist readin"
       IF (REGIONALL>=2 )THEN 
          write(CREG,'(I0)') REGIONTHIS                                    !! Distributed Log Output for MPI run
          CLOGOUT=TRIM(CLOGOUT)//'-'//TRIM(CREG)                           !! Change suffix of output file for each calculation node
@@ -69,6 +70,7 @@ CONTAINS
 
       IF( LLOGOUT )THEN
          LOGNAM=INQUIRE_FID()
+         ! print*, "LHB debug line70 CaMa namelist error : LOGNAM ----->",LOGNAM
          open(LOGNAM,FILE=CLOGOUT,FORM='FORMATTED')  
       ELSE
          LOGNAM=6  !! use standard output
@@ -84,8 +86,8 @@ CONTAINS
       ! It can be modified in MAIN program before DRV_INPUT
       write(LOGNAM,*) "CMF::DRV_INPUT: input namelist:      ", TRIM(CSETFILE)
 
-      !*** 1. CaMa-Flood configulation namelist
-      CALL CMF_CONFIG_NMLIST
+      ! !*** 1. CaMa-Flood configulation namelist
+      ! CALL CMF_CONFIG_NMLIST
 
       CALL CMF_TIME_NMLIST
 
@@ -135,7 +137,7 @@ CONTAINS
 
 
    !####################################################################
-SUBROUTINE CMF_DRV_INIT(LECMF2LAKEC)
+   SUBROUTINE CMF_DRV_INIT
    ! Initialize CaMa-Flood
    ! -- Called from CMF_DRV_INIT
    USE YOS_CMF_INPUT,           only: LRESTART, LSTOONLY, LOUTPUT, LSEALEV, LDAMOUT, LLEVEE, LOUTINI
@@ -159,8 +161,8 @@ SUBROUTINE CMF_DRV_INIT(LECMF2LAKEC)
    USE CMF_UTILS_MOD,           only: INQUIRE_FID
    !$ USE OMP_LIB    
    IMPLICIT NONE
-      integer(KIND=JPIM),OPTIONAL,INTENT(IN)  :: LECMF2LAKEC !! for lake coupling, currently only used in ECMWF
       !================================================
+      ! print*,"LHB debug line162 CaMa init error : init start"
       write(LOGNAM,*) ""
       write(LOGNAM,*) "!******************************!"
       write(LOGNAM,*) "CMF::DRV_INIT: initialization start"
@@ -173,15 +175,18 @@ SUBROUTINE CMF_DRV_INIT(LECMF2LAKEC)
       write(LOGNAM,*) "CMF::DRV_INIT: (1) Set Time"
 
       !*** 1a. Set time related 
+      ! print*,"LHB debug line162 CaMa init error : time start"
       CALL CMF_TIME_INIT
 
       !================================================
       write(LOGNAM,*) "CMF::DRV_INIT: (2) Set River Map & Topography"
 
       !*** 2a. Read input river map 
+      ! print*,"LHB debug line162 CaMa init error : rivermap start"
       CALL CMF_RIVMAP_INIT
 
       !*** 2b. Set topography 
+      ! print*,"LHB debug line162 CaMa init error : topography start"
       CALL CMF_TOPO_INIT
 
       !*** 2c. Optional levee scheme initialization
@@ -194,15 +199,13 @@ SUBROUTINE CMF_DRV_INIT(LECMF2LAKEC)
 
       !*** 3a. Create Output files 
       !IF( LOUTPUT )THEN
+      ! print*,"LHB debug line162 CaMa init error : output start"
       CALL CMF_OUTPUT_INIT
       !ENDIF
 
-!*** 3b. Initialize forcing data
-IF(PRESENT(LECMF2LAKEC)) THEN
-  CALL CMF_FORCING_INIT(LECMF2LAKEC)
-ELSE
-  CALL CMF_FORCING_INIT()
-ENDIF
+      !*** 3b. Initialize forcing data
+      ! print*,"LHB debug line162 CaMa init error : forcing start"
+      CALL CMF_FORCING_INIT
 
       !*** 3b. Initialize dynamic sea level boundary data
       IF( LSEALEV )THEN
@@ -212,22 +215,28 @@ ENDIF
       write(LOGNAM,*) "CMF::DRV_INIT: (4) allocate prog&diag vars & initialize"
 
       !*** 4a. Set initial prognostic variables 
+      ! print*,"LHB debug line162 CaMa init error : prognostic start"
       CALL CMF_PROG_INIT
 
       !*** 4b. Initialize (allocate) diagnostic arrays
+      ! print*,"LHB debug line162 CaMa init error : diagnostic start"
       CALL CMF_DIAG_INIT
 
       !v4.03 CALC_FLDSTG for zero storage restart
+      ! print*,"LHB debug line162 CaMa init error : physics start"
       CALL CMF_PHYSICS_FLDSTG
 
       !*** 4c. Restart file
       IF( LRESTART )THEN
+         ! print*,"LHB debug line162 CaMa init error : restart start"
          CALL CMF_RESTART_INIT
       ENDIF
 
       !*** 4d. Optional reservoir initialization
       IF( LDAMOUT )THEN
+         ! print*,"LHB debug line162 CaMa init error : reservoir start"
          CALL CMF_DAMOUT_INIT
+         ! print*,"LHB debug line162 CaMa init error : reservoir start end"
       ENDIF
 
 #ifdef sediment
@@ -244,6 +253,7 @@ ENDIF
       IF( LRESTART .and. LSTOONLY )THEN
          write(LOGNAM,*) "CMF::DRV_INIT: (5a) set flood stage at initial condition"
          !** v4.03 CALC_FLDSTG for storagy only restart (v4.03)
+         ! print*,"LHB debug line162 CaMa init error : storagy start"
          CALL CMF_PHYSICS_FLDSTG
          CALL CMF_CALC_OUTPRE  !! bugfix in v4.12
       ENDIF
@@ -251,6 +261,7 @@ ENDIF
       !*** 5b save initial storage if LOUTINI specified
       IF ( LOUTINI .and. LOUTPUT ) THEN
          write(LOGNAM,*) "CMF::DRV_INIT: (5b) write initial condition"
+         ! print*,"LHB debug line162 CaMa init error : output write start"
          CALL CMF_OUTPUT_WRITE
       ENDIF
 
@@ -259,6 +270,7 @@ ENDIF
       !*** get initialization end time time
       CALL CPU_TIME(ZTT1)
       !$ ZTT1=OMP_GET_WTIME()
+      ! print*,"LHB debug line162 CaMa init error : start finish"
 
       write(LOGNAM,*) "CMF::DRV_INIT: initialization finished:"
       write(LOGNAM,*) "Elapsed cpu time (Init)", ZTT1-ZTT0,"Seconds"

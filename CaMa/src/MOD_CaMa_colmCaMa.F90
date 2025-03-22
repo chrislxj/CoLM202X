@@ -26,25 +26,29 @@ MODULE MOD_CaMa_colmCaMa
    USE CMF_DRV_ADVANCE_MOD,       only: CMF_DRV_ADVANCE
    USE CMF_CTRL_FORCING_MOD,      only: CMF_FORCING_GET, CMF_FORCING_PUT
    USE CMF_CTRL_OUTPUT_MOD,       only: CMF_OUTPUT_INIT,CMF_OUTPUT_END,NVARSOUT,VAROUT
-   USE YOS_CMF_INPUT,             only: NXIN, NYIN, DT,DTIN,IFRQ_INP,LLEAPYR,NX,NY,RMIS,DMIS
+   USE YOS_CMF_INPUT,             only: NXIN, NYIN, DT,DTIN,IFRQ_INP,LLEAPYR,NX,NY,RMIS,DMIS,WEST,EAST,NORTH,SOUTH
    USE MOD_Precision,             only: r8,r4
-   USE YOS_CMF_INPUT ,            only: LROSPLIT,LWEVAP,LWINFILT,CSETFILE
-   USE YOS_CMF_MAP,               only: D1LON, D1LAT
-   USE YOS_CMF_INPUT,             only: WEST,EAST,NORTH,SOUTH
-
+   USE YOS_CMF_INPUT ,            only: LROSPLIT,LWEVAP,LWINFILT, LDAMIRR
    USE MOD_SPMD_Task
    USE CMF_CTRL_TIME_MOD
    USE MOD_Vars_Global,           only: spval
    USE MOD_Vars_1DFluxes
+#ifdef CROP
+   USE MOD_LandCrop
+#endif
    USE MOD_Qsadv
+   USE YOS_CMF_PROG,              only: dirrig_cama, dirrig_cama_orig,dirrig_cama_unmt, release_cama, release_cama_riv, release_cama_dam, release_cama_rof, &
+                                       D2RUNOFF
+
    USE CMF_CTRL_RESTART_MOD
+   USE YOS_CMF_TIME, ONLY: IHHMM
+   USE YOS_CMF_MAP, ONLY:  R2GRDARE
    IMPLICIT NONE
    !----------------------- Dummy argument --------------------------------
    integer I,J
    integer(KIND=JPIM)              :: ISTEPX              ! total time step
    integer(KIND=JPIM)              :: ISTEPADV            ! time step to be advanced within DRV_ADVANCE
    real(KIND=JPRB),ALLOCATABLE     :: ZBUFF(:,:,:)        ! Buffer to store forcing runoff
-   real(KIND=JPRB),ALLOCATABLE     :: ZBUFF_2(:,:,:)        ! Buffer to store forcing runoff
 
    INTERFACE colm_CaMa_init
       MODULE PROCEDURE colm_CaMa_init
@@ -62,22 +66,15 @@ CONTAINS
    SUBROUTINE colm_CaMa_init
    USE MOD_LandPatch
    USE YOS_CMF_TIME,          only: YYYY0
-
    IMPLICIT NONE
    !** local variables
 
    integer i,j
    integer(KIND=JPIM)          :: JF
-
- 
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
 #endif
-
-      IF (p_is_master) THEN
-
-         CSETFILE = DEF_CaMa_Namelist
-
+      IF(p_is_master)THEN
          !Namelist handling
          CALL CMF_DRV_INPUT
          !get the time information from colm namelist
@@ -185,39 +182,32 @@ CONTAINS
                STOP
             END SELECT
          ENDDO
-
-      ENDIF 
+      ENDIF
 
       !Broadcast the variables to all the processors
-      CALL mpi_bcast (NX      ,   1, MPI_INTEGER,   p_address_master, p_comm_glb, p_err) ! number of grid points in x-direction of CaMa-Flood
-      CALL mpi_bcast (NY      ,   1, MPI_INTEGER,   p_address_master, p_comm_glb, p_err) ! number of grid points in y-direction of CaMa-Flood
-      CALL mpi_bcast (IFRQ_INP ,   1, MPI_INTEGER,  p_address_master, p_comm_glb, p_err) ! input frequency of CaMa-Flood (hour)
-      CALL mpi_bcast (LWEVAP ,   1, MPI_LOGICAL,  p_address_master, p_comm_glb, p_err)   ! switch for inundation evaporation
-      CALL mpi_bcast (LWINFILT ,   1, MPI_LOGICAL,  p_address_master, p_comm_glb, p_err) ! switch for inundation re-infiltration
+      CALL mpi_bcast (NX       ,   1, MPI_INTEGER,   p_address_master, p_comm_glb, p_err) ! number of grid points in x-direction of CaMa-Flood
+      CALL mpi_bcast (NY       ,   1, MPI_INTEGER,   p_address_master, p_comm_glb, p_err) ! number of grid points in y-direction of CaMa-Flood
+      CALL mpi_bcast (IFRQ_INP ,   1, MPI_INTEGER,   p_address_master, p_comm_glb, p_err) ! input frequency of CaMa-Flood (hour)
+      CALL mpi_bcast (LWEVAP   ,   1, MPI_LOGICAL,   p_address_master, p_comm_glb, p_err)   ! switch for inundation evaporation
+      CALL mpi_bcast (LWINFILT ,   1, MPI_LOGICAL,   p_address_master, p_comm_glb, p_err) ! switch for inundation re-infiltration
+      CALL mpi_bcast (LDAMIRR  ,   1, MPI_LOGICAL,   p_address_master, p_comm_glb, p_err)  ! switch for deficit irrigation
 
-      IF (.not. allocated(D1LAT))  allocate (D1LAT(NY))
-      IF (.not. allocated(D1LON))  allocate (D1LON(NX))
 
-#ifdef SinglePrec_CMF
-      CALL mpi_bcast (D1LAT, NY, MPI_REAL4, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (D1LON, NX, MPI_REAL4, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (SOUTH,  1, MPI_REAL4, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (NORTH,  1, MPI_REAL4, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (WEST ,  1, MPI_REAL4, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (EAST ,  1, MPI_REAL4, p_address_master, p_comm_glb, p_err) !
-#else
-      CALL mpi_bcast (D1LAT, NY, MPI_REAL8, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (D1LON, NX, MPI_REAL8, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (SOUTH,  1, MPI_REAL8, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (NORTH,  1, MPI_REAL8, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (WEST ,  1, MPI_REAL8, p_address_master, p_comm_glb, p_err) !
-      CALL mpi_bcast (EAST ,  1, MPI_REAL8, p_address_master, p_comm_glb, p_err) !
-#endif
+      real_WEST = real(WEST)
+      real_EAST = real(EAST)
+      real_SOUTH = real(SOUTH)
+      real_NORTH = real(NORTH)
+      CALL mpi_bcast (real_WEST,    1, mpi_real8,   p_address_master, p_comm_glb, p_err) ! number of grid points in x-direction of CaMa-Flood
+      CALL mpi_bcast (real_EAST,    1, mpi_real8,   p_address_master, p_comm_glb, p_err) ! number of grid points in x-direction of CaMa-Flood
+      CALL mpi_bcast (real_SOUTH,   1, mpi_real8,   p_address_master, p_comm_glb, p_err) ! number of grid points in x-direction of CaMa-Flood
+      CALL mpi_bcast (real_NORTH,   1, mpi_real8,   p_address_master, p_comm_glb, p_err) ! number of grid points in x-direction of CaMa-Flood
 
       !allocate the data structure for cama
-      CALL gcama%define_by_center (D1LAT,D1LON,real(SOUTH,kind=8), real(NORTH,kind=8), real(WEST,kind=8), real(EAST,kind=8)) !define the grid for cama
+      ! CALL gcama%define_by_ndims (NX, NY)  !define the data structure for cama
+      CALL gcama%define_by_ndims_cama (NX, NY, real_WEST, real_EAST, real_SOUTH, real_NORTH)  !define the data structure for cama
       CALL mp2g_cama%build_arealweighted (gcama, landpatch) !build the mapping between cama and mpi
       CALL mg2p_cama%build_arealweighted (gcama, landpatch)
+
       CALL cama_gather%set (gcama)
 
       !allocate the cama-flood related variable for accumulation
@@ -231,18 +221,43 @@ CONTAINS
          allocate (fevpg_2d  (NX,NY))
          allocate (finfg_2d  (NX,NY))
          !allocate data buffer for input forcing, flood fraction and flood depth
-         allocate (ZBUFF(NX,NY,2))
-         allocate (ZBUFF_2(NX,NY,2))
+         allocate (ZBUFF(NX,NY,4))
          allocate (fldfrc_tmp(NX,NY))
          allocate (flddepth_tmp(NX,NY))
+         allocate (dirrig_2d (NX,NY))
+         allocate (dirrig_2d_orig (NX,NY))
+         allocate (dirrig_cama (NX,NY))
+         allocate (dirrig_cama_orig(NX,NY))
+         allocate (dirrig_cama_unmt(NX,NY))
+         allocate (withdrawal_tmp(NX,NY))
+         allocate (withdrawal_riv_tmp(NX,NY))
+         allocate (withdrawal_dam_tmp(NX,NY))
+         allocate (withdrawal_rof_tmp(NX,NY))
+         allocate (release_cama(NX,NY))
+         allocate (release_cama_riv(NX,NY))
+         allocate (release_cama_dam(NX,NY))
+         allocate (release_cama_rof(NX,NY))
+         ! allocate (check_zbuff(NX,NY))
          !Initialize the data buffer for input forcing, flood fraction and flood depth
          runoff_2d(:,:)    = 0.0D0 !runoff in master processor
          fevpg_2d(:,:)     = 0.0D0 !evaporation in master processor
          finfg_2d(:,:)     = 0.0D0 !re-infiltration in master processor
          ZBUFF(:,:,:)      = 0.0D0 !input forcing in master processor
-         ZBUFF_2(:,:,:)    = 0.0D0 !input forcing in master processor
          fldfrc_tmp(:,:)   = 0.0D0 !flood fraction in master processor
          flddepth_tmp(:,:) = 0.0D0 !flood depth in master processor
+         dirrig_2d(:,:)    = 0.0D0 !deficit_irrigation in master processor
+         dirrig_2d_orig(:,:) = 0.0D0 !deficit_irrigation in master processor
+         dirrig_cama(:,:)  = 0.0D0 !deficit_irrigation in master processor
+         dirrig_cama_orig(:,:) = 0.0D0 !deficit_irrigation in master processor
+         dirrig_cama_unmt(:,:) = 0.0D0 !deficit_irrigation in master processor
+         release_cama(:,:) = 0.0D0 !release in master processor
+         release_cama_riv(:,:) = 0.0D0 !release in master processor
+         release_cama_dam(:,:) = 0.0D0 !release in master processor
+         release_cama_rof(:,:) = 0.0D0 !release in master processor
+         withdrawal_tmp(:,:)    = 0.0D0 !withdrawal in master processor
+         withdrawal_riv_tmp(:,:)    = 0.0D0 !withdrawal in master processor
+         withdrawal_dam_tmp(:,:)    = 0.0D0 !withdrawal in master processor
+         withdrawal_rof_tmp(:,:)    = 0.0D0 !withdrawal in master processor
       ENDIF
       !allocate the cama-flood related variable in worker processors
       IF (p_is_worker) THEN
@@ -250,15 +265,28 @@ CONTAINS
          allocate (fldfrc_cama(numpatch))   !flood fraction in worker processors
          allocate (fevpg_fld(numpatch))     !evaporation in worker processors
          allocate (finfg_fld(numpatch))     !re-infiltration in worker processors
+         allocate (dirrig_tmp(numpatch))    ! demand irrigation in worker processors 
+         allocate (dirrig_day(numpatch))    ! demand irrigation(day) in worker processors
+         allocate (withdrawal_cama(numpatch))     !withdrawal in worker processors
+         allocate (withdrawal_riv_cama(numpatch)) !withdrawal in worker processors
+         allocate (withdrawal_dam_cama(numpatch)) !withdrawal in worker processors
+         allocate (withdrawal_rof_cama(numpatch)) !withdrawal in worker processors
          flddepth_cama(:)     =  0.0D0
          fldfrc_cama(:)       =  0.0D0
          fevpg_fld(:)         =  0.0D0
          finfg_fld(:)         =  0.0D0
+         dirrig_tmp(:)        =  0.0D0
+         dirrig_day(:)        =  0.0D0
+         withdrawal_cama(:)   =  0.0D0
+         withdrawal_riv_cama(:) =  0.0D0
+         withdrawal_dam_cama(:) =  0.0D0
+         withdrawal_rof_cama(:) =  0.0D0
       ENDIF
    END SUBROUTINE colm_CaMa_init
 
 !####################################################################
    SUBROUTINE colm_cama_drv(idate_sec)
+   USE MOD_LandPatch
    IMPLICIT NONE
    integer, intent(in)  :: idate_sec     ! calendar (year, julian day, seconds)
       !Accumulate cama-flood related flux variables
@@ -271,6 +299,24 @@ CONTAINS
          ! Prepare sending the accumulated runoff flux varilble to cama model (master processor to worker processors)
          CALL colm2cama_real8 (a_rnof_cama, f_rnof_cama, runoff_2d)
 
+         
+         IF ( LDAMIRR ) THEN 
+#ifdef USEMPI
+               CALL mpi_barrier (p_comm_glb, p_err)
+#endif
+            ! Prepare sending the accumulated deficit irriggation varilble to cama model (master processor to worker processors)
+               IF (p_is_worker) THEN
+                  dirrig_tmp = a_dirrig_cama
+                  if(idate_sec == 3600*int(IFRQ_INP))then 
+                     dirrig_day = 0.0D0
+                  endif
+                  dirrig_day = dirrig_day + dirrig_tmp
+               ENDIF
+               CALL colmvar2cama_real8 (a_dirrig_cama, f_dirrig_cama, dirrig_2d)
+               ! call colm2cama_real8 (a_dirrig_cama, f_dirrig_cama, dirrig_2d_orig)
+         ENDIF
+         
+         
          ! Prepare sending the accumulated inundation evaporation flux to cama model (master processor to worker processors)
          ! only if the inundation evaporation is turned on
          IF (LWEVAP) THEN
@@ -303,17 +349,55 @@ CONTAINS
                   ZBUFF(i,j,1)=runoff_2d(i,j)/1000.0D0   ! mm/s -->m/s
                   ZBUFF(i,j,2)=0.0D0
                   IF (LWEVAP) THEN
-                     ZBUFF_2(i,j,1)=fevpg_2d(i,j)/1000.0D0 ! mm/s -->m/s
+                     ZBUFF(i,j,3)=fevpg_2d(i,j)/1000.0D0 ! mm/s -->m/s
                   ELSE
-                     ZBUFF_2(i,j,1)=0.0D0
+                     ZBUFF(i,j,3)=0.0D0
                   ENDIF
                   IF (LWINFILT) THEN
-                     ZBUFF_2(i,j,2)=finfg_2d(i,j)/1000.0D0  !mm/s -->m/s
+                     ZBUFF(i,j,4)=finfg_2d(i,j)/1000.0D0  !mm/s -->m/s
                   ELSE
-                     ZBUFF_2(i,j,2)=0.0D0
+                     ZBUFF(i,j,4)=0.0D0
+                  ENDIF
+                  IF (LDAMIRR) THEN
+                     IF (dirrig_2d(i,j).LE.0.0) THEN
+                        dirrig_cama(i,j) = 0.0D0
+                     ELSE IF (dirrig_2d(i,j).GT.0.0) THEN
+                        dirrig_cama(i,j) = dirrig_2d(i,j)/1000.0D0 ! kg -> m3
+                        ! write(*,*),"LHB debug line339 withdraw error : i, j, dirrig_cama -----> ",&
+                        !    i, j, dirrig_cama(i,j), dirrig_2d_orig(i,j)
+                     ENDIF
                   ENDIF
                ENDDO
             ENDDO
+
+            !!!! save original dirrig_cama
+            if(idate_sec == 3600*int(IFRQ_INP))then 
+                  dirrig_cama_orig(:,:) = 0.0D0
+            endif
+            !!!! update dirrig_cama
+            write(LOGNAM,*) 'debug-zsl: dirrig_cama_unmt-sum:', sum(dirrig_cama_unmt) * 1.E-9
+            dirrig_cama(:,:) = dirrig_cama(:,:) + dirrig_cama_unmt(:,:)
+            !!!! save initial dirrig_cama
+            dirrig_cama_orig(:,:) = dirrig_cama_orig(:,:) + dirrig_cama(:,:)
+            
+            !!!! initialize
+            release_cama_riv(:,:) = 0.0D0
+            release_cama_dam(:,:) = 0.0D0
+            release_cama_rof(:,:) = 0.0D0
+            release_cama(:,:) = 0.0D0
+            
+            !!!!!withdraw water from runoff
+            ! write(LOGNAM,*) "LHB debug line399 withdraw runoff : runoff_ ----->", sum(ZBUFF(:,:,1))
+            ! write(LOGNAM,*) "LHB debug line399 withdraw runoff : runoff ----->", sum(ZBUFF(:,:,1)*R2GRDARE(:,:)*DTIN)
+            ! write(LOGNAM,*) "LHB debug line399 withdraw runoff : dirrig_cama ----->", sum(dirrig_cama(:,:))
+            release_cama_rof(:,:) = min(dirrig_cama(:,:), ZBUFF(:,:,1)*R2GRDARE(:,:)*DTIN)
+            release_cama_rof(:,:) = max(0.0D0, release_cama_rof(:,:))
+            dirrig_cama(:,:) = dirrig_cama(:,:) - release_cama_rof(:,:)
+            ZBUFF(:,:,1) = (ZBUFF(:,:,1)*R2GRDARE(:,:)*DTIN - release_cama_rof(:,:))/R2GRDARE(:,:)/DTIN
+            ! write(LOGNAM,*) "LHB debug line405 withdraw runoff : runoff_ ----->", sum(ZBUFF(:,:,1))
+            ! write(LOGNAM,*) "LHB debug line405 withdraw runoff : runoff ----->", sum(ZBUFF(:,:,1)*R2GRDARE(:,:)*DTIN)
+            ! write(LOGNAM,*) "LHB debug line405 withdraw runoff : dirrig_cama ----->", sum(dirrig_cama(:,:))
+            ! write(LOGNAM,*) "LHB debug line405 withdraw runoff : release_cama_rof ----->", sum(release_cama_rof(:,:))
 
             ! Simulating the hydrodynamics in continental-scale rivers
             ! ----------------------------------------------------------------------
@@ -321,9 +405,14 @@ CONTAINS
             ! Get the time step of cama-flood simulation
             ISTEPADV=INT(DTIN/DT,JPIM)
             ! Interporlate variables & send to CaMa-Flood
-            CALL CMF_FORCING_PUT(ZBUFF,ZBUFF_2)
+            ! write(LOGNAM,*) "Debug-zsl-0507 ZBUFF(:,:,1)  ", size(ZBUFF(:,:,1),1), size(ZBUFF(:,:,1),2), ZBUFF(:,:,1)
+            ! check_zbuff = ZBUFF(:,:,1)
+            ! write(LOGNAM,*) "LHB debug line404 runoff error : D2RUNOFF -----> ", sum(D2RUNOFF(:,:))
+            CALL CMF_FORCING_PUT(ZBUFF)
+            
             ! Advance CaMa-Flood model for ISTEPADV
             CALL CMF_DRV_ADVANCE(ISTEPADV)
+            ! write(LOGNAM,*) "LHB debug line416 runoff error : D2RUNOFF -----> ", sum(D2RUNOFF(:,:))
             ! Get the flood depth and flood fraction from cama-flood model
             IF (LWINFILT .or. LWEVAP) THEN
                CALL get_fldinfo()
@@ -345,6 +434,56 @@ CONTAINS
             IF (p_is_worker) flddepth_cama=flddepth_cama*1000.D0 !m --> mm
             IF (p_is_worker) fldfrc_cama=fldfrc_cama/100.D0     !% --> [0-1]
          ENDIF
+
+
+            !!!!!!!!!!!!!!!!!
+         IF ( LDAMIRR ) THEN  
+#ifdef USEMPI
+            CALL mpi_barrier (p_comm_glb, p_err)
+#endif
+            if (p_is_master) then
+               DO i = 1, NX
+                  DO j = 1, NY
+                     ! IF (dirrig_cama(i,j).GT.0 .and. release_cama(i,j).GT.0) then
+                     IF (dirrig_cama_orig(i,j).GT.0) then
+                        release_cama(i,j) = release_cama_riv(i,j) + release_cama_dam(i,j) + release_cama_rof(i,j)
+                        withdrawal_tmp(i,j) = release_cama(i,j)/dirrig_cama_orig(i,j)
+                        withdrawal_riv_tmp(i,j) = release_cama_riv(i,j)/dirrig_cama_orig(i,j)
+                        withdrawal_dam_tmp(i,j) = release_cama_dam(i,j)/dirrig_cama_orig(i,j) 
+                        withdrawal_rof_tmp(i,j) = release_cama_rof(i,j)/dirrig_cama_orig(i,j)
+                        ! write(*,*) "LHB debug line358 withdraw error : i,j  -----> ", i, j
+                        ! write(*,*) "LHB debug line358 withdraw error : demand -----> ", dirrig_cama_orig(i,j)
+                        ! write(*,*) "LHB debug line358 withdraw error : supply -----> ", release_cama(i,j)
+                        ! write(*,*) "LHB debug line358 withdraw error : ratio -----> ", withdrawal_tmp(i,j)
+                        ! ! WRITE(*, '(A, I4, I4, F16.4)'),"LHB debug line358 withdraw error : grid, demand -----> ", i, j, dirrig_cama(i,j)
+                        ! ! WRITE(*, '(A, I4, I4, F16.4)'),"LHB debug line358 withdraw error : grid, supply -----> ", i, j, release_cama(i,j)
+                        ! ! WRITE(*, '(A, I4, I4, F16.4)'),"LHB debug line358 withdraw error : grid, ratio -----> ", i, j, withdrawal_tmp(i,j)
+                        ! ! WRITE(*, '(A, 2I6, 3F16.4)'),"LHB debug line374 withdraw error : i, j, demand, supply, ratio -----> ", & 
+                        ! !    i, j, dirrig_cama(i,j), release_cama(i,j), withdrawal_tmp(i,j)
+                     ELSE
+                        withdrawal_tmp(i,j) = 0.D0
+                        withdrawal_riv_tmp(i,j) = 0.D0
+                        withdrawal_dam_tmp(i,j) = 0.D0
+                        withdrawal_rof_tmp(i,j) = 0.D0
+                     ENDIF
+                  ENDDO
+               ENDDO
+            endif
+
+#ifdef USEMPI
+            CALL mpi_barrier (p_comm_glb, p_err)
+#endif      
+            if(p_is_worker)then
+               withdrawal_cama = dirrig_day
+               withdrawal_riv_cama = dirrig_day
+               withdrawal_dam_cama = dirrig_day
+               withdrawal_rof_cama = dirrig_day
+            endif
+            CALL camavar2colm_real8 (withdrawal_tmp, f_withdrawal_cama, withdrawal_cama)
+            CALL camavar2colm_real8 (withdrawal_riv_tmp, f_withdrawal_riv_cama, withdrawal_riv_cama)
+            CALL camavar2colm_real8 (withdrawal_dam_tmp, f_withdrawal_dam_cama, withdrawal_dam_cama)
+            CALL camavar2colm_real8 (withdrawal_rof_tmp, f_withdrawal_rof_cama, withdrawal_rof_cama)
+         ENDIF
       ENDIF
    END SUBROUTINE colm_cama_drv
 
@@ -357,16 +496,35 @@ CONTAINS
       CALL deallocate_acc_cama_Fluxes ()
       IF(p_is_master)THEN
          ! finalize CaMa-Flood
-         deallocate(ZBUFF)
+         deallocate (ZBUFF)
          deallocate (runoff_2d)
          deallocate (fevpg_2d)
          deallocate (finfg_2d)
+         deallocate (dirrig_2d)
+         deallocate (dirrig_2d_orig)
+         deallocate (dirrig_cama)
+         deallocate (dirrig_cama_orig)
+         deallocate (withdrawal_tmp)
+         deallocate (withdrawal_riv_tmp)
+         deallocate (withdrawal_dam_tmp)
+         deallocate (withdrawal_rof_tmp)
+         deallocate (release_cama)
+         deallocate (release_cama_riv)
+         deallocate (release_cama_dam)
+         deallocate (release_cama_rof)
+         ! deallocate (check_zbuff)
       ENDIF
       IF (p_is_worker) THEN
          deallocate (flddepth_cama)
          deallocate (fldfrc_cama)
          deallocate (fevpg_fld)
          deallocate (finfg_fld)
+         deallocate (dirrig_tmp)
+         deallocate (dirrig_day)
+         deallocate (withdrawal_cama)
+         deallocate (withdrawal_riv_cama)
+         deallocate (withdrawal_dam_cama)
+         deallocate (withdrawal_rof_cama)
       ENDIF
    END SUBROUTINE colm_cama_exit
 
@@ -453,7 +611,7 @@ CONTAINS
    ! 2002.08.30  Yongjiu Dai   @ BNU
    ! 1999.09.15  Yongjiu Dai   @ BNU
    USE MOD_Precision
-   USE MOD_Const_Physical, only: cpair,rgas,vonkar,grav
+   USE MOD_Const_Physical, only : cpair,rgas,vonkar,grav
    USE MOD_FrictionVelocity
    USE MOD_TurbulenceLEddy
    IMPLICIT NONE
@@ -657,7 +815,6 @@ CONTAINS
       qref   = qm + vonkar/fq*dqh * (fq2m/vonkar - fq/vonkar)
       z0m   = z0mg
    END SUBROUTINE get_fldevp
-
 
 #endif
 END MODULE MOD_CaMa_colmCaMa

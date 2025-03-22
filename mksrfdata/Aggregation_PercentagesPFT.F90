@@ -206,7 +206,7 @@ SUBROUTINE Aggregation_PercentagesPFT (gland, dir_rawdata, dir_model_landdata, l
       IF (.not. USE_SITE_pctcrop) THEN
          allocate (SITE_croptyp(numpatch))
          allocate (SITE_pctcrop(numpatch))
-         SITE_croptyp = cropclass
+         SITE_croptyp = cropclass + N_PFT - 1
          SITE_pctcrop = pctshrpch
       ENDIF
 #endif
