@@ -45,6 +45,7 @@ CONTAINS
       DT_DEF=DT
 
       !=== 0. calculate river and floodplain stage (for DT calc & )
+      ! print*,"LHB debug line48 camarun error : calculate river and floodplain stage"
       CALL CMF_PHYSICS_FLDSTG
 
       NT=1
@@ -56,6 +57,7 @@ CONTAINS
       DO IT=1, NT
 
          !=== 1. Calculate river discharge 
+         ! print*,"LHB debug line48 camarun error : Calculate river discharge"
          IF ( LKINE ) THEN
             CALL CMF_CALC_OUTFLW_KINE       !!  OPTION: kinematic
          ELSEIF( LSLPMIX ) THEN
@@ -70,17 +72,20 @@ CONTAINS
          ENDIF
 
          ! --- v4.12: damout before pthout for water buget error
+         ! print*,"LHB debug line75 camarun error : damout"
          IF ( LDAMOUT ) THEN
             CALL CMF_DAMOUT_CALC            !! reservoir operation
          ENDIF
 
          ! --- Water budget adjustment and calculate inflow
+         ! print*,"LHB debug line81 camarun error : Water budget adjustment and calculate inflow"
          CALL CMF_CALC_INFLOW
          IF ( LDAMOUT ) THEN
             CALL CMF_DAMOUT_WATBAL            !! reservoir operation
          ENDIF
 
          ! --- Bifurcation channel flow
+         ! print*,"LHB debug line88 camarun error : Bifurcation channel flow"
          IF( LPTHOUT )THEN
             IF( LLEVEE )THEN
                CALL CMF_LEVEE_OPT_PTHOUT            !! bifurcation channel flow
@@ -90,9 +95,11 @@ CONTAINS
          ENDIF
 
          ! --- save value for next tstet
+         ! print*,"LHB debug line98 camarun error : save value for next tstet"
          CALL CALC_VARS_PRE
 
          !=== 2.  Calculate the storage in the next time step in FTCS diff. eq.
+         ! print*,"LHB debug line102 camarun error : Calculate the storage"
          CALL CMF_CALC_STONXT
 
    !=== option for ILS coupling
@@ -103,13 +110,16 @@ CONTAINS
 #endif
 
          !=== 3. calculate river and floodplain staging
+         ! print*,"LHB debug line113 camarun error : calculate river and floodplain staging"
          CALL CMF_PHYSICS_FLDSTG
 
          !=== 4.  write water balance monitoring to IOFILE
+         ! print*,"LHB debug line117 camarun error : write water balance monitoring"
          CALL CALC_WATBAL(IT)
 
 
          !=== 5. calculate averages, maximum
+         ! print*,"LHB debug line122 camarun error : calculate averages"
          CALL CMF_DIAG_AVEMAX
 
 !=== option for ILS coupling
@@ -126,6 +136,8 @@ CONTAINS
       IF ( LOUTINS ) THEN
          CALL CMF_CALC_OUTINS            !! reservoir operation
       ENDIF
+      
+      ! print*,"LHB debug line140 camarun error : physics end"
 
 
    CONTAINS
