@@ -77,6 +77,10 @@ PROGRAM CoLM
    USE MOD_LightningData
 #endif
 
+#ifdef CROP
+   USE MOD_CropReadin
+#endif
+
 #ifdef LULCC
    USE MOD_Lulcc_Driver
 #endif
@@ -95,6 +99,10 @@ PROGRAM CoLM
 
 #ifdef USEMPI
    USE MOD_HistWriteBack
+#endif
+
+#ifdef EXTERNAL_LAKE
+   USE MOD_Lake_Namelist
 #endif
 
    IMPLICIT NONE
@@ -125,10 +133,10 @@ PROGRAM CoLM
    integer :: e_year, e_month, e_day, e_seconds, e_julian
    integer :: p_year, p_month, p_day, p_seconds, p_julian
    integer :: lc_year, lai_year
-   integer :: month, mday, year_p, month_p, mday_p
+   integer :: month, mday, year_p, month_p, mday_p, month_prev, mday_prev
    integer :: spinup_repeat, istep
 
-   type(timestamp) :: ststamp, itstamp, etstamp, ptstamp
+   type(timestamp) :: ststamp, itstamp, etstamp, ptstamp, time_prev
 
    integer*8 :: start_time, end_time, c_per_sec, time_used
 !-----------------------------------------------------------------------
@@ -155,6 +163,10 @@ PROGRAM CoLM
       CALL getarg (1, nlfile)
 
       CALL read_namelist (nlfile)
+
+#ifdef EXTERNAL_LAKE
+      CALL read_lake_namelist (nlfile)
+#endif
 
 #ifdef USEMPI
       IF (DEF_HIST_WriteBack) THEN
@@ -326,7 +338,7 @@ PROGRAM CoLM
 
 #ifdef BGC
       IF (DEF_USE_NITRIF) THEN
-         CALL init_nitrif_data (sdate)
+         CALL init_nitrif_data (ststamp)
       ENDIF
 
       IF (DEF_NDEP_FREQUENCY==1)THEN ! Initial annual ndep data readin
@@ -343,6 +355,10 @@ PROGRAM CoLM
          CALL init_fire_data (sdate(1))
          CALL init_lightning_data (sdate)
       ENDIF
+#endif
+
+#ifdef CROP
+   CALL CROP_readin ()
 #endif
 
 #if (defined CatchLateralFlow)
@@ -386,7 +402,15 @@ PROGRAM CoLM
          IF(DEF_USE_OZONEDATA)THEN
             CALL update_Ozone_data(itstamp, deltim)
          ENDIF
+
 #ifdef BGC
+         IF(DEF_USE_NITRIF) THEN
+            time_prev = itstamp + int(-deltim)
+            CALL julian2monthday(time_prev%year,time_prev%day,month_prev,mday_prev)
+            if(month_p /= month_prev)then
+               CALL update_nitrif_data (month_p)
+            end if
+         ENDIF
          IF(DEF_USE_FIRE)THEN
             CALL update_lightning_data (itstamp, deltim)
          ENDIF
@@ -407,11 +431,6 @@ PROGRAM CoLM
          CALL julian2monthday (jdate(1), jdate(2), month, mday)
 
 #ifdef BGC
-         IF(DEF_USE_NITRIF) THEN
-            IF (month /= month_p) THEN
-               CALL update_nitrif_data (month)
-            ENDIF
-         ENDIF
 
          IF (DEF_NDEP_FREQUENCY==1)THEN ! Read Annual Ndep data
             IF (jdate(1) /= year_p) THEN

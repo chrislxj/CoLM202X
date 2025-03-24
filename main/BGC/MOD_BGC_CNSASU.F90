@@ -218,7 +218,7 @@ CONTAINS
    real(r8),dimension(1:ndecomp_pools_vr,1)                        :: soilmatrixn_cap
 
     ! Save the C and N pool size at begin of each year, which are used to calculate C and N capacity at end of each year.
-      IF (idate(2) .eq. 1 .and. idate(3) .eq. 1800)THEN  
+      IF (idate(2) .eq. 1 .and. idate(3) .eq. deltim)THEN  
          DO m = ps, pe
             leafc0_p             (m) = max(leafc_p             (m),epsi)
             leafc0_storage_p     (m) = max(leafc_storage_p     (m),epsi)

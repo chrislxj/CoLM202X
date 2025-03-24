@@ -77,6 +77,10 @@ CONTAINS
    USE MOD_PercentagesPFTReadin
    USE MOD_SoilParametersReadin
    USE MOD_SoilTextureReadin
+#ifdef EXTERNAL_LAKE
+   USE MOD_Lake_TimeVars
+   USE MOD_Lake_Namelist, only: DEF_External_Lake
+#endif
 
    IMPLICIT NONE
 
@@ -1166,32 +1170,42 @@ CONTAINS
 #endif
 
 #ifdef CROP
-         CALL CROP_readin ()
-         IF (p_is_worker) THEN
-            DO i = 1, numpatch
-               IF(patchtype(i) .eq. 0)THEN
-                  ps = patch_pft_s(i)
-                  pe = patch_pft_e(i)
-                  DO m = ps, pe
-                     ivt = pftclass(m)
-                     IF(ivt >= npcropmin)THEN
-                       leafc_p (m) = 0._r8
-                       frootc_p(m) = 0._r8
-                       tlai    (i) = 0._r8
-                       tsai    (i) = 0._r8
-                       tlai_p  (m) = 0._r8
-                       tsai_p  (m) = 0._r8
-                     ENDIF
-                  ENDDO
-               ENDIF
-            ENDDO
+      IF (p_is_worker) THEN
+         DO i = 1, numpatch
+            IF(patchtype(i) .eq. 0)THEN
+               ps = patch_pft_s(i)
+               pe = patch_pft_e(i)
+               DO m = ps, pe
+                  ivt = pftclass(m)
+                  IF(ivt >= npcropmin)THEN
+                     leafc_p (m) = 0._r8
+                     frootc_p(m) = 0._r8
+                     tlai    (i) = 0._r8
+                     tsai    (i) = 0._r8
+                     tlai_p  (m) = 0._r8
+                     tsai_p  (m) = 0._r8
+                  ENDIF
+               ENDDO
+            ENDIF
+         ENDDO
+      ENDIF
+      IF (p_is_worker) THEN
+         IF(DEF_USE_IRRIGATION)THEN
+            irrig_rate(:) = 0._r8
+            deficit_irrig(:) = 0._r8
+            actual_irrig(:) = 0._r8
+            sum_irrig(:) = 0._r8  
+            sum_deficit_irrig(:) = 0._r8      
+            sum_irrig_count(:) = 0._r8
+            n_irrig_steps_left(:) = 0
+            waterstorage(:) = 0._r8
+            groundwater_demand(:) = 0._r8
+            groundwater_supply(:) = 0._r8
+#ifdef CaMa_Flood
+            reservoirriver_demand(:) = 0._r8
+            reservoirriver_supply(:) = 0._r8
+#endif
          ENDIF
-      IF(DEF_USE_IRRIGATION)THEN
-         irrig_rate(:) = 0._r8
-         deficit_irrig(:) = 0._r8
-         sum_irrig(:) = 0._r8
-         sum_irrig_count(:) = 0._r8
-         n_irrig_steps_left(:) = 0
       ENDIF
 #endif
 #endif
@@ -1208,7 +1222,13 @@ CONTAINS
          t_lake      (:,:) = 285.
          lake_icefrac(:,:) = 0.
          savedtke1   (:)   = tkwat
-
+#ifdef EXTERNAL_LAKE
+         DO i = 1, numpatch
+            IF(patchtype(i) == 4) THEN
+               CALL InitLakeTimeVars(i, lakedepth(i), t_lake(:,i), lake_icefrac(:,i), savedtke1(i))
+            ENDIF
+         ENDDO
+#endif
       ENDIF
       ! ------------------------------------------
 
@@ -1300,6 +1320,12 @@ CONTAINS
                ,use_soilini, nl_soil_ini, soil_z, soil_t(1:,i), soil_w(1:,i), use_snowini, snow_d(i) &
                ! for SOIL Water INIT by using water table depth
                ,use_wtd, zwtmm, zc_soimm, zi_soimm, vliq_r, nprms, prms)
+               
+#ifdef EXTERNAL_LAKE
+            IF(patchtype(i) == 4) THEN
+               z0m(i) = DEF_External_Lake%DEF_LAKE_Z0M
+            ENDIF
+#endif
 
 #ifdef URBAN_MODEL
             IF (m == URBAN) THEN

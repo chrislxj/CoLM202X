@@ -127,11 +127,11 @@ CONTAINS
                ENDIF
 
                ! "stubble" after harvest
-               IF(DEF_USE_Fire)THEN
-                  IF (harvdate_p(m) < 999 .and. tlai_p(m) == 0._r8) THEN
+               IF (harvdate_p(m) < 999 .and. tlai_p(m) == 0._r8) THEN
+                  IF(DEF_USE_Fire)THEN
                      tsai_p(m) = 0.25_r8*(1._r8-farea_burned(i)*0.90_r8)    !changed by F. Li and S. Levis
-                     peaklai_p(m) = 0
                   ENDIF
+                  peaklai_p(m) = 0
                ENDIF
 #endif
             ENDIF

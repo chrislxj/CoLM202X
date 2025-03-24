@@ -255,8 +255,6 @@ OBJS_MAIN = \
 				MOD_BGC_Veg_CNNDynamics.o                 \
 				MOD_BGC_Veg_CNFireBase.o                  \
 				MOD_BGC_Veg_CNFireLi2016.o                \
-				MOD_Irrigation.o                          \
-				MOD_BGC_driver.o                          \
 				MOD_Vars_2DForcing.o                      \
 				MOD_UserSpecifiedForcing.o                \
 				MOD_ForcingDownscaling.o                  \
@@ -300,6 +298,8 @@ OBJS_MAIN = \
 				MOD_CheckEquilibrium.o                    \
 				MOD_LightningData.o                       \
 				MOD_CaMa_colmCaMa.o                       \
+				MOD_Irrigation.o                          \
+				MOD_BGC_driver.o                          \
 				MOD_Catch_LateralFlow.o                   \
 				MOD_Urban_Longwave.o                      \
 				MOD_Urban_NetSolar.o                      \

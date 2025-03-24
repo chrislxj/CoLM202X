@@ -65,7 +65,16 @@ MODULE YOS_CMF_PROG
    real(KIND=JPRD),allocatable,target     :: P2DAMINF(:,:)         !! reservoir inflow [m3/s]; discharge before operation
 
    !================================================
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: dirrig_cama(:,:)
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: dirrig_cama_orig(:,:)
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: dirrig_cama_unmt(:,:)
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: release_cama(:,:)
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: release_cama_riv(:,:)
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: release_cama_dam(:,:)
+   REAL(KIND=JPRB),ALLOCATABLE,TARGET     :: release_cama_rof(:,:)
+   
+   !================================================
    !!!*** levee variables
-   real(KIND=JPRD),allocatable,target     :: P2LEVSTO(:,:)         !! flood storage in protected side (storage betwen river & levee)
+   real(KIND=JPRD),ALLOCATABLE,TARGET     :: P2LEVSTO(:,:)         !! flood storage in protected side (storage betwen river & levee)
 
 END MODULE YOS_CMF_PROG
