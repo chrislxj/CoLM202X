@@ -75,6 +75,6 @@ MODULE YOS_CMF_PROG
    
    !================================================
    !!!*** levee variables
-   real(KIND=JPRD),allocatable,target     :: P2LEVSTO(:,:)         !! flood storage in protected side (storage betwen river & levee)
+   real(KIND=JPRD),ALLOCATABLE,TARGET     :: P2LEVSTO(:,:)         !! flood storage in protected side (storage betwen river & levee)
 
 END MODULE YOS_CMF_PROG

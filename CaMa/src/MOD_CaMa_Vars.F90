@@ -362,6 +362,7 @@ CONTAINS
          D2RIVVEL_AVG, D2GDWRTN_AVG, D2RUNOFF_AVG, D2ROFSUB_AVG,                         &
          D2OUTFLW_MAX, D2STORGE_MAX, D2RIVDPH_MAX,                                       &
          d2daminf_avg, D2WEVAPEX_AVG,D2WINFILTEX_AVG, D2LEVDPH !!! added
+   USE YOS_CMF_INPUT, only: LLEVEE
  !      USE MOD_Vars_2DFluxes
 
    IMPLICIT NONE
@@ -462,11 +463,13 @@ CONTAINS
       CALL flux_map_and_write_2d_cama(DEF_hist_cama_vars%winfilt, &
       real(D2WINFILTEX_AVG), file_hist, 'winfilt', itime_in_file,'inundation water infiltration','m/s')
 
-      CALL flux_map_and_write_2d_cama(DEF_hist_cama_vars%levsto, &
-      real(P2LEVSTO), file_hist, 'levsto', itime_in_file,'protected area storage','m3')
+      IF ( LLEVEE  )THEN   
+         CALL flux_map_and_write_2d_cama(DEF_hist_cama_vars%levsto, &
+         real(P2LEVSTO), file_hist, 'levsto', itime_in_file,'protected area storage','m3')
 
-      CALL flux_map_and_write_2d_cama(DEF_hist_cama_vars%levdph, &
-      real(D2LEVDPH), file_hist, 'levdph', itime_in_file,'protected area depth','m')
+         CALL flux_map_and_write_2d_cama(DEF_hist_cama_vars%levdph, &
+         real(D2LEVDPH), file_hist, 'levdph', itime_in_file,'protected area depth','m')
+      ENDIF
       
       !*** reset variable
       CALL CMF_DIAG_RESET
