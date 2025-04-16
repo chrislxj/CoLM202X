@@ -79,6 +79,7 @@ MODULE MOD_UserSpecifiedForcing
    PUBLIC :: init_user_specified_forcing ! initialization of the selected forcing dataset
    PUBLIC :: metfilename                 ! identify the forcing file name
    PUBLIC :: metpreprocess               ! preprocess the forcing data
+   integer,parameter :: VARID_CBL = 9, VARID_CO2 = 10
 
 CONTAINS
 
@@ -94,7 +95,10 @@ CONTAINS
       NVAR = DEF_forcing%NVAR
       NVAR_default=NVAR
       IF (DEF_USE_CBL_HEIGHT) THEN
-         NVAR=NVAR+1
+         NVAR=9
+      ENDIF
+      IF (DEF_USE_CO2) THEN
+         NVAR=10
       ENDIF
 
       IF (allocated(dtime )) deallocate(dtime)
@@ -144,8 +148,17 @@ CONTAINS
          fprefix (NVAR) = DEF_forcing%CBL_fprefix
          vname   (NVAR) = DEF_forcing%CBL_vname
          tintalgo(NVAR) = DEF_forcing%CBL_tintalgo
+         timelog (NVAR) = DEF_forcing%CBL_timelog
          dtime   (NVAR) = DEF_forcing%CBL_dtime
          offset  (NVAR) = DEF_forcing%CBL_offset
+      ENDIF
+      IF (DEF_USE_CO2) THEN
+         fprefix (VARID_CO2) = DEF_forcing%CO2_fprefix
+         vname   (VARID_CO2) = DEF_forcing%CO2_vname
+         tintalgo(VARID_CO2) = DEF_forcing%CO2_tintalgo
+         timelog (VARID_CO2) = DEF_forcing%CO2_timelog
+         dtime   (VARID_CO2) = DEF_forcing%CO2_dtime
+         offset  (VARID_CO2) = DEF_forcing%CO2_offset
       ENDIF
    END SUBROUTINE init_user_specified_forcing
 

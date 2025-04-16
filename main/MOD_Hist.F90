@@ -330,6 +330,11 @@ CONTAINS
             a_solarin, file_hist, 'f_xy_solarin', itime_in_file, sumarea, filter, &
             'downward solar radiation at surface','W/m2')
 
+         ! downward solar radiation at surface [W/m2]
+         CALL write_history_variable_2d ( DEF_hist_vars%xy_pco2m, &
+            a_pco2m, file_hist, 'f_xy_PCO2', itime_in_file, sumarea, filter, &
+            'partial pressure of atmospheric CO2','Pa')
+
          ! rain [mm/s]
          CALL write_history_variable_2d ( DEF_hist_vars%xy_rain, &
             a_rain, file_hist, 'f_xy_rain', itime_in_file, sumarea, filter, &

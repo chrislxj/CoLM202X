@@ -441,6 +441,8 @@ CONTAINS
             IF (ivar == 6 .and. trim(vname(ivar)) == 'NULL') has_v = .false.
             IF (trim(vname(ivar)) == 'NULL') CYCLE     ! no data, CYCLE
             IF (trim(tintalgo(ivar)) == 'NULL') CYCLE
+            IF (.not. DEF_USE_CBL_HEIGHT .and. ivar .eq. 9) CYCLE
+            IF (.not. DEF_USE_CO2 .and. ivar .eq. 10) CYCLE
 
             ! to make sure the forcing data calculated is in the range of time
             ! interval [LB, UB]
@@ -521,6 +523,20 @@ CONTAINS
          IF (DEF_USE_CBL_HEIGHT) THEN
          CALL block_data_copy (forcn(9), forc_xy_hpbl   )
          ENDIF
+         IF (DEF_USE_CO2) THEN
+            DO iblkme = 1, gblock%nblkme
+                ib = gblock%xblkme(iblkme)
+                jb = gblock%yblkme(iblkme)
+ 
+                DO j = 1, gforc%ycnt(jb)
+                   DO i = 1, gforc%xcnt(ib)
+                      forc_xy_pco2m%blk(ib,jb)%val(i,j) = forcn(10)%blk(ib,jb)%val(i,j) &
+                                                        * forc_xy_pbot%blk(ib,jb)%val(i,j) * 1.e-6
+                   ENDDO
+                ENDDO
+             ENDDO
+          ENDIF
+
 
          IF (has_u .and. has_v) THEN
             CALL block_data_copy (forcn(5), forc_xy_us )
@@ -627,8 +643,10 @@ CONTAINS
          ! [GET ATMOSPHERE CO2 CONCENTRATION DATA]
          year  = idate(1)
          CALL julian2monthday (idate(1), idate(2), month, mday)
-         pco2m = get_monthly_co2_mlo(year, month)*1.e-6
-         CALL block_data_copy (forc_xy_pbot, forc_xy_pco2m, sca = pco2m        )
+         IF(.not. DEF_USE_CO2)THEN
+            pco2m = get_monthly_co2_mlo(year, month)*1.e-6
+            CALL block_data_copy (forc_xy_pbot, forc_xy_pco2m, sca = pco2m        )
+         ENDIF
          CALL block_data_copy (forc_xy_pbot, forc_xy_po2m , sca = 0.209_r8     )
 
       ENDIF
@@ -925,6 +943,9 @@ CONTAINS
       IF (DEF_USE_CBL_HEIGHT) THEN
          CALL check_vector_data ('Forcing hpbl  ', forc_hpbl )
       ENDIF
+      IF (DEF_USE_CO2) THEN
+         CALL check_vector_data ('Forcing co2   ', forc_pco2m  )
+      ENDIF
 
 #ifdef USEMPI
       CALL mpi_barrier (p_comm_glb, p_err)
@@ -968,6 +989,10 @@ CONTAINS
       DO ivar = 1, NVAR
 
          IF (trim(vname(ivar)) == 'NULL') CYCLE     ! no data, CYCLE
+
+         IF (.not. DEF_USE_CBL_HEIGHT .and. ivar .eq. 9) CYCLE ! skip CBL data if not turn on DEF_USE_CBL_HEIGHT
+
+         IF (.not. DEF_USE_CO2 .and. ivar .eq. 10) CYCLE ! skip CO2 data if not turn on DEF_USE_CO2
 
          ! lower and upper boundary data already exist, CYCLE
          IF ( .not.(tstamp_LB(ivar)=='NULL') .and. .not.(tstamp_UB(ivar)=='NULL') .and. &
@@ -1235,6 +1260,9 @@ CONTAINS
 
          filename = trim(dir_forcing)//trim(metfilename(-1,-1,-1,-1))
          DO ivar = 1, NVAR
+            IF (.not. DEF_USE_CBL_HEIGHT .and. ivar .eq. 9) CYCLE
+            IF (.not. DEF_USE_CO2 .and. ivar .eq. 10) CYCLE
+
             IF (trim(vname(ivar)) /= 'NULL') THEN
 #ifndef URBAN_MODEL
                CALL ncio_read_period_serial (filename, vname(ivar), its, ite, metcache)

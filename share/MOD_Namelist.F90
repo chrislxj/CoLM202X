@@ -419,14 +419,23 @@ MODULE MOD_Namelist
       character(len=256) :: CBL_fprefix        = 'TPHWL6Hrly/clmforc.cruncep.V4.c2011.0.5d.TPQWL.'
       character(len=256) :: CBL_vname          = 'blh'
       character(len=256) :: CBL_tintalgo       = 'linear'
+      character(len=256) :: CBL_timelog        = 'instant'
       integer            :: CBL_dtime          = 21600
       integer            :: CBL_offset         = 10800
+
+      character(len=256) :: CO2_fprefix        = 'TPHWL6Hrly/clmforc.cruncep.V4.c2011.0.5d.TPQWL.'
+      character(len=256) :: CO2_vname          = 'blh'
+      character(len=256) :: CO2_tintalgo       = 'linear'
+      character(len=256) :: CO2_timelog        = 'instant'
+      integer            :: CO2_dtime          = 21600
+      integer            :: CO2_offset         = 10800
    END type nl_forcing_type
 
    type (nl_forcing_type) :: DEF_forcing
 
    !CBL height
    logical           :: DEF_USE_CBL_HEIGHT     = .false.
+   logical           :: DEF_USE_CO2            = .false.
 
    character(len=20) :: DEF_Forcing_Interp_Method = 'arealweight' ! 'arealweight' (default) or 'bilinear'
 
@@ -469,6 +478,7 @@ MODULE MOD_Namelist
       logical :: xy_pbot                          = .true.
       logical :: xy_frl                           = .true.
       logical :: xy_solarin                       = .true.
+      logical :: xy_pco2m                         = .true.
       logical :: xy_rain                          = .true.
       logical :: xy_snow                          = .true.
       logical :: xy_ozone                         = .true.
@@ -981,6 +991,7 @@ CONTAINS
       DEF_Srfdata_CompressLevel,              &
 
       DEF_USE_CBL_HEIGHT,                     & !add by zhongwang wei @ sysu 2022/12/31
+      DEF_USE_CO2,                            &
       DEF_USE_PLANTHYDRAULICS,                & !add by xingjie lu @ sysu 2023/05/28
       DEF_USE_MEDLYNST,                       & !add by xingjie lu @ sysu 2023/05/28
       DEF_USE_WUEST,                          & !add by xingjie lu @ sysu 2024/05/28
@@ -1500,6 +1511,7 @@ CONTAINS
       CALL mpi_bcast (DEF_SSP                                ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
 
       CALL mpi_bcast (DEF_USE_CBL_HEIGHT                     ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_USE_CO2                            ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_USE_PLANTHYDRAULICS                ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_USE_MEDLYNST                       ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_USE_WUEST                          ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
@@ -1606,8 +1618,15 @@ CONTAINS
       CALL mpi_bcast (DEF_forcing%CBL_fprefix                ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_forcing%CBL_vname                  ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_forcing%CBL_tintalgo               ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CBL_timelog                ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_forcing%CBL_dtime                  ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_forcing%CBL_offset                 ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CO2_fprefix                ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CO2_vname                  ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CO2_tintalgo               ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CO2_timelog                ,256 ,mpi_character ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CO2_dtime                  ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DEF_forcing%CO2_offset                 ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
 #endif
 
       CALL sync_hist_vars (set_defaults = .true.)
@@ -1704,6 +1723,7 @@ CONTAINS
       CALL sync_hist_vars_one (DEF_hist_vars%xy_pbot     , set_defaults)
       CALL sync_hist_vars_one (DEF_hist_vars%xy_frl      , set_defaults)
       CALL sync_hist_vars_one (DEF_hist_vars%xy_solarin  , set_defaults)
+      CALL sync_hist_vars_one (DEF_hist_vars%xy_pco2m    , set_defaults)
       CALL sync_hist_vars_one (DEF_hist_vars%xy_rain     , set_defaults)
       CALL sync_hist_vars_one (DEF_hist_vars%xy_snow     , set_defaults)
 

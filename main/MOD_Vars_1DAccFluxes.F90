@@ -19,6 +19,7 @@ MODULE MOD_Vars_1DAccFluxes
    real(r8), allocatable :: a_pbot      (:)
    real(r8), allocatable :: a_frl       (:)
    real(r8), allocatable :: a_solarin   (:)
+   real(r8), allocatable :: a_pco2m     (:)
    real(r8), allocatable :: a_hpbl      (:)
 
    real(r8), allocatable :: a_taux      (:)
@@ -424,6 +425,7 @@ CONTAINS
             allocate (a_pbot      (numpatch))
             allocate (a_frl       (numpatch))
             allocate (a_solarin   (numpatch))
+            allocate (a_pco2m     (numpatch))
             allocate (a_hpbl      (numpatch))
 
             allocate (a_taux      (numpatch))
@@ -835,6 +837,7 @@ CONTAINS
             deallocate (a_pbot   )
             deallocate (a_frl    )
             deallocate (a_solarin)
+            deallocate (a_pco2m  )
             deallocate (a_hpbl   )
 
             deallocate (a_taux      )
@@ -1248,6 +1251,7 @@ CONTAINS
             a_pbot      (:) = spval
             a_frl       (:) = spval
             a_solarin   (:) = spval
+            a_pco2m     (:) = spval
             a_hpbl      (:) = spval
 
             a_taux      (:) = spval
@@ -1713,6 +1717,7 @@ CONTAINS
             CALL acc1d (forc_soll,  a_solarin)
             CALL acc1d (forc_solsd, a_solarin)
             CALL acc1d (forc_solld, a_solarin)
+            CALL acc1d (forc_pco2m, a_pco2m  )
             IF (DEF_USE_CBL_HEIGHT) THEN
                CALL acc1d (forc_hpbl , a_hpbl)
             ENDIF
