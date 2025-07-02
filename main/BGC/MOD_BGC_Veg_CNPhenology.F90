@@ -129,7 +129,7 @@ MODULE MOD_BGC_Veg_CNPhenology
 
    USE MOD_TimeManager
    USE MOD_Precision
-   USE MOD_Namelist, only: DEF_USE_FERT
+   USE MOD_Namelist, only: DEF_USE_FERT, DEF_FERT_SOURCE
    USE MOD_BGC_Daylength, only: daylength
    USE MOD_SPMD_Task
 
@@ -1136,7 +1136,11 @@ CONTAINS
                      fert_counter_p(m)  = ndays_on * 86400.
                      IF (ndays_on .gt. 0) THEN
                         IF(DEF_USE_FERT)THEN
-                           fert_p(m) = (manunitro(ivt) * 1000._r8 + fertnitro_p(m))/ fert_counter_p(m)
+                           IF(DEF_FERT_SOURCE == 1)THEN
+                              fert_p(m) = (manunitro(ivt) * 1000._r8 + fertnitro_p(m))/ fert_counter_p(m)
+                           ELSEIF(DEF_FERT_SOURCE == 2)THEN
+                              fert_p(m) = fertnitro_p(m) / fert_counter_p(m)
+                           ENDIF
                         ELSE
                            fert_p(m) = 0._r8
                         ENDIF
