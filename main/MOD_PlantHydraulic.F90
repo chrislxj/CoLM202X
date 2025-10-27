@@ -3,7 +3,7 @@ MODULE MOD_PlantHydraulic
 
 !-----------------------------------------------------------------------
    USE MOD_Precision
-   USE MOD_Namelist, only: DEF_RSS_SCHEME
+   USE MOD_Namelist, only: DEF_RSS_SCHEME, WATERLOGGING
    USE MOD_SPMD_Task
    IMPLICIT NONE
    SAVE
@@ -34,7 +34,7 @@ CONTAINS
                       ck        ,smp       ,hk         ,hksati     ,vegwp      ,&
                       etrsun    ,etrsha    ,rootflux   ,qg         ,&
                       qm        ,gs0sun    ,gs0sha     ,k_soil_root,k_ax_root  ,&
-                      gssun     ,gssha)
+                      gssun     ,gssha     ,waterlogging_t_ivt,waterlogging_i,wlgs_pmeter_ivt)
 
 !=======================================================================
 !
@@ -77,6 +77,8 @@ CONTAINS
    real(r8),intent(inout) :: &
        rstfacsun,    &! canopy resistance stress factors to soil moisture for sunlit leaf
        rstfacsha      ! canopy resistance stress factors to soil moisture for shaded leaf
+   integer,  intent(in)    :: waterlogging_t_ivt
+   real(r8),intent(in):: waterlogging_i,wlgs_pmeter_ivt
 
    real(r8),intent(in) :: &
        laisun,       &! sunlit leaf area index, one-sided
@@ -221,7 +223,7 @@ CONTAINS
               gb_mol, gs0sun, gs0sha, qsatl, qaf, qg, qm, rhoair, &
               psrf, fwet, laisun, laisha, sai, htop, tl, kmax_sun, &
               kmax_sha, kmax_xyl, kmax_root, psi50_sun, psi50_sha, psi50_xyl, psi50_root, ck, &
-              nl_soil, z_soi, rss, ra, rd, smp, k_soil_root, k_ax_root, gssun, gssha)
+              nl_soil, z_soi, rss, ra, rd, smp, k_soil_root, k_ax_root, gssun, gssha,waterlogging_t_ivt,waterlogging_i,wlgs_pmeter_ivt)
 
       vegwp(1:nvegwcs) = x
 
@@ -231,7 +233,7 @@ CONTAINS
               gb_mol, gs0sun, gs0sha, qsatl, qaf, qg, qm,rhoair,&
               psrf, fwet, laisun, laisha, sai, htop, tl, kmax_sun, kmax_sha, kmax_xyl, kmax_root, &
               psi50_sun, psi50_sha, psi50_xyl, psi50_root, ck, nl_soil, z_soi, rss, raw, rd, smp, &
-              k_soil_root, k_ax_root, gssun, gssha)
+              k_soil_root, k_ax_root, gssun, gssha,waterlogging_t_ivt,waterlogging_i,wlgs_pmeter_ivt)
    !
    ! DESCRIPTIONS
    ! compute the transpiration stress using a plant hydraulics approach
@@ -239,6 +241,8 @@ CONTAINS
    !
    ! !ARGUMENTS:
    integer,  intent(in)    :: nvegwcs
+   integer,  intent(in)    :: waterlogging_t_ivt
+   real(r8), intent(in)    :: waterlogging_i,wlgs_pmeter_ivt
    real(r8), intent(inout) :: x(nvegwcs)         ! working copy of vegwp(p,:)
    real(r8), intent(out)   :: rstfacsun          ! sunlit canopy transpiration wetness factor (0 to 1)
    real(r8), intent(out)   :: rstfacsha          ! shaded sunlit canopy transpiration wetness factor (0 to 1)
@@ -281,6 +285,16 @@ CONTAINS
    real(r8), intent(out)   :: gssun              ! sunlit leaf conductance
    real(r8), intent(out)   :: gssha              ! shaded leaf conductance
 
+   real(r8) :: gs_target
+   real(r8) :: up_a
+   real(r8) :: low_a
+   real(r8),parameter :: Tolerance_gap=0.0001_r8
+   real(r8) :: evp_fac
+   real(r8) :: gs_gap
+   integer  :: iter_w
+   integer, parameter :: max_iterw=20
+   real(r8) :: etrsha_o
+   real(r8) :: etrsun_o
 
    real(r8) :: wtl                   ! water conductance for leaf [m/s]
    real(r8) :: A(nvegwcs,nvegwcs)    ! matrix relating d(vegwp) and f: d(vegwp)=A*f
@@ -351,6 +365,34 @@ CONTAINS
       ! retrieve stressed stomatal conductance
          CALL getqflx_qflx2gs_twoleaf(gb_mol,gssun,gssha,etrsun,etrsha,qsatl,qaf,&
                                       rhoair,psrf,laisun,laisha,sai,fwet,tl,rss,raw,rd,qg,qm)
+        IF (WATERLOGGING) THEN
+            IF ((waterlogging_t_ivt > 0 ) .and. (waterlogging_i > 0._r8) .and. ((gssun+gssha)>0)) THEN
+               etrsun_o=etrsun
+               etrsha_o=etrsha
+               gs_target=(gssun+gssha)*exp(wlgs_pmeter_ivt*waterlogging_i)
+               up_a=1._r8
+               low_a=0._r8
+               DO iter_w = 1, max_iterw
+                  evp_fac=(up_a + low_a) / 2._r8
+                  etrsun=etrsun_o*evp_fac
+                  etrsha=etrsha_o*evp_fac
+                  CALL getqflx_qflx2gs_twoleaf(gb_mol,gssun,gssha,etrsun,etrsha,qsatl,qaf,&
+                           rhoair,psrf,laisun,laisha,sai,fwet,tl,rss,raw,rd,qg,qm)
+                  gs_gap = (gssun+gssha)-gs_target
+                  IF ((abs(gs_gap)/ gs_target) < Tolerance_gap) THEN
+                     EXIT
+                  ENDIF
+                  IF (gs_gap < 0._r8 ) THEN
+                     low_a=evp_fac
+                  ELSE
+                     up_a=evp_fac
+                  ENDIF
+                  IF (up_a-low_a < 0.00000001) THEN
+                     EXIT
+                  ENDIF
+               ENDDO
+            ENDIF
+         ENDIF
 
          tprcor   = 44.6*273.16*psrf/1.013e5
       ! compute water stress
@@ -370,8 +412,18 @@ CONTAINS
          IF ( x(leafsha) > x(xyl) )  x(leafsha) = x(xyl)
          etrsun = 0._r8
          etrsha = 0._r8
-         rstfacsun = amax1(plc(x(leafsun),psi50_sun,ck),1.e-2_r8)
-         rstfacsha = amax1(plc(x(leafsha),psi50_sha,ck),1.e-2_r8)
+         IF (WATERLOGGING) THEN
+            IF ((waterlogging_t_ivt > 0 ).and. (waterlogging_i > 0._r8)) THEN
+               rstfacsun = amax1(plc(x(leafsun),psi50_sun,ck)*exp(wlgs_pmeter_ivt*waterlogging_i),1.e-2_r8)
+               rstfacsha = amax1(plc(x(leafsha),psi50_sha,ck)*exp(wlgs_pmeter_ivt*waterlogging_i),1.e-2_r8)
+            ELSE
+               rstfacsun = amax1(plc(x(leafsun),psi50_sun,ck),1.e-2_r8)
+               rstfacsha = amax1(plc(x(leafsha),psi50_sha,ck),1.e-2_r8)
+            ENDIF
+         ELSE
+            rstfacsun = amax1(plc(x(leafsun),psi50_sun,ck),1.e-2_r8)
+            rstfacsha = amax1(plc(x(leafsha),psi50_sha,ck),1.e-2_r8)
+         ENDIF
          gssun = gs0sun * rstfacsun
          gssha = gs0sha * rstfacsha
          rootflux = 0._r8

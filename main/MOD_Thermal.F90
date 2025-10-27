@@ -72,7 +72,7 @@ CONTAINS
                        zol           ,rib           ,ustar         ,qstar         ,&
                        tstar         ,fm            ,fh            ,fq            ,&
                        pg_rain       ,pg_snow       ,t_precip      ,qintr_rain    ,&
-                       qintr_snow    ,snofrz        ,sabg_snow_lyr                 )
+                       qintr_snow    ,snofrz        ,sabg_snow_lyr ,zwt, wdsrf     )
 
 !=======================================================================
 !  this is the main subroutine to execute the calculation
@@ -130,7 +130,7 @@ CONTAINS
 #endif
    USE MOD_SPMD_Task
    USE MOD_Namelist, only: DEF_USE_PLANTHYDRAULICS, DEF_RSS_SCHEME, DEF_SPLIT_SOILSNOW, &
-                           DEF_USE_LCT,DEF_USE_PFT,DEF_USE_PC,DEF_PC_CROP_SPLIT
+                           DEF_USE_LCT,DEF_USE_PFT,DEF_USE_PC,DEF_PC_CROP_SPLIT, WATERLOGGING
 
    IMPLICIT NONE
 
@@ -254,6 +254,9 @@ CONTAINS
        dz_soisno(lb:nl_soil),    &! layer thickness [m]
        z_soisno (lb:nl_soil),    &! node depth [m]
        zi_soisno(lb-1:nl_soil)    ! interface depth [m]
+   real(r8), intent(in) :: zwt        ! the depth to water table [m]
+   real(r8), intent(in) :: wdsrf        ! depth of surface water [mm]
+   real(r8) :: waterlogging_CS
 
    integer , intent(in) :: &
        c3c4 ! C3/C4 plant type
@@ -699,7 +702,7 @@ IF ( patchtype==0.and.DEF_USE_LCT .or. patchtype>0 ) THEN
 !End WUE stomata model parameter
                  forc_hpbl   ,&
                  qintr_rain  ,qintr_snow  ,t_precip    ,hprl        ,dheatl      ,&
-                 smp         ,hk(1:)      ,hksati(1:)  ,rootflux(1:)              )
+                 smp         ,hk(1:)      ,hksati(1:)  ,rootflux(1:),0._r8        )
       ELSE
          tleaf         = forc_t
          laisun        = 0.
@@ -871,6 +874,32 @@ IF (patchtype == 0) THEN
 
          IF (lai_p(i)+sai_p(i) > 1e-6) THEN
 
+            IF (WATERLOGGING)THEN
+               IF (waterlogging_t(p) > 0 ) THEN
+                  IF (hui_p(i)<grnfill(p)) THEN
+                     waterlogging_CS=CS_veg(p)
+                  ELSE
+                     waterlogging_CS=CS_rep(p)
+                  ENDIF
+                  IF (waterlogging_t(p) .eq. 1) THEN
+                     IF (zwt<=0.3_r8) THEN
+
+                        waterlogging_i(i)=waterlogging_i(i)+waterlogging_CS*(30.0_r8-zwt*100.0_r8)* (deltim / 86400.0_r8)
+                     ELSE
+                        waterlogging_i(i)=0
+                     ENDIF
+                  ENDIF
+                  IF (waterlogging_t(p) .eq. 2) THEN
+                     IF (wdsrf>100.0_r8) THEN
+                        waterlogging_i(i)=waterlogging_i(i)+waterlogging_CS*((wdsrf/1000.0_r8)/htop_p(i))* (deltim / 86400.0_r8)!htop_p m  wdsrf mm
+
+                     ELSE
+                        waterlogging_i(i)=0
+                     ENDIF
+                  ENDIF
+               ENDIF
+            ENDIF
+
             CALL LeafTemperature(ipatch,p,deltim  ,csoilc          ,dewmx           ,htvp           ,&
                  lai_p(i)        ,sai_p(i)        ,htop_p(i)       ,hbot_p(i)       ,sqrtdi_p(p)    ,&
                  effcon_p(p)     ,vmax25_p(p)     ,c3c4_p(p)       ,slti_p(p)       ,hlti_p(p)       ,shti_p(p)      ,&
@@ -906,9 +935,13 @@ IF (patchtype == 0) THEN
 !End WUE stomata model parameter
                  forc_hpbl                                                                         ,&
                  qintr_rain_p(i) ,qintr_snow_p(i) ,t_precip        ,hprl_p(i)       ,dheatl_p(i)   ,&
-                 smp             ,hk(1:)          ,hksati(1:)      ,rootflux_p(1:,i)                )
+                 smp             ,hk(1:)          ,hksati(1:)      ,rootflux_p(1:,i),waterlogging_i(i))
          ELSE
-
+            IF (WATERLOGGING) THEN
+               IF (waterlogging_t(p) > 0 ) THEN
+                  waterlogging_i(i) = 0._r8
+               ENDIF
+            ENDIF
             CALL GroundFluxes (zlnd,zsno,forc_hgt_u,forc_hgt_t,forc_hgt_q,forc_hpbl, &
                                forc_us,forc_vs,forc_t,forc_q,forc_rhoair,forc_psrf, &
                                ur,thm,th,thv,t_grnd,qg,rss,dqgdT,htvp, &

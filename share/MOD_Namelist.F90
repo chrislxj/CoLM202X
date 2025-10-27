@@ -190,6 +190,13 @@ MODULE MOD_Namelist
    ! 05/2023, add by Xingjie Lu: use for updating LAI with leaf carbon
    logical :: DEF_USE_LAIFEEDBACK = .false.
 
+   logical  :: WATERLOGGING          = .false.
+   logical  :: HEAT_LEAF          = .false.
+   logical  :: DROUGHT_LEAF          = .false.
+   logical  :: HEAT_GRAIN          = .false.
+   logical  :: COLD_GRAIN          = .false.
+   logical  :: DROUGHT_GRAIN          = .false.
+
 ! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! ----- Part 8: Initialization -----
 ! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -981,6 +988,13 @@ CONTAINS
       DEF_CASE_NAME,                          &
       DEF_domain,                             &
 
+      WATERLOGGING ,&
+      HEAT_LEAF ,&
+      DROUGHT_LEAF ,&
+      HEAT_GRAIN ,&
+      COLD_GRAIN  ,&
+      DROUGHT_GRAIN  ,&
+
       SITE_fsitedata,                         &
       SITE_lon_location,                      &
       SITE_lat_location,                      &
@@ -1278,6 +1292,38 @@ CONTAINS
             write(*,*) 'Warning: LAI feedback is not supported for BGC off.'
             write(*,*) 'DEF_USE_LAIFEEDBACK is set to false automatically when BGC is turned off.'
          ENDIF
+
+         IF(WATERLOGGING )THEN
+            WATERLOGGING  = .false.
+            write(*,*) '                  *****                  '
+            write(*,*) 'WATERLOGGING  is set to false automatically when BGC is turned off.'
+         ENDIF
+         IF(HEAT_LEAF  )THEN
+            HEAT_LEAF   = .false.
+            write(*,*) '                  *****                  '
+            write(*,*) 'HEAT_LEAF  is set to false automatically when BGC is turned off.'
+         ENDIF
+         IF(DROUGHT_LEAF   )THEN
+            DROUGHT_LEAF    = .false.
+            write(*,*) '                  *****                  '
+            write(*,*) 'DROUGHT_LEAF  is set to false automatically when BGC is turned off.'
+         ENDIF
+         IF(HEAT_GRAIN   )THEN
+            HEAT_GRAIN    = .false.
+            write(*,*) '                  *****                  '
+            write(*,*) 'HEAT_GRAIN   is set to false automatically when BGC is turned off.'
+         ENDIF
+         IF(COLD_GRAIN    )THEN
+            COLD_GRAIN     = .false.
+            write(*,*) '                  *****                  '
+            write(*,*) 'COLD_GRAIN  is set to false automatically when BGC is turned off.'
+         ENDIF
+         IF(DROUGHT_GRAIN  )THEN
+            DROUGHT_GRAIN   = .false.
+            write(*,*) '                  *****                  '
+            write(*,*) 'DROUGHT_GRAIN  is set to false automatically when BGC is turned off.'
+         ENDIF
+
 
          IF(DEF_USE_SASU)THEN
             DEF_USE_SASU = .false.
@@ -1590,6 +1636,13 @@ CONTAINS
       CALL mpi_bcast (DEF_LAI_START_YEAR                     ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_LAI_END_YEAR                       ,1   ,mpi_integer   ,p_address_master ,p_comm_glb ,p_err)
       CALL mpi_bcast (DEF_LAI_CHANGE_YEARLY                  ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+
+      CALL mpi_bcast (WATERLOGGING                    ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (HEAT_LEAF                     ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DROUGHT_LEAF                    ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (HEAT_GRAIN                     ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (COLD_GRAIN                    ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
+      CALL mpi_bcast (DROUGHT_GRAIN                     ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)
 
       ! 05/2023, added by Xingjie lu
       CALL mpi_bcast (DEF_USE_LAIFEEDBACK                    ,1   ,mpi_logical   ,p_address_master ,p_comm_glb ,p_err)

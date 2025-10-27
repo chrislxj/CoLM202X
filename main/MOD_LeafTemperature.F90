@@ -6,7 +6,7 @@ MODULE MOD_LeafTemperature
    USE MOD_Precision
    USE MOD_Namelist, only: DEF_USE_CBL_HEIGHT, DEF_USE_PLANTHYDRAULICS, DEF_USE_OZONESTRESS, &
                            DEF_RSS_SCHEME, DEF_Interception_scheme, DEF_SPLIT_SOILSNOW, &
-                           DEF_VEG_SNOW
+                           DEF_VEG_SNOW, WATERLOGGING
    USE MOD_SPMD_Task
 
    IMPLICIT NONE
@@ -56,7 +56,7 @@ CONTAINS
 !End WUE stomata model parameter
               hpbl       ,&
               qintr_rain ,qintr_snow ,t_precip   ,hprl       ,dheatl     ,smp        ,&
-              hk         ,hksati     ,rootflux                                        )
+              hk         ,hksati     ,rootflux   ,waterlogging_i                      )
 
 !=======================================================================
 ! !DESCRIPTION:
@@ -115,6 +115,7 @@ CONTAINS
    USE MOD_PlantHydraulic, only:PlantHydraulicStress_twoleaf, getvegwp_twoleaf
    USE MOD_Ozone, only: CalcOzoneStress
    USE MOD_Qsadv
+   USE MOD_Const_PFT, only: wlgs_pmeter, waterlogging_t
 
    IMPLICIT NONE
 
@@ -227,7 +228,8 @@ CONTAINS
         hk      (1:nl_soil)   ! soil hydraulic conductance
    real(r8), intent(in) :: &
         hpbl         ! atmospheric boundary layer height [m]
-
+   real(r8), intent(in) :: &
+        waterlogging_i
    real(r8), intent(inout) :: &
         tl,         &! leaf temperature [K]
         ldew,       &! depth of water on foliage [mm]
@@ -719,7 +721,7 @@ CONTAINS
                      psi50_sha  ,psi50_xyl  ,psi50_root ,htop       ,ck         ,&
                      smp        ,hk         ,hksati     ,vegwp      ,etrsun     ,&
                      etrsha     ,rootflux   ,qg         ,qm         ,gs0sun     ,&
-                     gs0sha     ,k_soil_root,k_ax_root  ,gssun      ,gssha       )
+                     gs0sha     ,k_soil_root,k_ax_root  ,gssun      ,gssha      ,waterlogging_t(ivt),waterlogging_i,wlgs_pmeter(ivt))
 
                etr  = etrsun + etrsha
                gssun = gssun * laisun

@@ -14,14 +14,6 @@
 
 ! 2.1 3D Urban model (put it temporarily here):
 #undef URBAN_MODEL
-!    Dependence:  only LULC_IGBP subgrid type for
-!    single point URBAN_MODEL right now.
-#if (defined URBAN_MODEL && defined SinglePoint)
-#define LULC_IGBP
-#undef LULC_USGS
-#undef LULC_IGBP_PFT
-#undef LULC_IGBP_PC
-#endif
 
 ! 3. If defined, debug information is output.
 #define CoLMDEBUG
@@ -39,8 +31,8 @@
 
 ! 5. Hydrological process options.
 ! 5.1 Two soil hydraulic models can be used.
-#define   Campbell_SOIL_MODEL
-#undef  vanGenuchten_Mualem_SOIL_MODEL
+#undef   Campbell_SOIL_MODEL
+#define  vanGenuchten_Mualem_SOIL_MODEL
 ! 5.2 If defined, lateral flow is modeled.
 #define CatchLateralFlow
 !    Conflicts :
@@ -49,11 +41,7 @@
 #endif
 
 ! 6. If defined, CaMa-Flood model will be used.
-#define CaMa_Flood
-#if (defined SinglePoint)
 #undef CaMa_Flood
-#endif
-
 
 ! 7. If defined, BGC model is used.
 #define BGC
@@ -76,15 +64,14 @@
 
 ! 9. If defined, data assimilation is used.
 #undef DataAssimilation
-#if (defined DataAssimilation)
-#define LULC_IGBP
-#undef LULC_USGS
-#undef LULC_IGBP_PFT
-#undef LULC_IGBP_PC
+
+! 10. Vector write model.
+!     1) "VectorInOneFileP" : write vector data in one file in parallel mode;  
+!     2) "VectorInOneFileS" : write vector data in one file in serial mode;  
+!     3) Neither "VectorInOneFileS" nor "VectorInOneFileP" is defined : 
+!        write vector data in separate files.  
+#undef VectorInOneFileP
+!     Conflict
+#ifdef VectorInOneFileP
+#undef VectorInOneFileS
 #endif
-
-! 10. Interface to AI model.
-#undef USESplitAI
-
-! 11. External lake models.
-#undef EXTERNAL_LAKE

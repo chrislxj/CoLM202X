@@ -14,6 +14,7 @@ MODULE MOD_BGC_Veg_CNPhenology
 ! !REVISION:
 ! Xingjie Lu, 2021, revised the CLM5 code to be compatible with CoLM code structure.
 ! Fang Li, 2022, implemented GPAM crop model in this MODULE.
+! Dezheng Yin and Fang Li, 2025, add extreme weather and climate stress in GPAM
 !
 ! !USES:
    USE MOD_Const_PFT, only: &
@@ -21,7 +22,8 @@ MODULE MOD_BGC_Veg_CNPhenology
        lflitcn, lf_flab, lf_fcel, lf_flig  , fr_flab, fr_fcel, fr_flig, &
 
  ! crop variables
-       lfemerg, mxmat, grnfill,  baset
+       lfemerg, mxmat, grnfill,  baset, &
+       heatleaf_t, heatthres, heatleaf_pmeter, droughtleaf_t, droughtleaf_pmeter
 
    USE MOD_BGC_Vars_TimeInvariants, only: &
        ndays_on        , ndays_off      , fstor2tran, crit_dayl  , crit_onset_fdd, crit_onset_swi, &
@@ -39,7 +41,7 @@ MODULE MOD_BGC_Veg_CNPhenology
    USE MOD_Const_Physical, only: tfrz
 
    USE MOD_Vars_TimeVariables, only: &
-       t_soisno, smp
+       t_soisno, smp, qref
 
    USE MOD_BGC_Vars_TimeVariables, only: &
        dayl, prev_dayl, prec10, prec60, prec365, prec_today, prec_daily, accumnstep
@@ -77,7 +79,7 @@ MODULE MOD_BGC_Veg_CNPhenology
        croplive_p        , gddplant_p          , harvdate_p          , gddmaturity_p    , &
        hui_p             , peaklai_p           , &
        tref_min_p        , tref_max_p          , tref_min_inst_p     , tref_max_inst_p  , &
-       manunitro_p       , fertnitro_p         , plantdate_p         , fert_p           , &! input from files
+       manunitro_p       , fertnitro_p         , plantdate_p         , fert_p           , gddheading_p, gddheading_pday, max_leafc_p        ,&! input from files
 #endif
 
        leaf_prof_p        , froot_prof_p        , &
@@ -125,11 +127,17 @@ MODULE MOD_BGC_Veg_CNPhenology
        phenology_to_met_n , phenology_to_cel_n , phenology_to_lig_n, &
        grainc_to_cropprodc, grainn_to_cropprodn
 
-   USE MOD_Vars_1DForcing, only: forc_prc, forc_prl
+   USE MOD_Vars_1DForcing, only: forc_prc, forc_prl,&
+#ifdef CROP
+   forc_t, forc_psrf, forc_us, forc_vs
+#endif
+#ifdef CROP
+   USE MOD_Vars_1DFluxes, only:  rnet, fgrnd, fevpa
+#endif
 
    USE MOD_TimeManager
    USE MOD_Precision
-   USE MOD_Namelist, only: DEF_USE_FERT
+   USE MOD_Namelist, only: DEF_USE_FERT, DROUGHT_LEAF , HEAT_LEAF
    USE MOD_BGC_Daylength, only: daylength
    USE MOD_SPMD_Task
 
@@ -206,7 +214,7 @@ CONTAINS
 
          CALL CNOffsetLitterfall(i,ps,pe,deltim,npcropmin)
 
-         CALL CNBackgroundLitterfall(i,ps,pe)
+         CALL CNBackgroundLitterfall(i,ps,pe,deltim)
 
          CALL CNLivewoodTurnover(i,ps,pe)
 
@@ -1120,6 +1128,8 @@ CONTAINS
                ! ENDIF
 
                IF (hui_p(m) >= lfemerg(ivt) .and. hui_p(m) < grnfill(ivt) .and. idpp < mxmat(ivt)) THEN
+                  gddheading_p(m)=0._r8
+                  gddheading_pday(m)=0._r8
                   cphase_p(m) = 2._r8
               ! CALL vernalization IF winter temperate cereal planted, living, and the
               ! vernalization factor is not 1;
@@ -1188,6 +1198,10 @@ CONTAINS
                ELSE IF (hui_p(m) >= grnfill(ivt)) THEN
                   cphase_p(m) = 3._r8
                   bglfr_p(m) = 1._r8/(leaf_long(ivt)*dayspyr*86400.)
+                  IF(idate(3) .eq. 1800) THEN
+                     gddheading_pday(m)=gddheading_p(m)
+                  ENDIF
+                  gddheading_p(m)=gddheading_p(m)+max(0.0_r8,tref_p(m) - (273.15_r8 + baset(ivt))) * deltim / 86400.0_r8
                ENDIF
 
               ! continue fertilizer application WHILE in phase 2;
@@ -1197,6 +1211,17 @@ CONTAINS
                   fert_p(m) = 0._r8
                ELSE ! continue same fert application every timestep
                   fert_counter_p(m) = fert_counter_p(m) - deltim
+               ENDIF
+
+               IF ((heatleaf_t(ivt) .eq. .True. ) .or. (droughtleaf_t(ivt) .eq. .True. )) THEN
+                  IF (cphase_p(m) == 2._r8) THEN
+                     IF (leafc_p(m) > max_leafc_p(m)) THEN
+                        max_leafc_p(m) = leafc_p(m)
+                     ENDIF
+                  ENDIF
+                  IF (cphase_p(m) == 1._r8) THEN
+                     max_leafc_p(m) = 0._r8
+                  ENDIF
                ENDIF
 
             ELSE   ! crop not live
@@ -1376,7 +1401,7 @@ CONTAINS
 
    END SUBROUTINE CNOffsetLitterfall
 
-   SUBROUTINE CNBackgroundLitterfall(i,ps,pe)
+   SUBROUTINE CNBackgroundLitterfall(i,ps,pe,deltim)
 
 ! !DESCRIPTION:
 ! Calculate leaf and fine root background turnover.
@@ -1391,6 +1416,8 @@ CONTAINS
    integer, intent(in) :: i  ! patch index
    integer, intent(in) :: ps ! start pft index
    integer, intent(in) :: pe ! END pft index
+   real(r8),intent(in) :: deltim     ! time step in seconds
+   real(r8) :: potential_evapotranspiration, heatleaf_stress, droughtleaf_stress, time_weight
 
    ! !LOCAL VARIABLES:
    real(r8) :: fr_leafn_to_litter ! fraction of the nitrogen turnover that goes to litter; remaining fraction is retranslocated
@@ -1405,6 +1432,31 @@ CONTAINS
          IF (bglfr_p(m) > 0._r8) THEN
               ! units for bglfr are already 1/s
             leafc_to_litter_p(m)  = bglfr_p(m) * leafc_p(m)
+            IF (HEAT_LEAF) THEN
+               IF(heatleaf_t(ivt) .eq. .True. ) THEN
+                  time_weight=min(1._r8,1-(gddheading_pday(m)/((1-grnfill(ivt))*gddmaturity_p(m))))
+                  heatleaf_stress = max(0._r8,((tref_p(m)- 273.15_r8)-heatthres(ivt))*time_weight*(deltim/86400._r8))
+                  leafc_to_litter_p(m)=leafc_to_litter_p(m)+heatleaf_pmeter(ivt)*heatleaf_stress*max_leafc_p(m)*(1._r8/deltim)
+               ENDIF
+            ENDIF
+            IF (DROUGHT_LEAF) THEN
+               IF(droughtleaf_t(ivt) >0 ) THEN
+                  CALL CalPotentialEvapotranspiration(i,deltim, potential_evapotranspiration)
+                  IF ((fevpa(i)>0._r8) .and. (potential_evapotranspiration >0._r8)) THEN
+                     IF (droughtleaf_t(ivt) .eq. 1) THEN
+                        time_weight=min(1._r8,1-(gddheading_pday(m)/((1-grnfill(ivt))*gddmaturity_p(m))))
+                        droughtleaf_stress = max(0._r8,(0.7_r8*potential_evapotranspiration-fevpa(i)*deltim))*time_weight
+                     ENDIF
+                     IF (droughtleaf_t(ivt) .eq. 2) THEN
+                        droughtleaf_stress = max(0._r8,(0.7_r8*potential_evapotranspiration-fevpa(i)*deltim))
+                     ENDIF
+                  ELSE
+                     droughtleaf_stress = 0._r8
+                  ENDIF
+                  leafc_to_litter_p(m)=leafc_to_litter_p(m)+droughtleaf_pmeter(ivt)*droughtleaf_stress*max_leafc_p(m)*(1._r8/deltim)
+               ENDIF
+            ENDIF
+
             frootc_to_litter_p(m) = bglfr_p(m) * frootc_p(m)
                  ! calculate the leaf N litterfall and retranslocation
             leafn_to_litter_p(m)   = leafc_to_litter_p(m)  / lflitcn(ivt)
@@ -1609,6 +1661,39 @@ CONTAINS
       vf_p(m)=(cumvd_p(m)**5._r8)/(22.5_r8**5._r8+cumvd_p(m)**5._r8)
 
    END SUBROUTINE vernalization
+#endif
+
+#ifdef CROP
+   SUBROUTINE CalPotentialEvapotranspiration(i,deltim, potential_evapotranspiration)
+      integer , intent(in) :: i
+      real(r8), intent(in) :: deltim
+      real(r8), intent(out) :: potential_evapotranspiration
+      real(r8) :: esv    
+      real(r8) :: eav             
+      real(r8) :: ur                  
+      real(r8) :: delta               
+      real(r8) :: gamma               
+      real(r8) :: Timescale_param,fgrnd_mj,forc_psrf_kpa,tair,rnet_mj            
+      
+      Timescale_param=900.0_r8/(86400.0_r8/deltim)
+
+      tair = (forc_t(i)-tfrz)
+      rnet_mj=rnet(i)*0.000001_r8*deltim ![W/m2] -> MJ/m2/step
+      fgrnd_mj=fgrnd(i)*0.000001_r8*deltim ! [W/m2] -> MJ/m2/step
+      forc_psrf_kpa=forc_psrf(i)/1000.0_r8 ! pa -> kap
+      esv=0.6108_r8*EXP(17.27_r8*tair/(tair+237.3_r8))
+      eav = forc_psrf_kpa*qref(i)/(0.622_r8+0.378_r8*qref(i))
+ 
+  
+      ur = max(0.1,sqrt(forc_us(i)*forc_us(i)+forc_vs(i)*forc_vs(i)))
+
+      delta = 4098.0_r8*esv/((tair+237.3_r8)*(tair+237.3_r8))
+      gamma = 0.665_r8*0.001_r8*forc_psrf_kpa
+      potential_evapotranspiration = (0.408_r8*delta*(rnet_mj-fgrnd_mj)+gamma*(Timescale_param/(tair+273.0_r8))*ur* &
+         (esv-eav))/(delta+(gamma*(1.0_r8+0.34_r8*ur)))
+
+
+   END SUBROUTINE CalPotentialEvapotranspiration
 #endif
 
 END MODULE MOD_BGC_Veg_CNPhenology

@@ -1204,7 +1204,7 @@ CONTAINS
                         psi50_xyl(i) ,psi50_root(i),htop(i)      ,ck(i)        ,smp          ,&
                         hk           ,hksati       ,vegwp(:,i)   ,etrsun(i)    ,etrsha(i)    ,&
                         rootflux(:,i),qg           ,qm           ,gs0sun(i)    ,gs0sha(i)    ,&
-                        k_soil_root  ,k_ax_root    ,gssun(i)     ,gssha(i)                    )
+                        k_soil_root  ,k_ax_root    ,gssun(i)     ,gssha(i)     ,0,0._r8,0._r8 )
 
                   etr(i)  = etrsun(i) + etrsha(i)
                   gssun(i) = gssun(i) * laisun(i) * 1.e-6

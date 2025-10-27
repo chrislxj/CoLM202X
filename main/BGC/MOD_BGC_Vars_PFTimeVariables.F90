@@ -136,6 +136,12 @@ MODULE MOD_BGC_Vars_PFTimeVariables
 #ifdef CROP
    logical, allocatable :: croplive_p                (:)     ! flag, true if crop live, not harvested
    real(r8),allocatable :: hui_p                     (:)     ! heat unit index since planting
+   real(r8),allocatable :: gddheading_p                     (:)     ! gdd after heading
+   real(r8),allocatable :: gddheading_pday               (:)
+   real(r8),allocatable :: heatgrain_stress               (:)
+   real(r8),allocatable :: coldgrain_stress               (:)
+   real(r8),allocatable :: droughtgrain_stress               (:)
+   real(r8),allocatable :: max_leafc_p               (:)
    real(r8),allocatable :: gddplant_p                (:)     ! GDD since planting
    integer ,allocatable :: peaklai_p                 (:)     ! flag, 1 if lai at maximum allowed, 0 if lai not at maximum allowed
    real(r8),allocatable :: aroot_p                   (:)     ! root allocation coefficient
@@ -531,6 +537,12 @@ CONTAINS
 ! crop variables
             allocate (croplive_p               (numpft)); croplive_p               (:) = .false.
             allocate (hui_p                    (numpft)); hui_p                    (:) = spval
+            allocate (gddheading_p                    (numpft)); gddheading_p                    (:) = 0._r8
+            allocate (gddheading_pday                    (numpft)); gddheading_pday                    (:) = 0._r8
+            allocate (max_leafc_p                    (numpft)); max_leafc_p                    (:) = 0._r8
+            allocate (heatgrain_stress                    (numpft)); heatgrain_stress                    (:) = 0._r8
+            allocate (coldgrain_stress                    (numpft)); coldgrain_stress                    (:) = 0._r8
+            allocate (droughtgrain_stress                    (numpft)); droughtgrain_stress                    (:) = 0._r8
             allocate (gddplant_p               (numpft)); gddplant_p               (:) = spval
             allocate (peaklai_p                (numpft)); peaklai_p                (:) = spval_i4
             allocate (aroot_p                  (numpft)); aroot_p                  (:) = spval
@@ -898,6 +910,12 @@ CONTAINS
 ! crop variables
       CALL ncio_read_vector (file_restart, 'croplive_p             ', landpft, croplive_p            )
       CALL ncio_read_vector (file_restart, 'hui_p                  ', landpft, hui_p                 )
+      CALL ncio_read_vector (file_restart, 'gddheading_p                  ', landpft, gddheading_p                 )
+      CALL ncio_read_vector (file_restart, 'gddheading_pday                  ', landpft, gddheading_pday                 )
+      CALL ncio_read_vector (file_restart, 'max_leafc_p                  ', landpft, max_leafc_p                 )
+      CALL ncio_read_vector (file_restart, 'heatgrain_stress                  ', landpft, heatgrain_stress                 )
+      CALL ncio_read_vector (file_restart, 'coldgrain_stress                  ', landpft, coldgrain_stress                 )
+      CALL ncio_read_vector (file_restart, 'droughtgrain_stress                  ', landpft, droughtgrain_stress                 )
       CALL ncio_read_vector (file_restart, 'gddplant_p             ', landpft, gddplant_p            )
       CALL ncio_read_vector (file_restart, 'peaklai_p              ', landpft, peaklai_p             )
       CALL ncio_read_vector (file_restart, 'aroot_p                ', landpft, aroot_p               )
@@ -1459,6 +1477,18 @@ CONTAINS
       croplive_p            , compress)
       CALL ncio_write_vector (file_restart, 'hui_p                   ', 'pft', landpft, &
       hui_p             , compress)
+      CALL ncio_write_vector (file_restart, 'gddheading_p                   ', 'pft', landpft, &
+      gddheading_p             , compress)
+      CALL ncio_write_vector (file_restart, 'gddheading_pday                   ', 'pft', landpft, &
+      gddheading_pday             , compress)
+      CALL ncio_write_vector (file_restart, 'max_leafc_p                   ', 'pft', landpft, &
+      max_leafc_p             , compress)
+      CALL ncio_write_vector (file_restart, 'heatgrain_stress                   ', 'pft', landpft, &
+      heatgrain_stress             , compress)
+      CALL ncio_write_vector (file_restart, 'coldgrain_stress                   ', 'pft', landpft, &
+      coldgrain_stress             , compress)
+      CALL ncio_write_vector (file_restart, 'droughtgrain_stress                   ', 'pft', landpft, &
+      droughtgrain_stress             , compress)
       CALL ncio_write_vector (file_restart, 'gddplant_p             ', 'pft', landpft, &
       gddplant_p            , compress)
       CALL ncio_write_vector (file_restart, 'peaklai_p              ', 'pft', landpft, &
@@ -2066,6 +2096,12 @@ CONTAINS
 ! crop variables
             deallocate (croplive_p               )
             deallocate (hui_p                    )
+            deallocate (gddheading_p             )
+            deallocate (gddheading_pday          )
+            deallocate (max_leafc_p          )
+            deallocate (heatgrain_stress          )
+            deallocate (coldgrain_stress          )
+            deallocate (droughtgrain_stress          )
             deallocate (gddplant_p               )
             deallocate (peaklai_p                )
             deallocate (aroot_p                  )
@@ -2439,6 +2475,12 @@ CONTAINS
 #ifdef CROP
 ! crop variables
       CALL check_vector_data ('hui_p                  ', hui_p                  )
+      CALL check_vector_data ('gddheading_p                  ', gddheading_p                  )
+      CALL check_vector_data ('gddheading_pday                  ', gddheading_pday                  )
+      CALL check_vector_data ('max_leafc_p                  ', max_leafc_p                  )
+      CALL check_vector_data ('heatgrain_stress                  ', heatgrain_stress                  )
+      CALL check_vector_data ('coldgrain_stress                  ', coldgrain_stress                  )
+      CALL check_vector_data ('droughtgrain_stress                  ', droughtgrain_stress                  )
       CALL check_vector_data ('gddplant_p             ', gddplant_p             )
       CALL check_vector_data ('aroot_p                ', aroot_p                )
       CALL check_vector_data ('astem_p                ', astem_p                )

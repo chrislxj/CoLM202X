@@ -14,6 +14,7 @@ MODULE MOD_BGC_Veg_NutrientCompetition
 ! !REVISION:
 ! Xingjie Lu, 2022, modify original CLM5 to be compatible with CoLM code structure.
 ! Fang Li, 2022, add GPAM C allocation scheme for crop.
+! Dezheng Yin and Fang Li, 2025, add extreme weather and climate stress in GPAM
 
   !
    USE MOD_Precision
@@ -22,7 +23,18 @@ MODULE MOD_BGC_Veg_NutrientCompetition
        froot_leaf, croot_stem, stem_leaf, flivewd, grperc, grpnow, fcur2, &
 ! crop variables
        astemf, arooti, arootf, fleafi, bfact, declfact, allconss, allconsl, fleafcn, fstemcn, ffrootcn, &
-       lfemerg, grnfill
+       lfemerg, grnfill, heatgrain_t, coldgrain_t, droughtgrain_t, booting, startfilling, heatthres, &
+       coldthres, droughtgrain_thres, rootfr_p, heatgrain_pmeter, coldgrain_pmeter, droughtgrain_pmeter
+   USE MOD_Vars_PFTimeVariables, only: &
+         tref_p
+   USE MOD_Vars_TimeVariables, only: &
+       h2osoi
+   USE MOD_Vars_TimeInvariants, only: &
+#ifdef vanGenuchten_Mualem_SOIL_MODEL
+       theta_r, alpha_vgm, n_vgm, L_vgm, fc_vgm, sc_vgm,&
+#endif
+       porsl, psi0, bsw
+   USE MOD_Hydro_SoilFunction, only: soil_vliq_from_psi
 
    USE MOD_Vars_PFTimeInvariants, only: pftclass, pftfrac
 
@@ -33,10 +45,12 @@ MODULE MOD_BGC_Veg_NutrientCompetition
 #ifdef CROP
        croplive_p, hui_p,  peaklai_p, &
        aroot_p, astem_p, arepr_p, aleaf_p, astemi_p, aleafi_p, vf_p, &
+       heatgrain_stress, coldgrain_stress, droughtgrain_stress,&
 #endif
        c_allometry_p, n_allometry_p, downreg_p, grain_flag_p, annsum_npp_p, &
        leafc_p, livestemc_p, frootc_p
-   USE MOD_Vars_Global, only: nwwheat, nirrig_wwheat
+   USE MOD_Vars_Global, only: nwwheat, nirrig_wwheat, nl_soil, dz_soi
+   USE MOD_Namelist, only: HEAT_GRAIN, COLD_GRAIN , DROUGHT_GRAIN
 
    USE MOD_BGC_Vars_TimeVariables, only: fpg
    USE MOD_Vars_Global, only: ntmp_soybean, ntrp_soybean, nirrig_tmp_soybean, nirrig_trp_soybean
@@ -281,6 +295,9 @@ CONTAINS
    real(r8):: t1                 ! temporary variable
    real(r8):: dayscrecover       ! number of days to recover negative cpool
    integer :: ivt, m
+   real(r8)::  soi_vol_content_mean, soi_vol_wilting_point_mean, &
+   soi_vol_field_capacity_mean,  read_avail_water
+
       dayscrecover = 30._r8
 
       DO m = ps, pe
@@ -381,6 +398,52 @@ CONTAINS
              ! ==================
              ! Next phase: leaf emergence to start of leaf decline
 
+               IF(HEAT_GRAIN)THEN
+                  IF(heatgrain_t(ivt) .eq. .True. )THEN
+                     IF (hui_p(m) >= booting(ivt) .and. hui_p(m) < startfilling(ivt)) THEN
+                        heatgrain_stress(m)=heatgrain_stress(m)+max(0._r8,((tref_p(m)- 273.15_r8)-heatthres(ivt))*(deltim/86400._r8))
+                     ELSE IF (hui_p(m) < booting(ivt) ) THEN
+                        heatgrain_stress(m) = 0._r8
+                     ENDIF
+                  ENDIF
+               ENDIF
+
+
+               IF(COLD_GRAIN)THEN
+                  IF(coldgrain_t(ivt) .eq. .True. ) THEN
+                     IF (hui_p(m) >= booting(ivt) .and. hui_p(m) < startfilling(ivt)) THEN
+                        coldgrain_stress(m)=coldgrain_stress(m)+max(0._r8,(coldthres(ivt)-(tref_p(m)- 273.15_r8))*(deltim/86400._r8))
+                     ELSE IF (hui_p(m) < booting(ivt) ) THEN
+                        coldgrain_stress(m) = 0._r8
+                     ENDIF
+                  ENDIF
+               ENDIF
+
+               IF(DROUGHT_GRAIN)THEN
+                  IF(droughtgrain_t(ivt) .eq. .True. )THEN
+                     IF (hui_p(m) >= booting(ivt) .and. hui_p(m) < startfilling(ivt)) THEN
+                        
+                        soi_vol_content_mean = 0._r8
+                        soi_vol_wilting_point_mean = 0._r8
+                        soi_vol_field_capacity_mean = 0._r8
+                        DO j = 1, nl_soil
+                           soi_vol_content_mean=soi_vol_content_mean+h2osoi(j,i)*rootfr_p(j,ivt)
+                           soi_vol_wilting_point_mean = soi_vol_wilting_point_mean+ soil_vliq_from_psi(-1.5e5, porsl(j,i), theta_r(j,i), psi0(j,i), 5, &
+                           (/alpha_vgm(j,i), n_vgm(j,i), L_vgm(j,i), sc_vgm(j,i), fc_vgm(j,i)/))*rootfr_p(j,ivt)
+                           soi_vol_field_capacity_mean = soi_vol_field_capacity_mean+soil_vliq_from_psi(-3.3e3, porsl(j,i), theta_r(j,i), psi0(j,i), 5, &
+                           (/alpha_vgm(j,i), n_vgm(j,i), L_vgm(j,i), sc_vgm(j,i), fc_vgm(j,i)/))*rootfr_p(j,ivt)
+                        ENDDO
+                        read_avail_water=droughtgrain_thres(ivt)*(soi_vol_field_capacity_mean-soi_vol_wilting_point_mean)
+                        IF (soi_vol_content_mean <= soi_vol_wilting_point_mean) THEN
+                           droughtgrain_stress(m)=droughtgrain_stress(m)+1._r8*(deltim/86400._r8)
+                        ELSE IF (soi_vol_content_mean > soi_vol_wilting_point_mean .and. soi_vol_content_mean <= (soi_vol_field_capacity_mean-read_avail_water)) THEN
+                           droughtgrain_stress(m)=droughtgrain_stress(m)+max(0._r8,((soi_vol_field_capacity_mean-read_avail_water-soi_vol_content_mean)/(soi_vol_field_capacity_mean-read_avail_water-soi_vol_wilting_point_mean))*(deltim/86400._r8))
+                        ENDIF
+                     ELSE IF (hui_p(m) < booting(ivt) ) THEN
+                        droughtgrain_stress(m) = 0._r8
+                     ENDIF
+                  ENDIF
+               ENDIF
                IF (hui_p(m) >= lfemerg(ivt) .and. hui_p(m) < grnfill(ivt)) THEN
                ! allocation rules for crops based on maturity and linear decrease
                ! of amount allocated to roots over course of the growing season
@@ -447,6 +510,20 @@ CONTAINS
                      arepr_p(m) = arepr_p(m)*vf_p(m)
                      aroot_p(m) = 1._r8 - aleaf_p(m) - astem_p(m) - arepr_p(m)
                   ENDIF
+                  IF(COLD_GRAIN) THEN
+                     IF((coldgrain_t(ivt) .eq. .True.) .and. (hui_p(m) >= startfilling(ivt)))THEN
+                        arepr_p(m)=arepr_p(m)*exp(coldgrain_pmeter(ivt)*coldgrain_stress(m))
+                        aroot_p(m) = 1._r8 - aleaf_p(m) - astem_p(m) - arepr_p(m)
+                     ENDIF
+                  ENDIF
+
+                  IF(DROUGHT_GRAIN) THEN
+                     IF((droughtgrain_t(ivt) .eq. .True.) .and. (hui_p(m) >= startfilling(ivt)))THEN
+                        arepr_p(m)=arepr_p(m)*exp(droughtgrain_pmeter(ivt)*droughtgrain_stress(m))
+                        aroot_p(m) = 1._r8 - aleaf_p(m) - astem_p(m) - arepr_p(m)
+                     ENDIF
+                  ENDIF
+
                ELSE                   ! pre emergence
                   aleaf_p(m) = 1.e-5_r8 ! allocation coefficients should be irrelevant
                   astem_p(m) = 0._r8    ! because crops have no live carbon pools;

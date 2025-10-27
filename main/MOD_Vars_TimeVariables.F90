@@ -53,6 +53,7 @@ MODULE MOD_Vars_PFTimeVariables
    real(r8), allocatable :: vegwp_p    (:,:) !vegetation water potential [mm]
    real(r8), allocatable :: gs0sun_p     (:) !working copy of sunlit stomata conductance
    real(r8), allocatable :: gs0sha_p     (:) !working copy of shaded stomata conductance
+   real(r8), allocatable :: waterlogging_i     (:)
 ! END plant hydraulic variables
 ! Ozone Stress Variables
    real(r8), allocatable :: o3coefv_sun_p(:) !Ozone stress factor for photosynthesis on sunlit leaf
@@ -123,6 +124,7 @@ CONTAINS
             allocate (vegwp_p(1:nvegwcs,numpft)); vegwp_p (:,:) = spval
             allocate (gs0sun_p     (numpft)); gs0sun_p      (:) = spval
             allocate (gs0sha_p     (numpft)); gs0sha_p      (:) = spval
+            allocate (waterlogging_i     (numpft)); waterlogging_i      (:) = 0._r8
 ! END plant hydraulic variables
 ! Allocate Ozone Stress Variables
             allocate (o3coefv_sun_p(numpft)) ; o3coefv_sun_p(:) = spval !Ozone stress factor for photosynthesis on sunlit leaf
@@ -177,6 +179,7 @@ CONTAINS
       CALL ncio_read_vector (file_restart, 'qref_p   ',  landpft, qref_p      )
       CALL ncio_read_vector (file_restart, 'rst_p    ',  landpft, rst_p       )
       CALL ncio_read_vector (file_restart, 'z0m_p    ',  landpft, z0m_p       )
+      CALL ncio_read_vector (file_restart, 'waterlogging_i ',  landpft, waterlogging_i)
 IF(DEF_USE_PLANTHYDRAULICS)THEN
       CALL ncio_read_vector (file_restart, 'vegwp_p  ',  nvegwcs, landpft, vegwp_p )
       CALL ncio_read_vector (file_restart, 'gs0sun_p ',  landpft, gs0sun_p   )
@@ -243,6 +246,7 @@ ENDIF
       CALL ncio_write_vector (file_restart, 'qref_p   ', 'pft', landpft, qref_p   , compress)
       CALL ncio_write_vector (file_restart, 'rst_p    ', 'pft', landpft, rst_p    , compress)
       CALL ncio_write_vector (file_restart, 'z0m_p    ', 'pft', landpft, z0m_p    , compress)
+      CALL ncio_write_vector (file_restart, 'waterlogging_i ', 'pft', landpft, waterlogging_i   , compress)
 IF(DEF_USE_PLANTHYDRAULICS)THEN
       CALL ncio_write_vector (file_restart, 'vegwp_p  ', 'vegnodes', nvegwcs,  'pft', landpft, vegwp_p, compress)
       CALL ncio_write_vector (file_restart, 'gs0sun_p ', 'pft', landpft, gs0sun_p   , compress)
@@ -310,6 +314,7 @@ ENDIF
             deallocate (o3uptakesun_p  )  ! Ozone does, sunlit leaf (mmol O3/m^2)
             deallocate (o3uptakesha_p  )  ! Ozone does, shaded leaf (mmol O3/m^2)
             deallocate (irrig_method_p )
+            deallocate (waterlogging_i )
 ! Ozone Stress variables
          ENDIF
       ENDIF
@@ -351,6 +356,7 @@ ENDIF
       CALL check_vector_data ('        qref_p', qref_p         )
       CALL check_vector_data ('         rst_p', rst_p          )
       CALL check_vector_data ('         z0m_p', z0m_p          )
+      CALL check_vector_data ('waterlogging_i', waterlogging_i )
 IF(DEF_USE_PLANTHYDRAULICS)THEN
       CALL check_vector_data ('       vegwp_p', vegwp_p        )
       CALL check_vector_data ('      gs0sun_p', gs0sun_p       )
