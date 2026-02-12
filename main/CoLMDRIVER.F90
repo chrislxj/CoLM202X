@@ -140,6 +140,7 @@ SUBROUTINE CoLMDRIVER (idate,deltim,dolai,doalb,dosst,oro)
                thermk(i),       extkb(i),        extkd(i),        vegwp(1:,i),     &
                gs0sun(i),       gs0sha(i),       &
              ! Ozone Stress Variables
+               o3coefv_sun(i),  o3coefv_sha(i),  o3coefg_sun(i),  o3coefg_sha(i),  &
                lai_old(i),      o3uptakesun(i),  o3uptakesha(i),  forc_ozone(i),   &
              ! End ozone stress variables
              ! WUE stomata model parameter

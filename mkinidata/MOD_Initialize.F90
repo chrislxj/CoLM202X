@@ -1310,6 +1310,8 @@ ENDIF
                ,thermk(i),extkb(i),extkd(i)&
                ,trad(i),tref(i),qref(i),rst(i),emis(i),zol(i),rib(i)&
                ,ustar(i),qstar(i),tstar(i),fm(i),fh(i),fq(i)&
+!Ozone Vairables
+               ,o3coefv_sun(i),o3coefv_sha(i),o3coefg_sun(i),o3coefg_sha(i)&
 #ifdef BGC
                ,use_cnini, totlitc(i), totsomc(i), totcwdc(i), decomp_cpools(:,i), decomp_cpools_vr(:,:,i) &
                ,ctrunc_veg(i), ctrunc_soil(i), ctrunc_vr(:,i) &
